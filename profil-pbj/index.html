@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="ORBITA PBJ Kota Bogor — profil, ruang PBJ, capaian ITKP, perencanaan dan realisasi pengadaan barang/jasa.">
+  <meta name="theme-color" content="#f4f8fb">
+  <link rel="icon" href="../assets/img/favicon.png">
+  <link rel="preload" href="../assets/img/traxpbj-logo.png" as="image">
+  <link rel="preconnect" href="https://script.google.com">
+  <link rel="preconnect" href="https://script.googleusercontent.com">
+  <link rel="preconnect" href="https://docs.google.com">
+  <link rel="preconnect" href="https://drive.google.com">
+  <title>ORBITA PBJ</title>
+  <link rel="stylesheet" href="../assets/css/profile.css?v=27.76">
+  <link rel="stylesheet" href="../assets/css/docs-timeline.css?v=27.76">
+  <link rel="stylesheet" href="../assets/css/forum.css">
+  <link rel="stylesheet" href="../assets/css/control-room.css?v=27.34">
+  <link rel="stylesheet" href="../assets/css/commitment.css?v=27.0">
+  <link rel="stylesheet" href="../assets/css/selection.css?v=28.07">
+  <link rel="stylesheet" href="../assets/css/portal-session.css?v=27.62">
+</head>
+<body class="site-booting">
+  <script>if(location.hash&&location.hash!=='#home'){document.body.classList.add('topnav-destination-active');if(location.hash!=='#ruang-pbj')document.body.classList.add('orbita-content-chapter');}</script>
+  <div class="site-loader" id="siteLoader" aria-hidden="true"><div class="site-loader-grid"></div><div class="site-loader-mark"><img src="../assets/img/LOGOPBJ.png" alt=""></div><div class="site-loader-meta"><b>ORBITA PBJ</b><span data-loader-count>00</span></div><div class="site-loader-line"><i></i></div></div>
+  <script src="../assets/js/boot-loader.js?v=27.7"></script>
+  <div class="scroll-progress" aria-hidden="true"><span id="scrollProgress"></span></div>
+  <button class="back-to-top" id="backToTop" type="button" aria-label="Kembali ke atas" title="Kembali ke atas"><span aria-hidden="true">↑</span></button>
+  <canvas class="pbj-motion-canvas" id="pbjMotionCanvas" aria-hidden="true"></canvas>
+  <div class="pbj-motion-vignette" id="pbjMotionVignette" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Profil PBJ Kota Bogor">
+      <span class="brand-emblem brand-logo" aria-hidden="true"><img src="../assets/img/traxpbj-logo.png" alt=""></span>
+      <span class="brand-copy"><b>ORBITA PBJ</b><small>Orkestrasi Pembinaan dan Tata Kelola Pengadaan</small></span>
+    </a>
+
+    <nav class="main-nav main-nav-mega" aria-label="Menu utama">
+      <div class="main-nav-item has-dropdown" data-top-dropdown>
+        <a class="main-nav-trigger active" href="#home" data-main-chapter="01">Home <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7 5 5 5-5"/></svg></a>
+        <div class="main-nav-dropdown home-dropdown" role="menu">
+          <div class="nav-group">
+            <small>PROFIL PBJ</small>
+            <a href="#pimpinan-pbj">Pimpinan PBJ</a>
+            <a href="#tim-pbj">Tim PBJ</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-nav-item has-dropdown" data-top-dropdown>
+        <a class="main-nav-trigger" href="#ruang-pbj" data-main-chapter="02">Ruang PBJ <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7 5 5 5-5"/></svg></a>
+        <div class="main-nav-dropdown room-dropdown" role="menu">
+          <div class="nav-group">
+            <small>LPSE</small>
+            <a href="https://spse.inaproc.id/kotabogor" target="_blank" rel="noopener noreferrer">SPSE</a>
+            <a href="https://helpdesklpse.kotabogor.go.id/" target="_blank" rel="noopener noreferrer">Helpdesk LPSE</a>
+            <a href="https://sippbj.kotabogor.go.id/" target="_blank" rel="noopener noreferrer">SIPPBJ</a>
+            <a href="https://pbjkotabogor.github.io/DASH-SIPPBJ/" target="_blank" rel="noopener noreferrer">Dashboard Monitoring</a>
+            <button type="button" data-top-service="evaluation">Evaluasi Pengguna Layanan</button>
+            <a href="https://wa.me/628151667956?text=Halo%20admin%20UKPBJ%20Kota%20Bogor%2C%20saya%20ingin%20bertanya%20terkait%20penggunaan%20portal." target="_blank" rel="noopener noreferrer">Chat Konsultasi PBJ</a>
+          </div>
+          <div class="nav-group">
+            <small>PEMBINAAN &amp; ADVOKASI</small>
+            <button type="button" data-top-service="sdm">SDM PBJ</button>
+            <button type="button" data-top-service="forum">Konsultasi &amp; Pendampingan</button>
+            <button type="button" data-top-service="advocacy-events">Edukasi &amp; Kegiatan PBJ</button>
+            <button type="button" data-top-service="advocacy-knowledge">Pusat Pengetahuan PBJ</button>
+            <button type="button" data-top-service="documentation">Dokumentasi</button>
+          </div>
+          <div class="nav-group">
+            <small>PENGELOLAAN PBJ</small>
+            <button type="button" data-top-control="selection">Permohonan Pemilihan</button>
+            <button type="button" data-top-control="overview">Capaian Pengadaan</button>
+            <button type="button" data-top-control="monitoring">Monitoring Paket</button>
+            <button type="button" data-top-control="timing">Ketepatan Pelaksanaan</button>
+            <button type="button" data-top-control="alerts">Perhatian &amp; Tindak Lanjut</button>
+          </div>
+        </div>
+      </div>
+
+      <a href="#itkp" data-main-chapter="03">ITKP</a>
+      <a href="#rekam" data-main-chapter="04">Data</a>
+      <a href="#rapor-kota" data-main-chapter="05">Rapor</a>
+
+      <div class="main-nav-item has-dropdown quick-access" data-top-dropdown>
+        <button class="main-nav-trigger quick-trigger" type="button">Akses Cepat <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7 5 5 5-5"/></svg></button>
+        <div class="main-nav-dropdown quick-dropdown" role="menu">
+          <button type="button" data-top-control="selection">Permohonan Pemilihan</button>
+          <a href="https://sippbj.kotabogor.go.id/" target="_blank" rel="noopener noreferrer">SIPPBJ</a>
+          <a href="https://pbjkotabogor.github.io/DASH-SIPPBJ/" target="_blank" rel="noopener noreferrer">Dashboard Monitoring</a>
+          <button type="button" data-top-service="documentation">Dokumentasi</button>
+        </div>
+      </div>
+    </nav>
+
+    <nav class="main-nav mobile-inline-nav" aria-label="Menu utama mobile">
+      <a href="#home" data-main-chapter="01">Home</a>
+      <a href="#ruang-pbj" data-main-chapter="02">Ruang PBJ</a>
+      <a href="#itkp" data-main-chapter="03">ITKP</a>
+      <a href="#rekam" data-main-chapter="04">Data</a>
+      <a href="#rapor-kota" data-main-chapter="05">Rapor</a>
+      <button type="button" class="mobile-quick-trigger" data-mobile-quick aria-expanded="false">Akses Cepat</button>
+    </nav>
+    <div class="mobile-quick-menu" id="mobileQuickMenu" aria-hidden="true">
+      <button type="button" data-top-control="selection">Permohonan Pemilihan</button>
+      <a href="https://sippbj.kotabogor.go.id/" target="_blank" rel="noopener noreferrer">SIPPBJ</a>
+      <a href="https://pbjkotabogor.github.io/DASH-SIPPBJ/" target="_blank" rel="noopener noreferrer">Dashboard Monitoring</a>
+      <button type="button" data-top-service="documentation">Dokumentasi</button>
+    </div>
+
+    <button class="chapter-button mobile-chapter-button" id="chapterButton" type="button" aria-label="Buka menu navigasi" aria-expanded="false">
+      <span>01</span><b>Home</b>
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h12"/></svg>
+    </button>
+
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ubah mode tampilan" aria-pressed="false" title="Mode gelap / terang">
+      <span class="theme-toggle-track" aria-hidden="true">
+        <span class="theme-toggle-sun">☀</span>
+        <span class="theme-toggle-moon">☾</span>
+        <span class="theme-toggle-orb"></span>
+      </span>
+    </button>
+
+    <button class="admin-entry top-login-primary" type="button" data-portal-login aria-label="Login">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span data-portal-label>Login</span>
+    </button>
+  </header>
+
+  <div id="portalScope" class="portal-scope" hidden></div>
+
+  <div class="chapter-menu" id="chapterMenu" aria-hidden="true">
+    <div class="chapter-menu-inner">
+      <div class="chapter-menu-kicker">ORBITA PBJ · KOTA BOGOR</div>
+      <nav aria-label="Daftar bagian">
+        <a href="#home"><span>01</span><b>Home</b></a>
+        <a href="#ruang-pbj"><span>02</span><b>Ruang PBJ</b></a>
+        <a href="#itkp"><span>03</span><b>ITKP</b></a>
+        <a href="#rekam"><span>04</span><b>Data</b></a>
+        <a href="#rapor-kota"><span>05</span><b>Rapor</b></a>
+        <a href="#pimpinan-pbj"><span>06</span><b>Pimpinan PBJ</b></a>
+        <a href="#tim-pbj"><span>07</span><b>Tim PBJ</b></a>
+      </nav>
+      <div class="chapter-menu-mark"><img src="../assets/img/LOGOPBJ.png" alt=""></div>
+    </div>
+  </div>
+
+  <aside class="chapter-dock" aria-label="Navigasi isi profil">
+    <a href="#home" data-chapter="01"><span>01</span><b>Home</b></a>
+    <a href="#ruang-pbj" data-chapter="02"><span>02</span><b>Ruang PBJ</b></a>
+    <a href="#itkp" data-chapter="03"><span>03</span><b>ITKP</b></a>
+    <a href="#rekam" data-chapter="04"><span>04</span><b>Data</b></a>
+    <a href="#rapor-kota" data-chapter="05"><span>05</span><b>Rapor</b></a>
+    <a href="#pimpinan-pbj" data-chapter="06"><span>06</span><b>Pimpinan PBJ</b></a>
+    <a href="#tim-pbj" data-chapter="07"><span>07</span><b>Tim PBJ</b></a>
+  </aside>
+
+  <main>
+    <section class="pbj-intro scene" id="home" data-chapter="01" data-title="Home">
+      <div class="pbj-intro-noise" aria-hidden="true"></div>
+      <div class="orbita-scene-corner corner-home-left">ORBITA / 01</div>
+      <div class="orbita-scene-corner corner-home-right">KOTA BOGOR · PBJ</div>
+
+      <nav class="orbita-home-network" aria-label="Navigasi utama ORBITA">
+        <a class="orbita-home-node home-node-ruang" href="#ruang-pbj" data-constellation-node="ruang"><span>RUANG PBJ</span><small>Layanan &amp; pengelolaan</small></a>
+        <a class="orbita-home-node home-node-itkp" href="#itkp" data-constellation-node="itkp"><span>ITKP</span><small>Capaian pemanfaatan sistem</small></a>
+        <a class="orbita-home-node home-node-data" href="#rekam" data-constellation-node="data"><span>DATA PBJ</span><small>Rekam pengadaan</small></a>
+        <a class="orbita-home-node home-node-rapor" href="#rapor-kota" data-constellation-node="rapor"><span>RAPOR</span><small>Monitoring kota</small></a>
+        <a class="orbita-home-node home-node-pimpinan" href="#pimpinan-pbj" data-constellation-node="pimpinan"><span>PROFIL PBJ</span><small>Pimpinan PBJ</small></a>
+        <a class="orbita-home-node home-node-tim" href="#tim-pbj" data-constellation-node="tim"><span>TIM PBJ</span><small>Orang di balik layanan</small></a>
+      </nav>
+
+      <div class="pbj-intro-center">
+        <div class="pbj-intro-logo" id="introLogo">
+          <span class="pbj-logo-aura"></span>
+          <span class="pbj-logo-stroke"></span>
+          <img src="../assets/img/LOGOPBJ.png" alt="Logo PBJ Kota Bogor">
+        </div>
+        <div class="pbj-intro-title">
+          <small>Orkestrasi Pembinaan dan Tata Kelola Pengadaan</small>
+          <h1>ORBITA <em>PBJ</em></h1>
+        </div>
+      </div>
+      <div class="orbita-home-hint">GERAKKAN MOUSE · PILIH TITIK · SCROLL UNTUK MENJELAJAH</div>
+      <a class="pbj-intro-scroll" href="#ruang-pbj"><span></span><b>EXPLORE</b></a>
+    </section>
+
+    <section class="pbj-universe-scene ukpbj-scene scene" id="ruang-pbj" data-chapter="02" data-title="Ruang PBJ">
+      <div class="pbj-universe-sticky">
+        <div class="pbj-universe-grid" aria-hidden="true"></div>
+        <svg class="pbj-universe-lines" viewBox="0 0 1000 700" aria-hidden="true">
+          <circle cx="500" cy="350" r="235"></circle>
+          <circle cx="500" cy="350" r="320"></circle>
+          <path d="M500 350 C365 350 310 265 260 205"></path>
+          <path d="M500 350 C638 350 705 270 760 205"></path>
+          <path d="M500 350 C500 500 500 550 500 610"></path>
+        </svg>
+        <svg class="pbj-universe-signal-layer" viewBox="0 0 1000 700" aria-hidden="true">
+          <defs>
+            <filter id="signalGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          <path class="signal-rail rail-lpse" d="M500 350 C365 350 310 265 260 205" pathLength="1"></path>
+          <path class="signal-rail rail-advokasi" d="M500 350 C638 350 705 270 760 205" pathLength="1"></path>
+          <path class="signal-rail rail-pengelolaan" d="M500 350 C500 500 500 550 500 610" pathLength="1"></path>
+          <circle class="signal-packet packet-lpse" r="5" filter="url(#signalGlow)"><animateMotion dur="3.6s" repeatCount="indefinite" path="M500 350 C365 350 310 265 260 205"/></circle>
+          <circle class="signal-packet packet-advokasi" r="5" filter="url(#signalGlow)"><animateMotion dur="4.1s" begin="-.9s" repeatCount="indefinite" path="M500 350 C638 350 705 270 760 205"/></circle>
+          <circle class="signal-packet packet-pengelolaan" r="5" filter="url(#signalGlow)"><animateMotion dur="3.9s" begin="-1.7s" repeatCount="indefinite" path="M500 350 C500 500 500 550 500 610"/></circle>
+        </svg>
+
+        <div class="pbj-universe-label"><b>RUANG PBJ</b><small>PILIH AREA LAYANAN</small></div>
+
+        <button class="pbj-universe-core" id="pbjUniverseCore" type="button" aria-label="Kembali ke pilihan Ruang PBJ">
+          <span class="core-pulse"></span>
+          <img src="../assets/img/LOGOPBJ.png" alt="">
+          <small>ORBITA</small>
+          <b>PBJ</b>
+        </button>
+
+        <div class="pbj-universe-nodes" id="pbjUniverseNodes">
+          <button class="pbj-universe-node node-lpse" data-universe="lpse" type="button">
+            <span>01</span><b>LPSE</b><small>Layanan elektronik</small>
+          </button>
+          <button class="pbj-universe-node node-advokasi" data-universe="advokasi" type="button">
+            <span>02</span><b>Pembinaan &amp;<br>Advokasi</b><small>SDM dan pendampingan</small>
+          </button>
+          <button class="pbj-universe-node node-pengelolaan" data-universe="pengelolaan" type="button">
+            <span>03</span><b>Pengelolaan PBJ</b><small>Proses pengadaan</small>
+          </button>
+        </div>
+
+        <div class="pbj-universe-selected" id="pbjUniverseSelected" aria-live="polite">
+          <span class="selected-no" id="universeSelectedNo">01</span>
+          <b id="universeSelectedTitle">LPSE</b>
+          <small id="universeSelectedTag">LAYANAN ELEKTRONIK</small>
+        </div>
+
+        <div class="pbj-universe-elements" id="pbjUniverseElements"></div>
+        <button class="pbj-universe-back" id="pbjUniverseBack" type="button" aria-label="Kembali">←</button>
+        <div class="pbj-universe-hint" id="pbjUniverseHint">KLIK SALAH SATU</div>
+      </div>
+    </section>
+
+
+    <section class="itkp-scene scene" id="itkp" data-chapter="03" data-title="ITKP">
+      <div class="itkp-art art-one" aria-hidden="true"></div><div class="itkp-art art-two" aria-hidden="true"></div>
+      <div class="section-shell">
+        <div class="section-heading reveal">
+          <div><p class="section-index" id="itkpScopeIndex">03 · CAPAIAN ITKP</p><h2 id="itkpScopeTitle">Capaian ITKP Kota Bogor</h2></div>
+          <p id="itkpScopeLead">Indikator Pemanfaatan Sistem Pengadaan · skor maksimal 30 poin.</p>
+        </div>
+
+        <div class="live-source-line reveal itkp-source"><span class="live-dot"></span><b id="itkpLiveStatus">ITKP 2026</b><small id="itkpLiveNote"></small></div>
+
+        <div class="itkp-stage reveal">
+          <div class="itkp-score-card">
+            <div class="score-orbit" aria-hidden="true"><i></i><i></i><i></i></div>
+            <small>NILAI ITKP INDIKATOR PEMANFAATAN SISTEM</small><strong id="itkpAverage">—</strong><span id="itkpAverageMax">Pemerintah Kota Bogor · skor maksimal 30</span>
+            <div class="score-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+          <div class="itkp-metrics" id="itkpMetrics">
+            <article><small>01 · RENCANA PENGADAAN</small><b>Pengumuman RUP</b><strong>—</strong><span class="itkp-scoreline">— / 5</span><div><i></i></div></article>
+            <article><small>02 · RENCANA PENGADAAN</small><b>RUP Penyedia diumumkan</b><strong>—</strong><span class="itkp-scoreline">— / 2,5</span><div><i></i></div></article>
+            <article><small>03 · RENCANA PENGADAAN</small><b>RUP e-Tendering + e-Purchasing</b><strong>—</strong><span class="itkp-scoreline">— / 2,5</span><div><i></i></div></article>
+            <article><small>04 · REALISASI</small><b>Realisasi e-Tendering + e-Purchasing</b><strong>—</strong><span class="itkp-scoreline">— / 10</span><div><i></i></div></article>
+            <article><small>05 · REALISASI</small><b>Realisasi Pengadaan Langsung</b><strong>—</strong><span class="itkp-scoreline">— / 2,5</span><div><i></i></div></article>
+            <article><small>06 · REALISASI</small><b>Realisasi Penunjukan Langsung</b><strong>—</strong><span class="itkp-scoreline">— / 2,5</span><div><i></i></div></article>
+            <article><small>07 · REALISASI</small><b>Realisasi Digitalisasi PBJ</b><strong>—</strong><span class="itkp-scoreline">— / 5</span><div><i></i></div></article>
+          </div>
+        </div>
+
+        <div class="itkp-rank-board reveal">
+          <div class="rank-head"><div><small id="itkpRankKicker">PERINGKAT OPD</small><h3 id="itkpRankTitle">Capaian ITKP per Satuan Kerja</h3></div><label class="itkp-search" id="itkpSearchWrap"><span>Cari OPD</span><input id="itkpSearch" type="search" placeholder="Nama perangkat daerah"></label></div>
+          <div class="rank-list" id="itkpRankList"><div class="rank-empty">Memuat ITKP…</div></div>
+          <button class="itkp-more" id="itkpMore" type="button" hidden>Tampilkan berikutnya</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="data-scene scene" id="rekam" data-chapter="04" data-title="Data">
+      <div class="section-shell">
+        <div class="section-heading reveal">
+          <div>
+            <p class="section-index" id="dataScopeIndex">04 · REKAM PENGADAAN KOTA BOGOR</p>
+            <h2 id="dataScopeTitle">Profil Pengadaan Kota Bogor</h2>
+          </div>
+          <p id="dataScopeLead">Pilih tahun dan metode untuk melihat paket, nilai pengadaan, realisasi, dan rincian per perangkat daerah.</p>
+        </div>
+
+        <div class="profile-data-controls reveal">
+          <div class="year-control" role="tablist" aria-label="Pilih tahun data">
+            <button data-year="2022">2022</button>
+            <button data-year="2023">2023</button>
+            <button data-year="2024">2024</button>
+            <button class="active" data-year="2025">2025</button>
+            <button class="live-year" data-year="2026" disabled>2026</button>
+          </div>
+          <div class="overview-method-wrap">
+            <label class="overview-method-select-wrap" for="overviewMethodSelect">
+              <span>METODE</span>
+              <select id="overviewMethodSelect" aria-label="Pilih metode"></select>
+            </label>
+            <button class="overview-method-clear" id="overviewMethodClear" type="button" hidden aria-label="Tampilkan semua metode">×</button>
+          </div>
+        </div>
+        <div class="overview-filter-state reveal"><span id="overviewMethodLabel">Semua metode</span></div>
+
+        <div class="year-overview reveal">
+          <div class="year-kicker"><span id="yearNumber">2025</span><small>TAHUN ANGGARAN</small></div>
+          <div class="overview-card"><small>Paket Perencanaan</small><strong id="overviewPlanPackages">—</strong><span id="overviewPlanValue">—</span></div>
+          <div class="overview-card"><small>Paket Realisasi</small><strong id="overviewRealPackages">—</strong><span id="overviewRealValue">—</span></div>
+          <div class="overview-card ratio-card"><small>Realisasi / Pagu Perencanaan</small><strong id="overviewRatio">—</strong><div><i id="overviewRatioBar"></i></div></div>
+        </div>
+
+        <div class="history-panel reveal">
+          <div class="history-head"><b id="historyTitle">Perjalanan nilai pengadaan</b><span><i class="plan-dot"></i> Perencanaan <i class="real-dot"></i> Realisasi</span></div>
+          <div class="history-chart" id="historyChart"></div>
+        </div>
+
+        <div class="methods-heading reveal">
+          <div><small>REKAP MENURUT CARA / METODE</small><h3 id="dataMethodLead">Pilih metode, lalu lihat rincian OPD.</h3></div>
+        </div>
+
+        <div class="method-grid reveal" id="methodGrid"></div>
+
+      </div>
+    </section>
+
+    <section class="rapor-scene scene" id="rapor-kota" data-chapter="05" data-title="Rapor">
+      <div class="rapor-ambient" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="section-shell rapor-shell">
+        <div class="rapor-intro reveal">
+          <p class="section-index" id="raporScopeIndex">05 · RAPOR PBJ KOTA BOGOR</p>
+          <h2>Rapor PBJ<br><span id="raporScopeTitle">Pemerintah Kota Bogor</span></h2>
+          <p id="raporScopeLead">Gambaran PBJ Pemerintah Kota Bogor dari perencanaan, realisasi, proses pemilihan, sampai pemanfaatan sistem pengadaan.</p>
+          <div class="rapor-period" id="raporPeriod"><span class="rapor-pulse"></span><b>Rapor Kota Bogor</b></div>
+        </div>
+
+        <div class="rapor-reader" id="raporReader">
+          <article class="rapor-chapter is-loading" data-rapor-step="01">
+            <div class="rapor-chapter-no">01</div>
+            <div class="rapor-card">
+              <small>STRUKTUR ANGGARAN</small><h3>RUP yang diumumkan</h3>
+              <div class="rapor-kpi-grid">
+                <div><span>Pagu Penyedia</span><strong id="rkPenyedia">—</strong></div>
+                <div><span>Pagu Swakelola</span><strong id="rkSwakelola">—</strong></div>
+                <div><span>Total SiRUP</span><strong id="rkSirup">—</strong></div>
+                <div><span>Keterumuman</span><strong id="rkPersen">—</strong></div>
+              </div>
+              <div class="rapor-visual-bar"><i id="rkPersenBar"></i></div>
+            </div>
+          </article>
+
+          <article class="rapor-chapter is-loading" data-rapor-step="02">
+            <div class="rapor-chapter-no">02</div>
+            <div class="rapor-card">
+              <small>PERENCANAAN PENGADAAN</small><h3>Komposisi paket yang direncanakan</h3>
+              <div class="rapor-methods" id="rkPlanningMethods"></div>
+              <div class="rapor-total"><span>Total rencana</span><b id="rkPlanningTotal">—</b><strong id="rkPlanningPagu">—</strong></div>
+            </div>
+          </article>
+
+          <article class="rapor-chapter is-loading" data-rapor-step="03">
+            <div class="rapor-chapter-no">03</div>
+            <div class="rapor-card">
+              <small>REALISASI</small><h3>Pelaksanaan pengadaan</h3>
+              <div class="rapor-methods" id="rkRealMethods"></div>
+              <div class="rapor-total"><span>Total realisasi</span><b id="rkRealTotal">—</b><strong id="rkRealValue">—</strong></div>
+            </div>
+          </article>
+
+          <article class="rapor-chapter is-loading" data-rapor-step="04">
+            <div class="rapor-chapter-no">04</div>
+            <div class="rapor-card">
+              <small>MONITORING PEMILIHAN</small><h3>Posisi paket dalam proses pemilihan</h3>
+              <div class="rapor-monitor-grid">
+                <div><span>Total Paket</span><b id="rkMonTotal">—</b></div>
+                <div><span>Sedang Berjalan</span><b id="rkMonRun">—</b></div>
+                <div><span>Selesai</span><b id="rkMonDone">—</b></div>
+                <div><span>Melewati Waktu</span><b id="rkMonLate">—</b></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="rapor-chapter is-loading" data-rapor-step="05">
+            <div class="rapor-chapter-no">05</div>
+            <div class="rapor-card rapor-card-media">
+              <small>ITKP TERBARU</small><h3>Pemanfaatan sistem pengadaan</h3>
+              <div class="rapor-itkp-summary">
+                <div class="rapor-itkp-score"><span>Nilai ITKP</span><strong id="rkItkpScore">—</strong><small>dari 30 poin</small></div>
+                <div class="rapor-itkp-metrics" id="rkItkpMetrics"><div class="rapor-placeholder">Nilai ITKP akan tampil bersama data kota.</div></div>
+              </div>
+              <div class="rapor-media" id="rkItkpMedia" hidden></div>
+            </div>
+          </article>
+
+          <article class="rapor-chapter is-loading" data-rapor-step="06">
+            <div class="rapor-chapter-no">06</div>
+            <div class="rapor-card">
+              <small>CATATAN RAPOR</small><h3>Kesimpulan dan saran</h3>
+              <div class="rapor-notes" id="rkNotes">—</div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="leadership-scene scene" id="pimpinan-pbj" data-chapter="06" data-title="Pimpinan PBJ" aria-label="Pimpinan PBJ Kota Bogor">
+      <div class="leadership-shell">
+        <div class="leadership-intro reveal">
+          <small>PIMPINAN PBJ KOTA BOGOR</small>
+          <p>Bagian Pengadaan Barang dan Jasa<br>Sekretariat Daerah Kota Bogor</p>
+        </div>
+        <div class="leadership-stage reveal">
+          <div class="leadership-list" id="leadershipList"></div>
+          <figure class="leadership-portrait" id="leadershipPortrait">
+            <span class="leadership-frame frame-a" aria-hidden="true"></span>
+            <span class="leadership-frame frame-b" aria-hidden="true"></span>
+            <div class="leadership-photo" id="leadershipPhoto"><img src="../assets/img/LOGOPBJ.png" alt=""></div>
+            <figcaption><b id="leadershipActiveName">Pimpinan PBJ Kota Bogor</b><span id="leadershipActiveRole"></span></figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="team-scene scene" id="tim-pbj" data-chapter="07" data-title="Tim PBJ">
+      <div class="team-shell">
+        <header class="team-heading reveal">
+          <div><small>06 · TIM PBJ KOTA BOGOR</small><h2>Tim PBJ Kota Bogor</h2></div>
+          <p>Bagian Pengadaan Barang dan Jasa Sekretariat Daerah Kota Bogor</p>
+        </header>
+        <div class="team-showcase reveal">
+          <div class="team-rail" id="teamRail"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section class="sdm-experience" id="sdmExperience" aria-hidden="true">
+    <div class="sdm-experience-inner">
+      <header class="sdm-experience-head">
+        <button class="sdm-experience-back" type="button" data-close-sdm aria-label="Kembali ke Pembinaan dan Advokasi">←</button>
+        <div><small>PEMBINAAN &amp; ADVOKASI</small><h2>SDM PBJ</h2><p>Profil JF PPBJ Kota Bogor</p></div>
+      </header>
+      <div class="sdm-experience-stage" id="sdmExperienceStage"></div>
+    </div>
+  </section>
+
+  <section class="evaluation-experience" id="evaluationExperience" aria-hidden="true">
+    <div class="evaluation-experience-inner">
+      <header class="evaluation-experience-head">
+        <button class="evaluation-back" type="button" data-close-evaluation aria-label="Kembali ke LPSE">←</button>
+        <div>
+          <small>LPSE KOTA BOGOR</small>
+          <h2 id="evaluationTitle">Evaluasi Pengguna Layanan</h2>
+          <p id="evaluationPeriod"></p>
+        </div>
+        <div class="evaluation-year-tabs" id="evaluationYears" aria-label="Tahun evaluasi"></div>
+      </header>
+
+      <div class="evaluation-story-grid" id="evaluationStoryGrid">
+        <aside class="evaluation-summary">
+          <div class="evaluation-score-orbit">
+            <svg viewBox="0 0 180 180" aria-hidden="true">
+              <circle class="score-track" cx="90" cy="90" r="72"></circle>
+              <circle class="score-value" id="evaluationScoreRing" cx="90" cy="90" r="72"></circle>
+            </svg>
+            <div class="evaluation-score-copy"><small>IKM UNIT PELAYANAN</small><strong id="evaluationIkm">—</strong><span id="evaluationQuality">Belum ada nilai</span></div>
+          </div>
+          <div class="evaluation-summary-kpis">
+            <div><small>RESPONDEN</small><strong id="evaluationRespondents">0</strong></div>
+            <div><small>PARAMETER</small><strong id="evaluationParameterCount">14</strong></div>
+          </div>
+          <div class="evaluation-distribution" id="evaluationDistribution"></div>
+        </aside>
+
+        <div class="evaluation-parameters">
+          <div class="evaluation-parameters-head">
+            <div><small>PARAMETER PENILAIAN</small><h3>Bagaimana layanan dinilai</h3></div>
+            <div class="evaluation-legend" id="evaluationLegend"></div>
+          </div>
+          <div class="evaluation-chart" id="evaluationChart"></div>
+        </div>
+      </div>
+      <div class="evaluation-detail" id="evaluationDetail" hidden></div>
+    </div>
+  </section>
+
+  <section class="advocacy-experience" id="educationExperience" aria-hidden="true">
+    <div class="advocacy-experience-inner">
+      <header class="advocacy-head">
+        <button class="advocacy-back" type="button" data-close-advocacy aria-label="Kembali ke Pembinaan dan Advokasi">←</button>
+        <div><small>PEMBINAAN &amp; ADVOKASI</small><h2>Edukasi &amp; Kegiatan PBJ</h2><p>Agenda, dokumentasi singkat, dan materi kegiatan pembinaan Pengadaan Barang/Jasa.</p></div>
+      </header>
+      <div class="education-feature" id="educationFeature"></div>
+      <div class="advocacy-toolbar compact">
+        <label class="advocacy-search"><span>Cari kegiatan</span><input id="educationSearch" type="search" placeholder="Sosialisasi, bimtek, pendampingan"></label>
+        <label class="advocacy-select"><span>Status</span><select id="educationFilter"><option value="all">Semua kegiatan</option><option value="upcoming">Akan datang</option><option value="done">Sudah dilaksanakan</option></select></label>
+        <div class="advocacy-count"><small>AGENDA &amp; ARSIP</small><b id="educationCount">0 kegiatan</b></div>
+      </div>
+      <div class="education-list" id="educationList"></div>
+    </div>
+  </section>
+
+  <section class="advocacy-experience" id="knowledgeExperience" aria-hidden="true">
+    <div class="advocacy-experience-inner">
+      <header class="advocacy-head">
+        <button class="advocacy-back" type="button" data-close-advocacy aria-label="Kembali ke Pembinaan dan Advokasi">←</button>
+        <div><small>PEMBINAAN &amp; ADVOKASI</small><h2>Pusat Pengetahuan PBJ</h2><p>Regulasi · Panduan · Template · Materi · FAQ</p></div>
+      </header>
+      <div class="knowledge-hero knowledge-hero-v24">
+        <div class="knowledge-manifest">
+          <small>ARSIP PBJ</small>
+          <div class="knowledge-category-cloud" aria-label="Kategori Pusat Pengetahuan">
+            <button type="button" data-knowledge-quick="Regulasi">Regulasi</button>
+            <button type="button" data-knowledge-quick="Panduan">Panduan</button>
+            <button type="button" data-knowledge-quick="Template">Template</button>
+            <button type="button" data-knowledge-quick="Materi">Materi</button>
+            <button type="button" data-knowledge-quick="FAQ">FAQ</button>
+          </div>
+        </div>
+        <div class="knowledge-orbit" aria-hidden="true"><i></i><i></i><span>PBJ</span></div>
+      </div>
+      <div class="advocacy-toolbar compact">
+        <label class="advocacy-search"><span>Cari dokumen</span><input id="knowledgeSearch" type="search" placeholder="KAK, HPS, regulasi, kontrak"></label>
+        <label class="advocacy-select"><span>Kategori</span><select id="knowledgeCategory"><option value="all">Semua kategori</option><option>Regulasi</option><option>Panduan</option><option>Template</option><option>Materi</option><option>FAQ</option></select></label>
+        <div class="advocacy-count"><small>ARSIP PENGETAHUAN</small><b id="knowledgeCount">0 dokumen</b></div>
+      </div>
+      <div class="knowledge-list" id="knowledgeList"></div>
+    </div>
+  </section>
+
+
+  <section class="proc-room" id="procurementControlRoom" aria-hidden="true">
+    <div class="proc-room-shell">
+      <header class="proc-room-head">
+        <div class="proc-room-title">
+          <button class="proc-room-back" type="button" data-close-procurement aria-label="Kembali ke Ruang PBJ">←</button>
+          <div><small>PENGELOLAAN PBJ · KOTA BOGOR</small><h2>PENGELOLAAN PBJ <span>Perencanaan hingga Realisasi</span></h2></div>
+        </div>
+        <div class="proc-room-live loading" id="procRoomLive"><i></i><b>MENYIAPKAN DATA</b><span id="procRoomUpdated">—</span></div>
+      </header>
+
+      <div class="proc-filter-bar" id="procFilterBar">
+        <label class="proc-filter search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg><div><span>PENCARIAN</span><input id="procSearch" type="search" placeholder="Kode RUP, paket, penyedia, OPD"></div></label>
+        <label class="proc-filter"><span>TAHUN</span><select id="procYear"></select></label>
+        <label class="proc-filter"><span>SATUAN KERJA</span><select id="procSatker"><option value="">Semua satuan kerja</option></select></label>
+        <label class="proc-filter"><span>JENIS</span><select id="procJenis"><option value="">Semua jenis</option></select></label>
+        <label class="proc-filter"><span>CARA</span><select id="procCara"><option value="">Semua cara</option></select></label>
+        <label class="proc-filter"><span>METODE</span><select id="procMethod"><option value="">Semua metode</option></select></label>
+        <label class="proc-filter"><span>STATUS</span><select id="procStatus"><option value="">Semua status</option><option>Belum Berjalan</option><option>Berjalan</option><option>Selesai Proses Pemilihan</option><option>Selesai</option></select></label>
+        <label class="proc-filter"><span>WAKTU PEMILIHAN</span><select id="procMonth"><option value="">Semua bulan</option><option value="0">Januari</option><option value="1">Februari</option><option value="2">Maret</option><option value="3">April</option><option value="4">Mei</option><option value="5">Juni</option><option value="6">Juli</option><option value="7">Agustus</option><option value="8">September</option><option value="9">Oktober</option><option value="10">November</option><option value="11">Desember</option></select></label>
+      </div>
+
+      <nav class="proc-module-nav" aria-label="Modul Pengelolaan PBJ">
+        <button type="button" data-proc-module="selection"><small>PEMILIHAN</small><b>Permohonan Pemilihan</b></button>
+        <button type="button" data-proc-module="commitment"><small>SIPD</small><b>Komitmen Perencanaan</b></button>
+        <button class="active" type="button" data-proc-module="overview"><small>CAPAIAN</small><b>Capaian Pengadaan</b></button>
+        <button type="button" data-proc-module="monitoring"><small>PAKET</small><b>Monitoring Paket</b></button>
+        <button type="button" data-proc-module="timing"><small>JADWAL</small><b>Ketepatan Pelaksanaan</b></button>
+        <button type="button" data-proc-module="alerts"><small>TINDAK LANJUT</small><b>Perhatian &amp; Tindak Lanjut</b></button>
+      </nav>
+
+      <div class="proc-room-content" id="procRoomContent">
+        <section class="proc-module" data-proc-panel="commitment" id="procCommitment"></section>
+        <section class="proc-module" data-proc-panel="selection" id="procSelection"></section>
+        <section class="proc-module active" data-proc-panel="overview" id="procOverview"></section>
+        <section class="proc-module" data-proc-panel="monitoring" id="procMonitoring"></section>
+        <section class="proc-module" data-proc-panel="timing" id="procTiming"></section>
+        <section class="proc-module" data-proc-panel="alerts" id="procAlerts"></section>
+
+
+        <div class="proc-loading" id="procLoading">
+          <div class="proc-loading-inner"><div class="proc-loading-mark"><img src="../assets/img/LOGOPBJ.png" alt=""></div><b>Menyiapkan Pengelolaan PBJ</b><span id="procLoadingText">Membaca perencanaan dan realisasi</span><div class="proc-loading-line"><i></i></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <footer class="footer">
+    <div class="section-shell footer-inner">
+      <div><b>ORBITA PBJ</b><span>Orkestrasi Pembinaan dan Tata Kelola Pengadaan</span></div>
+
+    </div>
+  </footer>
+
+  <section class="docs-experience docs-timeline-experience" id="docsModal" aria-hidden="true">
+    <div class="docs-tl-shell">
+      <header class="docs-tl-head">
+        <div class="docs-tl-brand">
+          <button class="docs-experience-back" type="button" data-close-docs aria-label="Kembali">←</button>
+          <div><small>PEMBINAAN &amp; ADVOKASI</small><b>Dokumentasi</b></div>
+        </div>
+        <div class="docs-tl-query">
+          <label class="docs-tl-search" aria-label="Cari dokumentasi">
+            <span aria-hidden="true">⌕</span>
+            <input id="docsSearchInput" type="search" autocomplete="off" placeholder="Cari kegiatan, lokasi, kategori...">
+            <button type="button" id="docsSearchClear" aria-label="Hapus pencarian">×</button>
+          </label>
+          <div class="docs-tl-year-filter" aria-label="Filter tahun dokumentasi">
+            <span>TAHUN</span>
+            <input id="docsYearFrom" type="number" inputmode="numeric" aria-label="Tahun mulai" placeholder="Awal">
+            <i>—</i>
+            <input id="docsYearTo" type="number" inputmode="numeric" aria-label="Tahun akhir" placeholder="Akhir">
+          </div>
+          <label class="docs-tl-month-filter" aria-label="Filter bulan dokumentasi">
+            <span>BULAN</span>
+            <select id="docsMonthFilter">
+              <option value="">Semua bulan</option>
+              <option value="0">Januari</option><option value="1">Februari</option><option value="2">Maret</option>
+              <option value="3">April</option><option value="4">Mei</option><option value="5">Juni</option>
+              <option value="6">Juli</option><option value="7">Agustus</option><option value="8">September</option>
+              <option value="9">Oktober</option><option value="10">November</option><option value="11">Desember</option>
+            </select>
+          </label>
+        </div>
+        <div class="docs-tl-zoom" aria-label="Kontrol linimasa">
+          <button type="button" id="docsZoomOut" aria-label="Perkecil linimasa">−</button>
+          <output id="docsZoomValue">100%</output>
+          <button type="button" id="docsZoomIn" aria-label="Perbesar linimasa">＋</button>
+          <button type="button" id="docsZoomFit" aria-label="Tampilkan seluruh periode">↔</button>
+        </div>
+      </header>
+
+      <main class="docs-tl-stage" id="docsTimelineStage">
+        <canvas class="docs-tl-ambient-canvas" id="docsAmbientCanvas" aria-hidden="true"></canvas>
+        <div class="docs-tl-constellation" aria-hidden="true"></div>
+        <div class="docs-tl-years" aria-hidden="true"><strong id="docsRangeStart">—</strong><small id="docsTimelineRange">LINIMASA KEGIATAN</small><strong id="docsRangeEnd">—</strong></div>
+        <div class="docs-timeline-viewport" id="docsTimelineViewport" tabindex="0" aria-label="Linimasa Dokumentasi PBJ. Scroll untuk zoom mendekat atau menjauh. Drag untuk menggeser periode.">
+          <div class="docs-timeline-track" id="docsTimelineTrack">
+            <div id="docsTimelineBands"></div>
+            <svg class="docs-tl-fan" id="docsTimelineFan" aria-hidden="true"></svg>
+            <div id="docsTimelineTicks"></div>
+            <div id="docsArchive"></div>
+            <div class="docs-tl-playhead" id="docsTimelinePlayhead" data-label=""></div>
+          </div>
+        </div>
+
+        <aside class="docs-event-panel" id="docsEventPanel" aria-hidden="true">
+          <button class="docs-event-side-nav prev" id="docsPrevEvent" type="button" aria-label="Kegiatan sebelumnya">←</button>
+          <button class="docs-event-side-nav next" id="docsNextEvent" type="button" aria-label="Kegiatan berikutnya">→</button>
+          <div class="docs-event-card">
+            <div class="docs-event-media" id="docsMediaStream" aria-live="polite"></div>
+            <div class="docs-event-copy">
+              <div class="docs-event-meta"><span id="docsDate">—</span><span id="docsLocation">Kota Bogor</span><span id="docsCategory">Pendampingan</span></div>
+              <small id="docsKicker" hidden>DOKUMENTASI</small>
+              <h2 id="docsTitle">Dokumentasi PBJ</h2>
+              <p id="docsDescription">Dokumentasi kegiatan pendampingan Pengadaan Barang/Jasa.</p>
+            </div>
+          </div>
+          <button class="docs-event-panel-close" id="docsEventClose" type="button" aria-label="Tutup detail">×</button>
+          <div class="docs-media-status" hidden><i><em id="docsMediaProgress"></em></i></div>
+        </aside>
+      </main>
+
+      <footer class="docs-tl-bottom"><span>SCROLL UNTUK ZOOM · DRAG UNTUK GESER PERIODE</span><span id="docsTimelineStatus">— KEGIATAN</span></footer>
+    </div>
+  </section>
+
+  <section class="forum-experience" id="forumExperience" aria-hidden="true">
+    <header class="forum-head">
+      <div class="forum-shell forum-head-inner">
+        <button class="forum-back" type="button" data-close-forum aria-label="Kembali">←</button>
+        <div class="forum-title"><small>PEMBINAAN &amp; ADVOKASI</small><b>Ruang Konsultasi &amp; Pendampingan PBJ</b></div>
+        <button class="forum-new-post" type="button" data-forum-new>＋ Buat Topik</button>
+      </div>
+    </header>
+    <div class="forum-shell forum-layout">
+      <aside class="forum-sidebar">
+        <div class="forum-side-card">
+          <p class="forum-side-title">TOPIK PEMBAHASAN</p>
+          <div class="forum-category-list">
+            <button class="active" type="button" data-category="Semua"><i></i>Semua</button>
+            <button type="button" data-category="Perencanaan"><i></i>Perencanaan</button>
+            <button type="button" data-category="e-Purchasing"><i></i>e-Purchasing</button>
+            <button type="button" data-category="Pemilihan"><i></i>Pemilihan</button>
+            <button type="button" data-category="Kontrak"><i></i>Kontrak</button>
+            <button type="button" data-category="SiRUP"><i></i>SiRUP</button>
+            <button type="button" data-category="SPSE"><i></i>SPSE</button>
+            <button type="button" data-category="Lainnya"><i></i>Lainnya</button>
+          </div>
+        </div>
+        <div class="forum-side-card">
+          <p class="forum-side-title">CARA KERJA</p>
+          <p class="forum-side-note"><b>Tulis pertanyaan, baca pembahasan, lalu lanjutkan pendampingan bila diperlukan.</b> Topik yang masuk dapat ditelaah admin sebelum dipublikasikan.</p>
+        </div>
+      </aside>
+
+      <section class="forum-main">
+        <div class="forum-toolbar">
+          <label class="forum-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg>
+            <input id="forumSearch" type="search" placeholder="Cari PPK, kontrak, e-Purchasing, SiRUP...">
+          </label>
+          <div class="forum-sort">
+            <button class="active" type="button" data-sort="latest">Terbaru</button>
+            <button type="button" data-sort="discussed">Banyak dibahas</button>
+            <button type="button" data-sort="answered">Terjawab</button>
+          </div>
+        </div>
+        <div class="forum-state-line" id="forumStateLine"><i></i><span>Menyiapkan ruang konsultasi...</span></div>
+        <div class="forum-feed" id="forumFeed"></div>
+      </section>
+
+      <aside class="forum-rail">
+        <div class="forum-rail-card">
+          <h4>Ruang PBJ Kota Bogor</h4>
+          <p>Tempat bertanya, berbagi pembahasan, dan menindaklanjuti kebutuhan pendampingan Pengadaan Barang/Jasa.</p>
+          <div class="forum-stat"><div><small>PEMBAHASAN</small><b id="forumThreadCount">0</b></div><div><small>TERJAWAB</small><b id="forumAnsweredCount">0</b></div></div>
+        </div>
+        <div class="forum-rail-card">
+          <p class="forum-side-title">BANYAK DIBAHAS</p>
+          <div class="forum-popular" id="forumPopular"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <div class="forum-dialog-wrap" id="forumPostDialog">
+    <section class="forum-dialog" role="dialog" aria-modal="true" aria-labelledby="forumPostTitle">
+      <header class="forum-dialog-head"><div><small>RUANG KONSULTASI PBJ</small><h2 id="forumPostTitle">Buat topik baru</h2></div><button class="forum-dialog-close" type="button" data-forum-close-post>×</button></header>
+      <form class="forum-form" id="forumPostForm">
+        <div class="forum-form-row"><label>Nama / inisial<input name="author" maxlength="60" placeholder="Contoh: Beni"></label><label>Perangkat Daerah<input name="opd" maxlength="100" placeholder="Contoh: Dinas Kesehatan"></label></div>
+        <label>Topik<select name="category"><option>Perencanaan</option><option>e-Purchasing</option><option>Pemilihan</option><option>Kontrak</option><option>SiRUP</option><option>SPSE</option><option>Lainnya</option></select></label>
+        <label>Judul pertanyaan<input name="title" maxlength="180" required placeholder="Tulis inti permasalahan"></label>
+        <label>Uraian permasalahan<textarea name="body" maxlength="4000" required placeholder="Ceritakan kondisi paket atau permasalahan yang sedang dihadapi..."></textarea></label>
+        <label>Lampiran<input id="forumAttachment" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"><span class="forum-file-note">PDF, Office, JPG atau PNG · maksimal 5 MB.</span></label>
+        <div class="forum-form-message" id="forumPostMessage"></div>
+        <button class="forum-submit" id="forumPostSubmit" type="submit">Kirim topik</button>
+      </form>
+    </section>
+  </div>
+
+  <div class="forum-dialog-wrap" id="forumThreadDialog">
+    <section class="forum-dialog forum-thread-dialog" role="dialog" aria-modal="true">
+      <header class="forum-dialog-head"><div><small>PEMBAHASAN PBJ</small><h2>Diskusi</h2></div><button class="forum-dialog-close" type="button" data-forum-close-thread>×</button></header>
+      <div class="forum-thread-body" id="forumThreadContent"></div>
+    </section>
+  </div>
+
+  <div class="method-modal" id="methodModal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-modal></div>
+    <section class="method-sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header class="method-sheet-head">
+        <div><small>REKAP METODE / KELOMPOK</small><h2 id="modalTitle">Pengadaan Langsung</h2><p id="modalDescription"></p></div>
+        <button type="button" class="modal-close" data-close-modal aria-label="Tutup rincian"><span></span><span></span></button>
+      </header>
+
+      <div class="modal-year-row">
+        <div id="modalYearTabs"></div>
+        <span id="modalYearLabel">Tahun 2025</span>
+      </div>
+
+      <div class="modal-kpis">
+        <div><small>PAKET PERENCANAAN</small><strong id="modalPlanPackages">—</strong></div>
+        <div><small>PAGU PERENCANAAN</small><strong id="modalPlanValue">—</strong></div>
+        <div><small>PAKET REALISASI</small><strong id="modalRealPackages">—</strong></div>
+        <div><small>NILAI REALISASI</small><strong id="modalRealValue">—</strong></div>
+      </div>
+
+      <div class="modal-table-tools">
+        <div><b id="modalTableTitle">Rincian per OPD</b><span id="modalCount">—</span></div>
+        <label class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><input id="modalSearch" type="search" placeholder="Cari perangkat daerah"></label>
+        <select id="modalSort" aria-label="Urutkan data">
+          <option value="planningValue">Pagu terbesar</option>
+          <option value="realizationValue">Realisasi terbesar</option>
+          <option value="planningPackages">Paket perencanaan terbanyak</option>
+          <option value="realizationPackages">Paket realisasi terbanyak</option>
+          <option value="name">Nama OPD</option>
+        </select>
+      </div>
+
+      <div class="modal-table-wrap">
+        <table>
+          <thead><tr><th>Perangkat Daerah / Unit</th><th>Paket Perencanaan</th><th>Pagu Perencanaan</th><th>Paket Realisasi</th><th>Nilai Realisasi</th></tr></thead>
+          <tbody id="modalTableBody"></tbody>
+        </table>
+      </div>
+      <button class="load-more" id="modalLoadMore" type="button">Tampilkan data berikutnya</button>
+    </section>
+  </div>
+
+  <div id="portalLogin" class="portal-login" hidden aria-hidden="true">
+    <div class="portal-login-backdrop" data-close-portal></div>
+    <section class="portal-login-card" role="dialog" aria-modal="true" aria-labelledby="portalLoginTitle">
+      <button type="button" class="portal-login-close" data-close-portal aria-label="Tutup">×</button>
+      <small>ORBITA PBJ · KOTA BOGOR</small><h2 id="portalLoginTitle">Akses akun</h2>
+      <form id="portalLoginForm">
+        <div id="portalLoginProgress" class="portal-auth-progress" hidden role="status" aria-live="polite">
+          <div class="portal-auth-stage" aria-hidden="true">
+            <div class="portal-auth-orbit">
+              <i class="auth-ring ring-a"></i><i class="auth-ring ring-b"></i><i class="auth-ring ring-c"></i>
+              <span class="auth-particle p1"></span><span class="auth-particle p2"></span><span class="auth-particle p3"></span><span class="auth-particle p4"></span><span class="auth-particle p5"></span><span class="auth-particle p6"></span><span class="auth-particle p7"></span><span class="auth-particle p8"></span>
+              <img src="../assets/img/traxpbj-logo.png" alt="">
+            </div>
+            <div class="portal-auth-field"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+          <div class="portal-auth-copy"><b id="portalAuthTitle">Sedang masuk</b><span id="portalAuthText">Memeriksa akun</span></div>
+          <div class="portal-auth-track" aria-hidden="true"><i></i></div>
+          <div class="portal-auth-dots" aria-hidden="true"><i class="active"></i><i></i><i></i></div>
+        </div>
+        <label>Jenis akun<select id="portalProvider"><option value="pbj">Akun PBJ / OPD</option><option value="content">Admin Konten</option></select></label>
+        <label id="portalUsernameField">Username<input id="portalUsername" autocomplete="username" required></label>
+        <label>Password<input id="portalPassword" type="password" autocomplete="current-password" required></label>
+        <p id="portalError" role="alert"></p><button id="portalSubmit" type="submit">Masuk</button>
+      </form>
+      <section id="portalAccount" hidden><b id="portalAccountName"></b><p id="portalAccountOffice"></p><button type="button" id="portalSelectionLink">Permohonan Pemilihan</button><a href="../admin/" id="portalContentManager" hidden>Kelola konten</a><button type="button" id="portalLogout">Keluar</button></section>
+      <p id="portalConnection"></p>
+    </section>
+  </div>
+
+  <script src="../assets/data/profile-data.js"></script>
+  <script src="../assets/js/trax-api.js?v=27.56"></script>
+  <script src="../assets/js/selection-config.js?v=27.27"></script>
+  <script src="../assets/js/selection-api.js?v=27.91"></script>
+  <script src="../assets/js/portal-session.js?v=27.80"></script>
+  <script src="../assets/js/live-data.js?v=27.13"></script>
+  <script src="../assets/js/content-store.js?v=27.56"></script>
+  <script src="../assets/js/evaluation.js?v=27.38"></script>
+  <script src="../assets/js/pbj-motion.js?v=27.63"></script>
+  <script src="../assets/js/forum-config.js"></script>
+  <script src="../assets/js/forum.js?v=27.38"></script>
+  <script src="../assets/js/advocacy-portal.js?v=27.56"></script>
+  <script src="../assets/js/commitment.js?v=27.7"></script>
+  <script src="../assets/js/selection.js?v=28.08"></script>
+  <script src="../assets/js/control-room.js?v=27.77"></script>
+  <script src="../assets/js/profile.js?v=27.77"></script>
+  <script src="../assets/js/orbita-section-motion.js?v=27.63"></script>
+  <script>window.ORBITA_DOCS_TIMELINE_MODE=true;</script>
+  <script src="../assets/js/site-content.js?v=27.34"></script>
+  <script src="../assets/js/orbita-docs-timeline.js?v=27.77"></script>
+<script src="../assets/js/orbita-docs-ambient.js?v=27.48"></script>
+  <script src="../assets/js/rapor-kota.js?v=27.62"></script>
+  <script src="../assets/js/theme-toggle.js?v=27.76"></script>
+  <script src="../assets/js/sw-register.js"></script>
+</body>
+</html>

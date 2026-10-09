@@ -1,0 +1,602 @@
+{
+  "currentYear": 2026,
+  "years": {
+    "2023": {
+      "year": 2023,
+      "title": "Evaluasi Pengguna Layanan 2023",
+      "period": "2023",
+      "ikm": 2.52,
+      "respondents": 555,
+      "parameters": [
+        {
+          "name": "Persyaratan",
+          "counts": [
+            1,
+            2,
+            35,
+            517
+          ],
+          "percentage": 98.108108108108
+        },
+        {
+          "name": "Sistem, Mekanisme dan Prosedur",
+          "counts": [
+            1,
+            1,
+            38,
+            515
+          ],
+          "percentage": 98.063063063063
+        },
+        {
+          "name": "Kecepatan Waktu Layanan",
+          "counts": [
+            1,
+            1,
+            42,
+            511
+          ],
+          "percentage": 97.882882882883
+        },
+        {
+          "name": "Biaya/Tarif",
+          "counts": [
+            1,
+            3,
+            39,
+            512
+          ],
+          "percentage": 97.837837837838
+        },
+        {
+          "name": "Kesesuaian Layanan",
+          "counts": [
+            1,
+            2,
+            33,
+            519
+          ],
+          "percentage": 98.198198198198
+        },
+        {
+          "name": "Kompetensi Petugas",
+          "counts": [
+            1,
+            2,
+            28,
+            524
+          ],
+          "percentage": 98.423423423423
+        },
+        {
+          "name": "Keramahan Petugas",
+          "counts": [
+            1,
+            1,
+            30,
+            522
+          ],
+          "percentage": 98.243243243243
+        },
+        {
+          "name": "Sarana & Prasarana",
+          "counts": [
+            1,
+            3,
+            41,
+            509
+          ],
+          "percentage": 97.567567567568
+        },
+        {
+          "name": "Penanganan Pengaduan",
+          "counts": [
+            2,
+            1,
+            37,
+            514
+          ],
+          "percentage": 97.792792792793
+        },
+        {
+          "name": "Tidak ada diskriminasi",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": null
+        },
+        {
+          "name": "Tidak ada pelayanan diluar prosedur",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": null
+        },
+        {
+          "name": "Tidak ada penerima imbalan",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": null
+        },
+        {
+          "name": "Tidak ada pungutan liar",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": null
+        },
+        {
+          "name": "Tidak ada percaloan/ peranta",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": null
+        }
+      ]
+    },
+    "2024": {
+      "year": 2024,
+      "title": "Evaluasi Pengguna Layanan 2024",
+      "period": "2024",
+      "ikm": 2.62,
+      "respondents": 596,
+      "parameters": [
+        {
+          "name": "Persyaratan",
+          "counts": [
+            4,
+            1,
+            46,
+            545
+          ],
+          "percentage": 97.48322147651
+        },
+        {
+          "name": "Sistem, Mekanisme dan Prosedur",
+          "counts": [
+            4,
+            1,
+            41,
+            550
+          ],
+          "percentage": 97.692953020134
+        },
+        {
+          "name": "Kecepatan Waktu Layanan",
+          "counts": [
+            4,
+            2,
+            36,
+            554
+          ],
+          "percentage": 97.818791946309
+        },
+        {
+          "name": "Biaya/Tarif",
+          "counts": [
+            4,
+            2,
+            42,
+            548
+          ],
+          "percentage": 97.56711409396
+        },
+        {
+          "name": "Kesesuaian Layanan",
+          "counts": [
+            4,
+            1,
+            40,
+            551
+          ],
+          "percentage": 97.734899328859
+        },
+        {
+          "name": "Kompetensi Petugas",
+          "counts": [
+            5,
+            1,
+            33,
+            536
+          ],
+          "percentage": 94.379194630872
+        },
+        {
+          "name": "Keramahan Petugas",
+          "counts": [
+            4,
+            1,
+            37,
+            554
+          ],
+          "percentage": 97.860738255034
+        },
+        {
+          "name": "Sarana & Prasarana",
+          "counts": [
+            3,
+            1,
+            46,
+            545
+          ],
+          "percentage": 97.441275167785
+        },
+        {
+          "name": "Penanganan Pengaduan",
+          "counts": [
+            5,
+            1,
+            41,
+            547
+          ],
+          "percentage": 97.231543624161
+        },
+        {
+          "name": "Tidak ada diskriminasi",
+          "counts": [
+            0,
+            0,
+            0,
+            48
+          ],
+          "percentage": null
+        },
+        {
+          "name": "Tidak ada pelayanan diluar prosedur",
+          "counts": [
+            0,
+            0,
+            0,
+            48
+          ],
+          "percentage": null
+        },
+        {
+          "name": "Tidak ada penerima imbalan",
+          "counts": [
+            0,
+            0,
+            0,
+            48
+          ],
+          "percentage": null
+        },
+        {
+          "name": "Tidak ada pungutan liar",
+          "counts": [
+            0,
+            0,
+            0,
+            48
+          ],
+          "percentage": null
+        },
+        {
+          "name": "Tidak ada percaloan/ peranta",
+          "counts": [
+            0,
+            0,
+            0,
+            48
+          ],
+          "percentage": null
+        }
+      ]
+    },
+    "2025": {
+      "year": 2025,
+      "title": "Evaluasi Pengguna Layanan 2025",
+      "period": "2025",
+      "ikm": 3.96,
+      "respondents": 596,
+      "parameters": [
+        {
+          "name": "Persyaratan",
+          "counts": [
+            2,
+            0,
+            16,
+            578
+          ],
+          "percentage": 99.077181208054
+        },
+        {
+          "name": "Sistem, Mekanisme dan Prosedur",
+          "counts": [
+            2,
+            1,
+            18,
+            575
+          ],
+          "percentage": 98.909395973154
+        },
+        {
+          "name": "Kecepatan Waktu Layanan",
+          "counts": [
+            2,
+            1,
+            17,
+            576
+          ],
+          "percentage": 98.951342281879
+        },
+        {
+          "name": "Biaya/Tarif",
+          "counts": [
+            2,
+            1,
+            16,
+            577
+          ],
+          "percentage": 98.993288590604
+        },
+        {
+          "name": "Kesesuaian Layanan",
+          "counts": [
+            2,
+            0,
+            16,
+            578
+          ],
+          "percentage": 99.077181208054
+        },
+        {
+          "name": "Kompetensi Petugas",
+          "counts": [
+            2,
+            0,
+            17,
+            577
+          ],
+          "percentage": 99.035234899329
+        },
+        {
+          "name": "Keramahan Petugas",
+          "counts": [
+            2,
+            1,
+            17,
+            576
+          ],
+          "percentage": 98.951342281879
+        },
+        {
+          "name": "Sarana & Prasarana",
+          "counts": [
+            2,
+            0,
+            18,
+            576
+          ],
+          "percentage": 98.993288590604
+        },
+        {
+          "name": "Penanganan Pengaduan",
+          "counts": [
+            2,
+            1,
+            18,
+            575
+          ],
+          "percentage": 98.909395973154
+        },
+        {
+          "name": "Tidak ada diskriminasi",
+          "counts": [
+            2,
+            0,
+            16,
+            578
+          ],
+          "percentage": 99.077181208054
+        },
+        {
+          "name": "Tidak ada pelayanan diluar prosedur",
+          "counts": [
+            2,
+            1,
+            18,
+            575
+          ],
+          "percentage": 98.909395973154
+        },
+        {
+          "name": "Tidak ada penerima imbalan",
+          "counts": [
+            2,
+            0,
+            13,
+            581
+          ],
+          "percentage": 99.203020134228
+        },
+        {
+          "name": "Tidak ada pungutan liar",
+          "counts": [
+            2,
+            0,
+            15,
+            579
+          ],
+          "percentage": 99.119127516779
+        },
+        {
+          "name": "Tidak ada percaloan/ peranta",
+          "counts": [
+            2,
+            0,
+            12,
+            582
+          ],
+          "percentage": 99.244966442953
+        }
+      ]
+    },
+    "2026": {
+      "title": "Evaluasi Layanan September 2026",
+      "period": "September 2026",
+      "ikm": null,
+      "respondents": 0,
+      "parameters": [
+        {
+          "name": "Persyaratan",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        },
+        {
+          "name": "Sistem, Mekanisme dan Prosedur",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        },
+        {
+          "name": "Kecepatan Waktu Layanan",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        },
+        {
+          "name": "Biaya/Tarif",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        },
+        {
+          "name": "Kesesuaian Layanan",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        },
+        {
+          "name": "Kompetensi Petugas",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        },
+        {
+          "name": "Keramahan Petugas",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        },
+        {
+          "name": "Sarana & Prasarana",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        },
+        {
+          "name": "Penanganan Pengaduan",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        },
+        {
+          "name": "Tidak ada diskriminasi",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        },
+        {
+          "name": "Tidak ada pelayanan diluar prosedur",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        },
+        {
+          "name": "Tidak ada penerima imbalan",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        },
+        {
+          "name": "Tidak ada pungutan liar",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        },
+        {
+          "name": "Tidak ada percaloan/ peranta",
+          "counts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "percentage": 0
+        }
+      ],
+      "note": "",
+      "year": 2026
+    }
+  }
+}

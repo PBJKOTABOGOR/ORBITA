@@ -1,0 +1,11 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.join(__dirname,'..');
+const content=fs.readFileSync(path.join(root,'assets/js/site-content.js'),'utf8');
+const css=fs.readFileSync(path.join(root,'assets/css/profile.css'),'utf8');
+const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
+test('Tim PBJ no longer autoplays and instead follows page scroll',()=>{assert.match(content,/rail\.scrollLeft=max\*progress/);assert.match(content,/addEventListener\('scroll',scheduleTeamScroll/);assert.doesNotMatch(content,/rail\.scrollLeft\+=dt\*\.082/);});
+test('topbar and submenu use the larger shared typography',()=>{assert.match(css,/\.main-nav-mega\{--nav-font:12\.75px\}/);assert.match(css,/font-size:var\(--nav-font\)!important/);assert.match(css,/font-weight:500!important/);});
+test('v27.33 shell cache is current',()=>assert.match(sw,/orbita-pbj-shell-v27-(?:34-back-team-selection|38-hard-home-back|49-docs-hub-surat|50-docs-unified-five-lines|54-docs-hover-surat-preview|55-surat-action-only|56-edukasi-doc|57-constellation-bg|58-constellation-interactive|59-atomic-room)/));
