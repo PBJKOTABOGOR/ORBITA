@@ -1,0 +1,1 @@
+(()=>{const finish=()=>{document.getElementById('siteLoader')?.remove();document.body.classList.remove('site-booting');};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',finish,{once:true});else finish();})();
