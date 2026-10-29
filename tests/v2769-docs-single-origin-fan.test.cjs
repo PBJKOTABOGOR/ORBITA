@@ -1,0 +1,14 @@
+const fs=require('fs');
+const assert=require('assert');
+const root=__dirname+'/..';
+const html=fs.readFileSync(root+'/profil-pbj/index.html','utf8');
+const js=fs.readFileSync(root+'/assets/js/orbita-docs-timeline.js','utf8');
+const css=fs.readFileSync(root+'/assets/css/docs-timeline.css','utf8');
+assert(html.includes('id="docsTimelineFan"'),'timeline fan SVG missing');
+assert(js.includes('function buildFan()'),'fan renderer missing');
+assert(js.includes('--spawn-dx'),'event common-origin spawn missing');
+assert(js.includes('buildBands();buildFan();buildTicks();renderEvents();'),'fan not wired into render');
+assert(css.includes('DOKUMENTASI SINGLE-ORIGIN FAN'),'v27.69 fan styles missing');
+assert(css.includes('@keyframes docsEventFromOriginV2769'),'origin animation missing');
+assert(css.includes('.docs-tl-fan-ribbon'),'fan ribbon style missing');
+console.log('v27.69 docs fan test passed');

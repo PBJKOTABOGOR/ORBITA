@@ -1,0 +1,22 @@
+const fs=require('fs');
+const assert=require('assert');
+const js=fs.readFileSync(__dirname+'/../assets/js/selection.js','utf8');
+const css=fs.readFileSync(__dirname+'/../assets/css/selection.css','utf8');
+const gs=fs.readFileSync(__dirname+'/../backend/Code-TRAXPBJ-Pemilihan.gs','utf8');
+const html=fs.readFileSync(__dirname+'/../profil-pbj/index.html','utf8');
+
+assert(js.includes('requestsLoading:false'));
+assert(js.includes('Memuat permohonan…'));
+assert(js.includes('Mengambil data permohonan sebelumnya.'));
+assert(js.includes("['KBLI',item.kbli||'—']"));
+assert(js.includes("['KBLI',item?.kbli||'—']"));
+assert(js.includes("API().call('getCategoryReference'"));
+assert(js.includes('data-sel-side-toggle'));
+assert(css.includes('.sel-shell.side-collapsed'));
+assert(css.includes('min-width:60px!important'));
+assert(gs.includes("CATEGORY_KBLI: 'PBJ_KATEGORI_KBLI'"));
+assert(gs.includes("if (action === 'getCategoryReference')"));
+assert(gs.includes('function upgradePemilihanV2790()'));
+assert(html.includes('selection.css?v=27.97'));
+assert(html.includes('selection.js?v=27.98'));
+console.log('v27.90 OK');

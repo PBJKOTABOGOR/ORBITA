@@ -1,0 +1,3513 @@
+/**
+ * ORBITA PBJ — Pemilihan Penyedia / Reviu Dokumen Persiapan
+ * Backend terpisah agar backend ORBITA PBJ yang sudah berjalan tidak terganggu.
+ *
+ * Rilis produksi v28.71 dari source GitHub terakhir yang dikirim.
+ * Tidak membuat akun/data awal otomatis.
+ */
+
+const PBJWF = {
+  DB_ID: '1fTGrP5ErCmpAlMnjZFuBzxnevwpnz0CSVcTcxzqbdwI',
+  MAIL_DB_ID: '1WcL5uJBcnIWScOErmR--Ll7CBeRC6lnNHexdcMVsOdE', // DATA ORBITA: antrean email terpisah
+  ROOT_DRIVE_ID: '1aK7RBjVOConhoppB7g6BOEG8oDMX852J',
+  RUP_DB_ID: '1CkzP7B-rwxb6A167Ykv2Y8WwZOZpidLbDgS3x1UF7QI',
+  RUP_SHEET: 'DETAILPSW',
+  RUP_CACHE_SECONDS: 600,
+  REPORT_SHEET: 'Report',
+  SESSION_HOURS: 10,
+  MAX_FILE_BYTES: 10 * 1024 * 1024,
+  FOLDER_NAME: 'PEMILIHAN_PENYEDIA',
+  SHEETS: {
+    USERS: 'PBJ_USERS',
+    SESSIONS: 'PBJ_SESSIONS',
+    POKJA: 'PBJ_POKJA',
+    MEMBERS: 'PBJ_POKJA_MEMBERS',
+    REQUESTS: 'PBJ_PERMOHONAN',
+    DOCS: 'PBJ_DOKUMEN',
+    REVIEWS: 'PBJ_REVIU',
+    NOTES: 'PBJ_CATATAN',
+    AUDIT: 'PBJ_AUDIT_LOG',
+    DOC_CONFIG: 'PBJ_DOK_CONFIG',
+    SETTINGS: 'PBJ_SETTINGS',
+    MAIL_QUEUE: 'PBJ_EMAIL_QUEUE',
+    MASTER_OPD: 'PBJ_MASTER_OPD',
+    PRODUCT_CATEGORIES: 'PBJ_KATEGORI_PRODUK',
+    CONSTRUCTION_CATEGORIES: 'PBJ_KATEGORI_KONSTRUKSI',
+    CATEGORY_META: 'PBJ_KATEGORI_META',
+    CATEGORY_KBLI: 'PBJ_KATEGORI_KBLI',
+    CATEGORY_FIELDS: 'PBJ_KATEGORI_FIELD',
+    NOTIFICATIONS: 'PBJ_NOTIFIKASI',
+    NOTIFICATION_READS: 'PBJ_NOTIFIKASI_BACA'
+  }
+};
+
+const PBJ_HEADERS = {
+  PBJ_USERS: ['user_id','username','password_hash','salt','nama','role','opd','pokja_id','active','created_at','updated_at','last_login','email','deleted_at'],
+  PBJ_SESSIONS: ['token_hash','user_id','expires_at','created_at','last_seen','active','selected_pokja_id'],
+  PBJ_POKJA: ['pokja_id','nama','capacity_max','active','created_at','updated_at'],
+  PBJ_POKJA_MEMBERS: ['member_id','pokja_id','user_id','position','active','created_at','updated_at'],
+  PBJ_PERMOHONAN: ['request_id','year','kode_rup','nama_paket','opd','ppk_user_id','jenis','cara','metode_pengadaan','metode_epurchasing','pagu','sumber_dana','waktu_pemilihan','status','current_round','verifier_user_id','verified_at','head_user_id','assigned_pokja_id','assigned_at','review_started_at','review_completed_at','inaproc_code','inaproc_started_at','winner_name','result_value','result_date','completed_at','folder_id','created_at','updated_at','notes','program','kegiatan','sub_kegiatan','produk_dalam_negeri','sop_started_at','rejected_reason','rejected_at','rejected_by','previous_request_id','competition_type','competition_title','schedule_start_date','schedule_end_date','schedule_start_time','schedule_end_time','qualification_json','product_category','product_details_json','offer_type','payment_type','payment_terms_count','payment_terms_note','construction_details_json','work_location','completion_date','submitted_at','selection_process','mini_stage','mini_tayang_at','mini_handover_at','mini_failure_at','mini_last_change_at','nego_stage','nego_started_at','nego_handover_at','workflow_scheme','kaji_ulang_date','kaji_ulang_result','kaji_ulang_note','method_locked_at','details_submitted_at','ppk_email','ppk_nama','hps_alokasi','judul_permohonan'],
+  PBJ_DOKUMEN: ['doc_id','request_id','doc_type','doc_label','version','drive_file_id','drive_url','file_name','mime_type','size_bytes','uploader_user_id','uploaded_at','is_current'],
+  PBJ_REVIU: ['review_id','request_id','round','doc_id','doc_type','reviewer_user_id','status','note','created_at','updated_at'],
+  PBJ_CATATAN: ['note_id','request_id','phase','author_user_id','status','note','created_at'],
+  PBJ_AUDIT_LOG: ['audit_id','created_at','user_id','role','action','request_id','detail_json'],
+  PBJ_DOK_CONFIG: ['doc_type','label','required','scope','sort','active'],
+  PBJ_SETTINGS: ['key','value','updated_at'],
+  PBJ_EMAIL_QUEUE: ['id','created_at','event_key','recipient','subject','body','status','attempts','sent_at','last_error'],
+  PBJ_MASTER_OPD: ['opd_id','nama_opd','active','sort'],
+  PBJ_KATEGORI_PRODUK: ['category_id','kelompok','level_1','level_2','level_3','product_type','product_sub_type','path','parent_id','sumber','aktif','urutan'],
+  PBJ_KATEGORI_KONSTRUKSI: ['category_id','kelompok','level_1','level_2','level_3','product_type','product_sub_type','path','parent_id','sumber','aktif','urutan'],
+  PBJ_KATEGORI_META: ['category_id','kelompok','category_name','product_type','product_sub_type','is_active','allowed_transaction_method','integration_source','integration_provider','competition_document_needed','kbli_count','primary_field_count','additional_field_count'],
+  PBJ_KATEGORI_KBLI: ['category_id','kelompok','category_name','kbli_code','kbli_version','aktif','urutan'],
+  PBJ_KATEGORI_FIELD: ['category_id','kelompok','category_name','field_group','field_id','field_name','field_type','default_value','additional_info','urutan'],
+  PBJ_NOTIFIKASI: ['notification_id','created_at','created_by','title','message','target_roles','request_id','active','attachment_name','attachment_url','attachment_file_id','attachments_json'],
+  PBJ_NOTIFIKASI_BACA: ['user_id','read_ids_json','updated_at']
+};
+
+const ROLES = ['ADMIN','PPK','KEPALA_UKPBJ','POKJA','PIMPINAN','PENGAWAS'];
+const STATUS = {
+  DRAFT:'DRAFT', DIAJUKAN:'DIAJUKAN', PERLU_KELENGKAPAN:'PERLU_KELENGKAPAN', MENUNGGU_DISPOSISI:'MENUNGGU_DISPOSISI',
+  DITUGASKAN_POKJA:'DITUGASKAN_POKJA', REVIU_POKJA:'REVIU_POKJA', PERLU_PERBAIKAN_PPK:'PERLU_PERBAIKAN_PPK',
+  REVIU_ULANG:'REVIU_ULANG', PERLU_DETAIL_PPK:'PERLU_DETAIL_PPK', SIAP_INAPROC:'SIAP_PROSES_INAPROC', PROSES_INAPROC:'PROSES_INAPROC', SELESAI:'SELESAI', DITOLAK_KEPALA:'DITOLAK_KEPALA', BATAL:'BATAL'
+};
+
+// v28.71: batas tujuan PRODUKSI. Jangan ganti alamat endpoint dengan sandbox.
+const ORBITA_PRODUCTION_PIN={
+  pemilihan:'1fTGrP5ErCmpAlMnjZFuBzxnevwpnz0CSVcTcxzqbdwI',
+  email:'1WcL5uJBcnIWScOErmR--Ll7CBeRC6lnNHexdcMVsOdE'
+};
+function pastikanDatabaseProduksiORBITA_(){
+  if(PBJWF.DB_ID!==ORBITA_PRODUCTION_PIN.pemilihan||PBJWF.MAIL_DB_ID!==ORBITA_PRODUCTION_PIN.email||PBJWF.DB_ID===PBJWF.MAIL_DB_ID)
+    throw new Error('Database produksi tidak sesuai. Penyimpanan dibatalkan.');
+  return true;
+}
+function kesehatanProduksiORBITA_(){
+  pastikanDatabaseProduksiORBITA_();
+  return {data:{service:'ORBITA PBJ Pemilihan',version:'28.80-PRODUKSI',mode:'PRODUKSI',
+    database:'TRAXPBJ_PEMILIHAN_DATABASE',databaseId:PBJWF.DB_ID,
+    emailDatabaseId:PBJWF.MAIL_DB_ID,time:new Date().toISOString()}};
+}
+function doGet(e) {
+  try {
+    pastikanDatabaseProduksiORBITA_();
+    const p=e&&e.parameter||{};
+    if(String(p.action||'health')==='health')return json_({ok:true,...kesehatanProduksiORBITA_()});
+    return json_({ok:true, ...route_(String(p.action||'health'), p, 'GET')});
+  } catch(err) {return json_({ok:false,error:String(err&&err.message||err)});}
+}
+function doPost(e) {
+  try {
+    pastikanDatabaseProduksiORBITA_();
+    const body=JSON.parse((e.postData&&e.postData.contents)||'{}');
+    const action=String(body.action||'');
+    if(!action)throw new Error('Aksi tidak tersedia.');
+    return json_({ok:true,...route_(action,body,'POST')});
+  }catch(err){return json_({ok:false,error:String(err&&err.message||err)});}
+}
+
+function route_(action, payload, method) {
+  if (action === 'health') return kesehatanProduksiORBITA_();
+  if (action === 'login') return login_(payload);
+  const user = requireSession_(payload.token || '');
+  if (action === 'logout') return logout_(payload.token, user);
+  if (action === 'me') return {data:publicUser_(user)};
+  if (action === 'switchActivePokja') return {data:switchActivePokja_(user,payload)};
+  if (action === 'changeOwnPassword') return {data:withWorkflowLock_(()=>changeOwnPassword_(user,payload))};
+  if (action === 'recordLoginMeta') return {data:recordLoginMeta_(user)};
+  if (action === 'bootstrap') return {data:bootstrap_(user, payload)};
+  if (action === 'bootstrapFast') return {data:bootstrapFast_(user, payload)};
+  if (action === 'syncPulse') return {data:syncPulse_(user)};
+  if (action === 'listNotifications') return {data:listNotifications_(user,payload)};
+  if (action === 'readNotification') return {data:readNotification_(user,payload)};
+  if (action === 'sendBroadcast') return {data:withWorkflowLock_(()=>sendBroadcast_(user,payload))};
+  if (action === 'dashboard') return {data:dashboard_(user)};
+  if (action === 'listRequests') return {data:listRequests_(user, payload)};
+  if (action === 'listPpkHistory') return {data:listPpkHistory_(user)};
+  if (action === 'requestDetail') return {data:requestDetail_(user, payload.requestId)};
+  if (action === 'pokjaSkpReport') return {data:pokjaSkpReport_(user,payload)};
+  if (action === 'exportPokjaSkpPdf') return {data:exportPokjaSkpPdf_(user,payload)};
+  if (action === 'listRupOptions') return {data:listRupOptions_(user,payload)};
+  if (action === 'listProductCategories') return {data:listProductCategories_(user,payload)};
+  if (action === 'listConstructionCategories') return {data:listConstructionCategories_(user,payload)};
+  if (action === 'getCategoryReference') return {data:getCategoryReference_(user,payload)};
+  if (action === 'lookupRup') return {data:lookupRup_(String(payload.kodeRup||''))};
+  if (action === 'createRequest') return {data:withWorkflowLock_(()=>createRequest_(user, payload.data||{}))};
+  if (action === 'saveDraftRequest') return {data:withWorkflowLock_(()=>saveDraftRequest_(user, payload))};
+  if (action === 'deleteDraftRequest') return {data:withWorkflowLock_(()=>deleteDraftRequest_(user, payload))};
+  if (action === 'beginDirectUpload') return {data:beginDirectUpload_(user, payload)};
+  if (action === 'probeDirectUpload') return {data:probeDirectUpload_(user, payload)};
+  if (action === 'finalizeDirectUpload') return {data:finalizeDirectUpload_(user, payload)};
+  if (action === 'uploadDocument') return {data:uploadDocument_(user, payload)};
+  if (action === 'submitRequest') return {data:withWorkflowLock_(()=>submitRequest_(user, payload.requestId))};
+  if (action === 'assignPokjaDirect') return {data:assignPokjaDirect_(user, payload)};
+  if (action === 'assignPokja') return {data:assignPokja_(user, payload)};
+  if (action === 'rejectRequest') return {data:withWorkflowLock_(()=>rejectRequest_(user, payload))};
+  if (action === 'startReview') return {data:withWorkflowLock_(()=>startReview_(user, payload.requestId))};
+  if (action === 'submitPackageReview') return {data:withWorkflowLock_(()=>submitPackageReview_(user,payload))};
+  if (action === 'savePackageReview') return {data:withWorkflowLock_(()=>savePackageReview_(user,payload))};
+  if (action === 'sendKajiInvitation') return {data:sendKajiInvitation_(user,payload)};
+  if (action === 'submitKajiUlang') return {data:withWorkflowLock_(()=>submitKajiUlang_(user,payload))};
+  if (action === 'completeKajiDetails') return {data:withWorkflowLock_(()=>completeKajiDetails_(user,payload))};
+  if (action === 'saveReview') return {data:withWorkflowLock_(()=>saveReview_(user, payload))};
+  if (action === 'sendRevision') return {data:withWorkflowLock_(()=>sendRevision_(user, payload.requestId))};
+  if (action === 'resubmitRevision') return {data:withWorkflowLock_(()=>resubmitRevision_(user, payload))};
+  if (action === 'completeReview') return {data:withWorkflowLock_(()=>completeReview_(user, payload.requestId))};
+  if (action === 'miniWorkflow') return {data:withWorkflowLock_(()=>miniWorkflow_(user,payload))};
+  if (action === 'negoWorkflow') return {data:withWorkflowLock_(()=>negoWorkflow_(user,payload))};
+  if (action === 'startInaproc') return {data:startInaproc_(user, payload)};
+  if (action === 'completeRequest') return {data:completeRequest_(user, payload)};
+  if (action === 'adminList') return {data:adminList_(user)};
+  if (action === 'adminSearchRupRequests') return {data:adminSearchRupRequests_(user,payload)};
+  if (action === 'adminUpdateRequestRup') return {data:withWorkflowLock_(()=>adminUpdateRequestRup_(user,payload))};
+  if (action === 'adminSearchCorrections') return {data:adminSearchCorrections_(user,payload)};
+  if (action === 'adminCorrectCompetition') return {data:withWorkflowLock_(()=>adminCorrectCompetition_(user,payload))};
+  if (action === 'adminReturnToPokja') return {data:withWorkflowLock_(()=>adminReturnToPokja_(user,payload))};
+  if (action === 'adminSaveUser') return {data:adminSaveUser_(user, payload.data||{})};
+  if (action === 'adminDeleteUser') return {data:withWorkflowLock_(()=>adminDeleteUser_(user,payload))};
+  if (action === 'adminResetPassword') return {data:adminResetPassword_(user, payload)};
+  if (action === 'adminSavePokja') return {data:adminSavePokja_(user, payload.data||{})};
+  if (action === 'adminSaveDocConfig') return {data:adminSaveDocConfig_(user, payload.data||{})};
+  if (action === 'adminDeleteDocConfig') return {data:adminDeleteDocConfig_(user, payload)};
+  if (action === 'adminAudit') return {data:adminAudit_(user, payload)};
+  if (action === 'adminDbHealth') return {data:adminDatabaseHealth_(user)};
+  if (action === 'adminDbFindRequest') return {data:adminDbFindRequest_(user,payload)};
+  throw new Error('Aksi tidak dikenal: ' + action);
+}
+
+// Serialize decisions so two tabs cannot assign/reject the same pending package.
+function withWorkflowLock_(work) {
+  const lock=LockService.getScriptLock();
+  if(!lock.tryLock(10000)) throw new Error('Paket sedang diperbarui. Coba lagi sebentar.');
+  try { PBJ_DB_LOCKED=true; return work(); } finally { PBJ_DB_LOCKED=false; lock.releaseLock(); }
+}
+function characterCount_(text){return Array.from(String(text||'').trim()).length;}
+
+function upgradePemilihanV2780(){return withWorkflowLock_(()=>{const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));ensureDirectUploadSecret_();setSetting_('workflow_version','27.80');SpreadsheetApp.flush();Logger.log('Versi 27.80 siap. Validasi tanggal, detail produk, Non-Itemized, dan upload 10 MB aktif.');});}
+
+function upgradePemilihanV2777(){return withWorkflowLock_(()=>{const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));ensureDirectUploadSecret_();setSetting_('workflow_version','27.77');SpreadsheetApp.flush();Logger.log('Versi 27.77 siap. Form kompetisi Barang/Jasa Lainnya, draft, dan upload langsung aktif.');});}
+
+function upgradePemilihanV2710(){return withWorkflowLock_(()=>{const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));ensureDirectUploadSecret_();setSetting_('workflow_version','27.10');SpreadsheetApp.flush();Logger.log('Versi 27.10 siap.');});}
+
+function upgradePemilihanV2727(){
+  const result=upgradePemilihanV2726();
+  setSetting_('workflow_version','27.27');
+  SpreadsheetApp.flush();
+  Logger.log('Versi 27.27 siap. Branding ORBITA PBJ aktif, filter status diringkas, riwayat pengajuan Pokja terhubung, dan status SKP dirapikan.');
+  return result;
+}
+
+function upgradePemilihanV2726(){
+  const result=upgradePemilihanV2725();
+  setSetting_('workflow_version','27.26');
+  SpreadsheetApp.flush();
+  Logger.log('Versi 27.26 siap. Laporan SKP memuat riwayat reviu dan tautan dokumen, serta tampilan tahap akhir dan distribusi Pokja dirapikan.');
+  return result;
+}
+
+function upgradePemilihanV2725(){
+  const result=upgradePemilihanV2724();
+  setSetting_('workflow_version','27.25');
+  SpreadsheetApp.flush();
+  Logger.log('Versi 27.25 siap. Hitungan paket memakai Kode RUP unik dan detail paket dipercepat dengan cache/prefetch.');
+  return result;
+}
+
+function upgradePemilihanV2724(){
+  const result=upgradePemilihanV2722();
+  const renamed=migrateCurrentDocumentNamesV2724_();
+  setSetting_('workflow_version','27.24');
+  SpreadsheetApp.flush();
+  Logger.log('Versi 27.24 siap. Daftar pengajuan ulang diringkas dan nama dokumen Drive dibuat lebih mudah dibaca. File aktif yang berhasil diperbarui: '+renamed+'.');
+  return result;
+}
+
+// Perbaikan nama file lama di Drive dan sheet. Jalankan manual satu kali / berulang
+// dari Apps Script. Tidak dipanggil saat login, buka detail, atau unggah file.
+// Sebanyak 40 baris diproses per eksekusi supaya tidak menghambat aplikasi.
+function perbaruiNamaDokumenSesuaiJudulV2851(){
+  const props=PropertiesService.getScriptProperties();
+  const cursorKey='ORBITA_DOC_TITLE_V2851_CURSOR';
+  const sh=sheet_(PBJWF.SHEETS.DOCS),last=sh.getLastRow();
+  if(last<2){props.deleteProperty(cursorKey);return {selesai:true,diperbarui:0,sisa:0};}
+  const col=headers_(sh),ix={};col.forEach((h,i)=>ix[h]=i);
+  const keyColumns=['request_id','doc_type','doc_label','version','drive_file_id','file_name'];
+  if(keyColumns.some(k=>ix[k]==null))throw new Error('Kolom PBJ_DOKUMEN belum lengkap.');
+  const start=Math.max(2,Math.min(last,Number(props.getProperty(cursorKey))||2));
+  const count=Math.min(40,last-start+1);
+  const values=sh.getRange(start,1,count,col.length).getValues();
+  const ids=new Set(values.map(r=>String(r[ix.request_id]||'')));
+  const reqMap={};rows_(sheet_(PBJWF.SHEETS.REQUESTS)).forEach(r=>{const id=String(r.request_id||'');if(ids.has(id))reqMap[id]=r;});
+  let updated=0,failed=0;
+  values.forEach((row,i)=>{
+    const req=reqMap[String(row[ix.request_id]||'')],fileId=String(row[ix.drive_file_id]||'').trim();
+    if(!req||!fileId)return;
+    const oldName=String(row[ix.file_name]||'');
+    const expected=prettyDocumentFileName_(String(row[ix.doc_label]||docTypeLabel_(row[ix.doc_type])||'Dokumen'),requestDocumentTitle_(req),Number(row[ix.version])||1,oldName);
+    if(expected===oldName)return;
+    try{
+      const file=DriveApp.getFileById(fileId);
+      if(file.getName()!==expected)file.setName(expected);
+      sh.getRange(start+i,ix.file_name+1).setValue(expected);
+      updated++;
+    }catch(e){failed++;Logger.log('Dokumen tidak dapat diperbarui '+String(fileId)+': '+e.message);}
+  });
+  invalidateShardTable_(sh);
+  const next=start+count,finished=next>last;
+  if(finished)props.deleteProperty(cursorKey);else props.setProperty(cursorKey,String(next));
+  return {selesai:finished,barisDiproses:count,diperbarui:updated,gagal:failed,sisa:Math.max(0,last-next+1),lanjutDari:finished?null:next};
+}
+
+function migrateCurrentDocumentNamesV2724_(){
+  const docsSh=sheet_(PBJWF.SHEETS.DOCS),requests=rows_(sheet_(PBJWF.SHEETS.REQUESTS));
+  const reqMap={};requests.forEach(r=>reqMap[String(r.request_id||'')]=r);
+  const lr=docsSh.getLastRow(),lc=docsSh.getLastColumn();if(lr<2||lc<1)return 0;
+  const headers=headers_(docsSh),idx={};headers.forEach((h,i)=>idx[h]=i);
+  const vals=docsSh.getRange(2,1,lr-1,lc).getValues();let changed=0;
+  vals.forEach(row=>{
+    if(!truthy_(row[idx.is_current]))return;
+    const req=reqMap[String(row[idx.request_id]||'')],fileId=String(row[idx.drive_file_id]||'');if(!req||!fileId)return;
+    const label=String(row[idx.doc_label]||docTypeLabel_(row[idx.doc_type])||'Dokumen');
+    const pretty=prettyDocumentFileName_(label,requestDocumentTitle_(req),Number(row[idx.version])||1,String(row[idx.file_name]||''));
+    try{const f=DriveApp.getFileById(fileId);if(f.getName()!==pretty)f.setName(pretty);row[idx.file_name]=pretty;changed++;}catch(_){ }
+  });
+  if(changed){invalidateShardTable_(docsSh);docsSh.getRange(2,1,vals.length,lc).setValues(vals);}
+  return changed;
+}
+
+function upgradePemilihanV2722(){
+  const result=upgradePemilihanV2721();
+  setSetting_('workflow_version','27.22');
+  SpreadsheetApp.flush();
+  Logger.log('Versi 27.22 siap. Riwayat pengajuan ulang menampilkan rangkaian paket sebelumnya secara berkelompok.');
+  return result;
+}
+
+function upgradePemilihanV2721(){
+  const result=upgradePemilihanV2720();
+  setSetting_('workflow_version','27.21');
+  SpreadsheetApp.flush();
+  Logger.log('Versi 27.21 siap. Aksi penting memakai indikator proses penuh dan pengajuan ulang ganda diblokir.');
+  return result;
+}
+
+function upgradePemilihanV2720(){
+  const result=upgradePemilihanV2719();
+  setSetting_('workflow_version','27.20');
+  SpreadsheetApp.flush();
+  Logger.log('Versi 27.20 siap. Upload dokumen dapat berjalan paralel, riwayat upload langsung diperbarui, dan konfirmasi aksi penting diperketat.');
+  return result;
+}
+
+function upgradePemilihanV2719(){
+  const result=upgradePemilihanV2718();
+  setSetting_('workflow_version','27.19');
+  SpreadsheetApp.flush();
+  Logger.log('Versi 27.19 siap. Pencarian Kode RUP aktif dan upload Drive dapat memeriksa serta melanjutkan sesi yang terputus.');
+  return result;
+}
+
+function upgradePemilihanV2718(){
+  const result=upgradePemilihanV2717();
+  setSetting_('workflow_version','27.18');
+  SpreadsheetApp.flush();
+  Logger.log('Versi 27.18 siap. OPD dapat mengajukan beberapa paket berbeda secara bersamaan; hanya Kode RUP yang sama yang dicegah dari pengajuan ganda.');
+  return result;
+}
+
+function upgradePemilihanV2717(){return withWorkflowLock_(()=>{
+  const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));ensureDirectUploadSecret_();
+  const sh=sheet_(PBJWF.SHEETS.DOC_CONFIG);
+  [
+    {doc_type:'SURAT_PERMOHONAN',label:'Surat Permohonan Pemilihan',required:true,scope:'ALL',sort:10,active:true},
+    {doc_type:'KAK',label:'KAK / Spesifikasi Teknis',required:true,scope:'ALL',sort:20,active:true},
+    {doc_type:'HPS',label:'HPS',required:true,scope:'ALL',sort:30,active:true},
+    {doc_type:'RANCANGAN_KONTRAK',label:'Rancang Kontrak',required:true,scope:'ALL',sort:40,active:true}
+  ].forEach(obj=>{const hit=findRow_(sh,'doc_type',obj.doc_type);if(hit)updateRow_(sh,hit.row,obj);else appendObj_(sh,obj);});
+  ['SK_PPK','DATA_RUP','WAKTU_PENGGUNAAN','PENDUKUNG'].forEach(type=>{const hit=findRow_(sh,'doc_type',type);if(hit)updateRow_(sh,hit.row,{active:false});});
+  setSetting_('workflow_version','27.17');SpreadsheetApp.flush();Logger.log('Versi 27.17 siap. RUP memakai DETAILPSW dan dokumen persiapan dapat dikelola Admin.');
+  return true;
+});}
+
+function upgradePemilihanV2713(){upgradePemilihanV2712();setSetting_('workflow_version','27.13');Logger.log('Versi 27.13 siap. Sinkronisasi realtime memakai pulse ringan dan bootstrap hanya saat data berubah.');}
+
+function upgradePemilihanV2712(){upgradePemilihanV2711();setSetting_('workflow_version','27.12');Logger.log('Versi 27.12 siap.');}
+
+function upgradePemilihanV2711(){return withWorkflowLock_(()=>{const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));ensureDirectUploadSecret_();const report=readInaprocReport_();if(report.state==='unavailable')throw new Error(report.message);setSetting_('workflow_version','27.11');SpreadsheetApp.flush();Logger.log('Versi 27.11 siap. Progres INAPROC mengikuti sheet Report.');});}
+
+function upgradePemilihanV279(){return withWorkflowLock_(()=>{const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));ensureDirectUploadSecret_();setSetting_('workflow_version','27.9');SpreadsheetApp.flush();Logger.log('Versi 27.9 siap. File dapat diunggah binary langsung dari browser ke Google Drive melalui resumable upload session.');});}
+
+function upgradePemilihanV278(){return withWorkflowLock_(()=>{const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));setSetting_('workflow_version','27.8');SpreadsheetApp.flush();Logger.log('Versi 27.8 siap. Jalur upload tidak lagi menahan workflow lock selama transfer ke Drive.');});}
+
+function upgradePemilihanV277(){return upgradePemilihanV275();}
+
+function upgradePemilihanV276(){return upgradePemilihanV275();}
+
+function upgradePemilihanV275() {
+  return withWorkflowLock_(()=>{
+    const ss=ss_();
+    Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));
+    setSetting_('workflow_version','27.7');
+    SpreadsheetApp.flush();
+    Logger.log('Versi 27.7 siap. Data dan riwayat lama tetap tersimpan.');
+  });
+}
+
+function ensureRequestSchema_() {
+  const required=PBJ_HEADERS.PBJ_PERMOHONAN;
+  const actual=headers_(sheet_(PBJWF.SHEETS.REQUESTS));
+  if(required.some(h=>!actual.includes(h))) ensureSheet_(ss_(),PBJWF.SHEETS.REQUESTS,required);
+}
+
+function upgradePemilihanV2817(){
+  return withWorkflowLock_(()=>{
+    const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));
+    const sh=sheet_(PBJWF.SHEETS.DOC_CONFIG);
+    const additions=[
+      ['SURAT_PERMOHONAN','Surat Permohonan E-Purchasing',true,'ALL',10,true],
+      ['SK_PPK','SK Pengangkatan PPK',true,'ALL',12,true],
+      ['DPA_ANGGARAN','Dokumen DPA Anggaran',true,'ALL',14,true],
+      ['SCREENSHOT_RUP','Screenshot RUP',false,'ALL',16,true]
+    ];
+    additions.forEach(d=>{const hit=findRow_(sh,'doc_type',d[0]);if(hit){if(d[0]==='SURAT_PERMOHONAN')updateRow_(sh,hit.row,{label:d[1]});}else appendObj_(sh,{doc_type:d[0],label:d[1],required:d[2],scope:d[3],sort:d[4],active:d[5]});});
+    clearDocConfigCache_();setSetting_('workflow_version','28.17');
+    // Pengiriman email dijalankan terpisah dari permintaan pengguna.
+    // Tidak membuat trigger email di backend utama.
+    SpreadsheetApp.flush();return 'v28.17 siap';
+  });
+}
+
+function upgradePemilihanV2818(){
+  return withWorkflowLock_(()=>{
+    const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));
+    const sh=sheet_(PBJWF.SHEETS.DOC_CONFIG);
+    const additions=[
+      ['SURAT_PERMOHONAN','Surat Permohonan E-Purchasing',true,'ALL',10,true],
+      ['SK_PPK','SK Pengangkatan PPK',true,'ALL',12,true],
+      ['DPA_ANGGARAN','Dokumen DPA Anggaran',true,'ALL',14,true],
+      ['SCREENSHOT_RUP','Screenshot RUP',false,'ALL',16,true]
+    ];
+    additions.forEach(d=>{const hit=findRow_(sh,'doc_type',d[0]);if(hit){if(d[0]==='SURAT_PERMOHONAN')updateRow_(sh,hit.row,{label:d[1]});}else appendObj_(sh,{doc_type:d[0],label:d[1],required:d[2],scope:d[3],sort:d[4],active:d[5]});});
+    clearDocConfigCache_();setSetting_('workflow_version','28.18');
+    // Pengiriman email dijalankan terpisah dari permintaan pengguna.
+    // Tidak membuat trigger email di backend utama.
+    SpreadsheetApp.flush();return 'v28.18 siap';
+  });
+}
+
+// Logo diambil dari alamat gambar publik. Tidak dikirim sebagai attachment.
+const PBJ_MAIL_LOGO_URL='https://pbjkotabogor.github.io/ORBITA/assets/img/favicon.png';
+const PBJ_MAIL_FROM_NAME='ORBITA PBJ KOTA BOGOR';
+
+// Sapaan hanya untuk email notifikasi. Surat/undangan resmi tetap memakai format semula.
+function isOrbitaNoticeEmail_(eventKey){
+  const kind=String(eventKey||'').split(':')[0].toUpperCase();
+  return !/(^|_)(UNDANGAN|SURAT_RESMI|SURAT_PERINTAH|SURAT_TUGAS)(_|$)/.test(kind);
+}
+function formatOrbitaNoticeBody_(eventKey,body){
+  const original=String(body||'').trim();
+  if(!original||!isOrbitaNoticeEmail_(eventKey))return original;
+  if(/^🚀 Halo, Orbiters!/u.test(original)&&/Salam ORBITA! 🚀$/u.test(original))return original;
+  const content=original
+    .replace(/^Yth\.\s*Bapak\/Ibu[^\n]*\n*/i,'')
+    .replace(/\n*(?:Pesan ini dikirim otomatis oleh ORBITA PBJ Kota Bogor\.|Email ini dikirim otomatis oleh (?:sistem )?ORBITA PBJ(?: Kota Bogor)?(?: dan tidak menerima balasan)?\.)\s*$/i,'')
+    .trim();
+  return '🚀 Halo, Orbiters!\n\n'+content+'\n\nSalam ORBITA! 🚀';
+}
+
+function mailQueue_(key,recipient,subject,body){
+  recipient=String(recipient||'').trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient))return false;
+  const originalKey=String(key||'').trim();if(!originalKey)return false;
+  const run=()=>emailEnqueueProduksi_(originalKey,recipient,subject,formatOrbitaNoticeBody_(originalKey,body));
+  return PBJ_DB_LOCKED?run():withWorkflowLock_(run);
+}
+var PBJ_MAIL_TRIGGER_READY=false;
+// Backend produksi hanya memasukkan antrean. Pengiriman dilakukan oleh Gmail B melalui Apps Script tersendiri.
+function ensureMailQueueTrigger_(){return;}
+function aktifkanTriggerEmailCepat(){
+  return 'Pengiriman email dilakukan oleh Apps Script akun DATA ORBITA. Jalankan pasangPengirimEmailDATAORBITA() pada project pengirim.';
+}
+function nonaktifkanTriggerEmailBackendLama(){
+  const previous=ScriptApp.getProjectTriggers().filter(t=>t.getHandlerFunction()==='processPemilihanMailQueue');
+  previous.forEach(t=>ScriptApp.deleteTrigger(t));
+  PBJ_MAIL_TRIGGER_READY=false;
+  return previous.length+' trigger pengirim lama dinonaktifkan.';
+}
+function attemptQueuedMailByKey_(key){
+  return false; // Sender terpisah; backend ini tidak mengirim email langsung.
+  const sh=sheet_(PBJWF.SHEETS.MAIL_QUEUE),hit=findRow_(sh,'event_key',key);
+  if(!hit||!hit.obj)return false;
+  const item=hit.obj,attempts=Number(item.attempts||0);
+  if(String(item.status||'')==='SENT'||attempts>=3)return false;
+  try{
+    sendQueueMail_(item);
+    updateRow_(sh,hit.row,{status:'SENT',attempts:attempts+1,sent_at:new Date(),last_error:''});
+    return true;
+  }catch(err){
+    updateRow_(sh,hit.row,{status:attempts>=2?'FAILED':'PENDING',attempts:attempts+1,last_error:String(err).slice(0,400)});
+    return false;
+  }
+}
+function migrasiEmailQueueKeDataOrbita(){
+  // Jalankan sekali dari editor Apps Script sesudah akun pelaksana mendapatkan akses Editor ke DATA ORBITA.
+  const source=ss_().getSheetByName(PBJWF.SHEETS.MAIL_QUEUE),target=ensureEmailQueueStorage_();
+  if(!source||source.getLastRow()<2)return {dipindahkan:0,keterangan:'Belum ada antrean lama.'};
+  const srcH=source.getRange(1,1,1,source.getLastColumn()).getDisplayValues()[0].map(String),dstH=target.getRange(1,1,1,target.getLastColumn()).getDisplayValues()[0].map(String),srcKey=srcH.indexOf('event_key'),dstKey=dstH.indexOf('event_key');
+  if(srcKey<0||dstKey<0)throw new Error('Kolom event_key tidak ditemukan.');
+  const existing=new Set(),destLast=target.getLastRow();
+  if(destLast>1)target.getRange(2,dstKey+1,destLast-1,1).getDisplayValues().forEach(row=>existing.add(String(row[0])));
+  let added=0;
+  for(let start=2;start<=source.getLastRow();start+=250){
+    const len=Math.min(250,source.getLastRow()-start+1),oldRows=source.getRange(start,1,len,srcH.length).getValues(),out=[];
+    oldRows.forEach(values=>{
+      const key=String(values[srcKey]||'').trim();if(!key||existing.has(key))return;
+      existing.add(key);const row={};srcH.forEach((k,i)=>row[k]=values[i]);
+      out.push(dstH.map(k=>row[k]===undefined?'':row[k]));
+    });
+    if(out.length){
+      const at=target.getLastRow()+1,required=at+out.length-1;
+      if(required>target.getMaxRows())target.insertRowsAfter(target.getMaxRows(),required-target.getMaxRows());
+      target.getRange(at,1,out.length,dstH.length).setValues(out);added+=out.length;
+    }
+  }
+  delete PBJ_READ_CACHE[target.getName()];
+  Logger.log('PBJ_EMAIL_QUEUE disalin ke DATA ORBITA: '+added+' baris. Antrean lama tidak dihapus.');
+  return {dipindahkan:added,tujuan:'DATA ORBITA',catatan:'Antrean lama tetap tersimpan sebagai cadangan.'};
+}
+function cekEmailQueueDataOrbita(){
+  const sh=ensureEmailQueueStorage_();return {spreadsheet:'DATA ORBITA',sheet:sh.getName(),baris:sh.getLastRow()-1,akses:'OK',database:sh.getParent().getId()};
+}
+function sendQueueMail_(item){throw new Error('Pengiriman email hanya melalui project terpisah DATA ORBITA.');}
+const PBJ_MAIL_PORTAL_URL='https://pbjkotabogor.github.io/ORBITA/profil-pbj/#pengelolaan-pbj';
+function mailHtmlTemplate_(subject,body,eventKey){
+  const kind=String(eventKey||'').split(':')[0].toUpperCase();
+  const danger=['MINI_BATAL','NEGO_BATAL','DITOLAK_KEPALA'].includes(kind),warning=['MINI_GAGAL','KAJI_PERBAIKAN','REVIU_PERBAIKAN','PERBAIKAN_REVIU'].includes(kind);
+  const color=danger?'#b91c1c':warning?'#b45309':'#0776a2';
+  const tag=danger?'TINDAK LANJUT PERMOHONAN':warning?'PERLU PERHATIAN PPK':'PEMBERITAHUAN PENGADAAN';
+  const safeSubject=htmlEscape_(subject||'Pemberitahuan ORBITA PBJ');
+  const safeBody=String(body||'').trim().split(/\n\s*\n/).map(para=>'<p style="margin:0 0 16px">'+htmlEscape_(para).replace(/\n/g,'<br>')+'</p>').join('');
+  return '<div style="margin:0;padding:22px 12px;background:#f2f6fa;font-family:Arial,Helvetica,sans-serif;color:#173042">'
+    +'<div style="max-width:700px;margin:0 auto;background:#ffffff;border:1px solid #dce6ee;border-radius:14px;overflow:hidden">'
+    +'<div style="background:'+color+';padding:19px 24px;color:#ffffff">'
+    +'<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 12px 0 0;vertical-align:middle">'
+    +'<img src="'+PBJ_MAIL_LOGO_URL+'" alt="Logo UKPBJ Kota Bogor" width="48" height="48" style="width:48px;height:48px;display:block;border:0;background:#fff;border-radius:11px;padding:3px">'
+    +'</td><td style="vertical-align:middle"><div style="font-size:17px;line-height:1.25;font-weight:700">ORBITA PBJ KOTA BOGOR</div>'
+    +'<div style="font-size:11px;letter-spacing:1.1px;margin-top:5px">'+tag+'</div></td></tr></table></div>'
+    +'<div style="padding:22px 24px 8px"><div style="font-size:17px;line-height:1.45;font-weight:700;margin:0 0 20px">'+safeSubject+'</div>'
+    +'<div style="font-size:14px;line-height:1.75">'+safeBody+'</div>'
+    +'<div style="padding:7px 0 22px"><a href="'+PBJ_MAIL_PORTAL_URL+'" style="display:inline-block;background:#087da5;border-radius:7px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:12px 20px">Buka ORBITA PBJ</a></div></div>'
+    +'<div style="margin:4px 24px 22px;padding-top:13px;border-top:1px solid #e5ecf2;font-size:12px;line-height:1.6;color:#61788a">'
+    +'Pesan ini dikirim otomatis oleh ORBITA PBJ Kota Bogor. Periksa detail permohonan melalui portal ORBITA PBJ.'
+    +'</div></div></div>';
+}
+function processPemilihanMailQueue(){
+  // Trigger lama mungkin masih terpasang: jangan mengirim dari akun backend utama.
+  return 0;
+  const lock=LockService.getUserLock();
+  if(!lock.tryLock(250))return 0;
+  try{
+    const sh=sheet_(PBJWF.SHEETS.MAIL_QUEUE),h=headers_(sh),idx=h.indexOf('status');
+    const lr=sh.getLastRow();if(lr<2||idx<0)return 0;
+    const finder=sh.getRange(2,idx+1,lr-1,1).createTextFinder('PENDING').matchEntireCell(true);
+    let count=0,cell,checked=0;const seen=new Set();
+    // TextFinder menelusuri kolom status langsung di server, tanpa memuat seluruh log email.
+    while(count<12&&checked<60&&(cell=finder.findNext())){
+      checked++;
+      const row=cell.getRow();if(seen.has(row))break;seen.add(row);
+      const vals=sh.getRange(row,1,1,h.length).getValues()[0],item={};
+      h.forEach((k,i)=>item[k]=normalizeCell_(vals[i]));
+      if(Number(item.attempts||0)>=3){updateRow_(sh,row,{status:'FAILED'});continue;}
+      const attempts=Number(item.attempts||0)+1;
+      try{sendQueueMail_(item);updateRow_(sh,row,{status:'SENT',attempts,sent_at:new Date(),last_error:''});}
+      catch(err){updateRow_(sh,row,{status:attempts>=3?'FAILED':'PENDING',attempts,last_error:String(err).slice(0,400)});}
+      count++;
+    }
+    return count;
+  }finally{lock.releaseLock();}
+}
+function bestEffortMail_(key,to,subject,body){
+  try{const queued=mailQueue_(key,to,subject,body);if(queued)ensureMailQueueTrigger_();return queued;}
+  catch(err){Logger.log('Notifikasi tertunda: '+String(err));return false;}
+}
+function ensureUserEmailSchema_(){
+  const sh=sheet_(PBJWF.SHEETS.USERS);
+  if(headers_(sh).indexOf('email')<0||headers_(sh).indexOf('deleted_at')<0)ensureSheet_(ss_(),PBJWF.SHEETS.USERS,PBJ_HEADERS.PBJ_USERS);
+}
+function requestMailMethod_(req){
+  const method=String(req&&req.selection_process||'').toUpperCase();
+  if(method==='NEGOSIASI')return 'Negosiasi';
+  if(method==='MINI_KOMPETISI'){
+    const type=String(req&&req.competition_type||'').toUpperCase();
+    return 'Mini Kompetisi'+(type==='CONSTRUCTION'?' (Pekerjaan Konstruksi)':type==='NON_CONSTRUCTION'?' (Barang/Jasa Lainnya)':'');
+  }
+  return 'Belum ditetapkan Pokja (Kaji Ulang)';
+}
+function notifyAccountUsers_(req,role,eventKind,message,recipients){
+  // Notifikasi akun masuk antrean; tidak menunggu kirim Gmail saat pengguna menyimpan proses.
+  try{
+    ensureUserEmailSchema_();
+    const users=rows_(sheet_(PBJWF.SHEETS.USERS));
+    const to=(recipients||users.filter(u=>u.role===role&&truthy_(u.active))).map(u=>String(u.email||'').trim().toLowerCase());
+    const distinct=[...new Set(to.filter(x=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)))];
+    if(!distinct.length)return 0;
+    ensureMailQueueTrigger_();
+    // Untuk email Pokja, tampilkan tim yang mendapat penugasan di subjek dan isi.
+    // Pengiriman Kepala UKPBJ / PPK tidak berubah.
+    const pokjaLabel=role==='POKJA'?String(message.pokjaLabel||'').trim():'';
+    const subject=requestMailSubject_(message.title,req);
+    const pokjaSubject=pokjaLabel?requestMailSubject_('['+pokjaLabel+'] '+message.title,req):subject;
+    const content=[...(pokjaLabel?['Ditujukan untuk: '+pokjaLabel,'']:[]),message.text,'',
+      'Nomor Permohonan: '+String(req.request_id||'-'),
+      'Kode RUP: '+String(req.kode_rup||'-'),
+      'Metode Pemilihan: '+requestMailMethod_(req),
+      'Judul Permohonan: '+requestMailTitle_(req),
+      'OPD: '+String(req.opd||'-'),
+      ...(message.detail?[ '',message.detail ]:[]),
+      '',message.next||'Silakan periksa detail permohonan melalui ORBITA PBJ.',
+      ''
+    ].join('\n');
+    let queued=0;
+    distinct.forEach(email=>{if(mailQueue_(eventKind+':'+req.request_id+':'+email+':'+String(message.suffix||''),email,pokjaSubject,content))queued++;});
+    return queued;
+  }catch(err){if(typeof Logger!=='undefined')Logger.log('Antrean notifikasi akun gagal: '+String(err));return 0;}
+}
+// Ambil nama Pokja dari penugasan paket, BUKAN dari Pokja aktif penerima email.
+// Satu akun boleh bergabung di beberapa Pokja, jadi informasi tetap mengikuti paket.
+function pokjaLabelForMail_(req){
+  const id=String(req&&req.assigned_pokja_id||'').trim();
+  if(!id)return '';
+  try{
+    const match=findRow_(sheet_(PBJWF.SHEETS.POKJA),'pokja_id',id);
+    const name=String(match&&match.obj&&match.obj.nama||'').trim();
+    if(name)return name.toUpperCase();
+  }catch(err){Logger.log('Nama Pokja belum dapat dibaca: '+String(err));}
+  // Hindari email tanpa identitas apabila data nama Pokja sementara belum tersedia.
+  const number=id.match(/^(?:POKJA|PKJ)[\s_-]*(\d+)$/i);
+  return number?'POKJA '+number[1]:'POKJA (ID: '+id+')';
+}
+function notifyPokjaStatus_(req,kind,detail,suffix){
+  if(!req||!String(req.assigned_pokja_id||'').trim())return;
+  const messages={
+    DISPOSISI:{title:'Penugasan Paket kepada Pokja',text:'Kepala UKPBJ telah menugaskan paket ini kepada Pokja melalui surat perintah.',detail:detail?'Keterangan: '+detail:'',next:'Buka ORBITA PBJ untuk melihat surat perintah, dokumen persiapan, dan mulai Kaji Ulang.'},
+    PPK_KIRIM_ULANG:{title:'Tindak Lanjut PPK Diterima',text:'PPK telah mengirim kembali dokumen atau catatan perbaikan untuk diperiksa Pokja.',detail:detail?'Catatan PPK: '+detail:'',next:'Cek catatan dan dokumen terbaru di ORBITA PBJ, lalu lanjutkan Kaji Ulang atau reviu paket.'},
+    PPK_DETAIL_LENGKAP:{title:'Detail Mini Kompetisi Telah Dilengkapi',text:'PPK telah melengkapi detail pemilihan dan mengirimkan paket kembali kepada Pokja.',detail:detail?'Catatan PPK: '+detail:'',next:'Cek detail produk atau pekerjaan di ORBITA PBJ, lalu lanjutkan Mini Kompetisi.'},
+    ADMIN_RETURN:{title:'Permohonan Dikembalikan Admin ke Pokja',text:'Admin mengembalikan permohonan untuk diperiksa ulang oleh Pokja.',detail:detail?'Alasan: '+detail:'',next:'Buka ORBITA PBJ, periksa catatan Admin dan unggah BA Kaji Ulang untuk putaran terbaru.'}
+  };
+  const msg=messages[kind];if(!msg)return;
+  const users=rows_(sheet_(PBJWF.SHEETS.USERS)).filter(u=>u.role==='POKJA'&&truthy_(u.active)&&!u.deleted_at&&pokjaMembershipIds_(u).includes(String(req.assigned_pokja_id)));
+  if(!users.length)return; // Tidak perlu lookup nama Pokja jika tidak ada penerima.
+  notifyAccountUsers_(req,'POKJA',kind,{...msg,suffix:suffix||'',pokjaLabel:pokjaLabelForMail_(req)},users);
+}
+function rupAllocationTotal_(kodeRup,excludeRequestId){
+  return rows_(sheet_(PBJWF.SHEETS.REQUESTS)).reduce((sum,r)=>{
+    if(String(r.kode_rup)!==String(kodeRup)||String(r.request_id)===String(excludeRequestId||'')||['DRAFT','PERLU_KELENGKAPAN','DITOLAK_KEPALA','BATAL'].includes(String(r.status||'')))return sum;
+    return sum+Math.max(0,Number(r.hps_alokasi)||Number(r.pagu)||0);
+  },0);
+}
+function checkRupAllocation_(req){
+  const allocation=Number(req.hps_alokasi)||0;
+  if(!Number.isFinite(allocation)||allocation<=0)throw new Error('Isi Total HPS yang diajukan terlebih dahulu.');
+  const master=lookupRup_(req.kode_rup),used=rupAllocationTotal_(req.kode_rup,req.request_id),left=Math.max(0,master.pagu-used);
+  if(allocation>left)throw new Error('Total HPS melebihi sisa pagu RUP ('+left.toLocaleString('id-ID')+').');
+  return {pagu:master.pagu,used,left};
+}
+
+function htmlEscape_(value){
+  return String(value==null?'':value)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function setupPemilihanPBJ() {
+  const ss = SpreadsheetApp.openById(PBJWF.DB_ID);
+  Object.keys(PBJ_HEADERS).filter(name => name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name => ensureSheet_(ss, name, PBJ_HEADERS[name]));
+  ensureEmailQueueStorage_();
+  seedDocConfig_(ss);
+  const folder = getOrCreateWorkflowFolder_();
+  setSetting_('workflow_folder_id', folder.getId());
+  setSetting_('setup_at', new Date().toISOString());
+  SpreadsheetApp.flush();
+  Logger.log('Setup selesai. Folder: ' + folder.getUrl());
+}
+
+
+function upgradePemilihanV272() {
+  const ss=SpreadsheetApp.openById(PBJWF.DB_ID);
+  Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));
+
+  // Alur baru langsung PPK -> Kepala UKPBJ. Status lama tetap diselamatkan.
+  const reqSh=sheet_(PBJWF.SHEETS.REQUESTS);
+  rows_(reqSh).forEach(r=>{
+    if(r.status===STATUS.DIAJUKAN) updateRequest_(r.request_id,{status:STATUS.MENUNGGU_DISPOSISI,updated_at:new Date()});
+    if(r.status===STATUS.PERLU_KELENGKAPAN) updateRequest_(r.request_id,{status:STATUS.DRAFT,updated_at:new Date()});
+  });
+
+  // ID lama dibuat pendek dan tetap membawa Kode RUP, termasuk seluruh relasinya.
+  migrateLegacyRequestIds_();
+
+  // Role lama tidak dipakai lagi. Akunnya dinonaktifkan agar tidak masuk ke alur baru tanpa penetapan role.
+  const userSh=sheet_(PBJWF.SHEETS.USERS);
+  rows_(userSh).filter(u=>String(u.role||'')==='VERIFIKATOR_UKPBJ').forEach(u=>{
+    const hit=findRow_(userSh,'user_id',u.user_id);
+    if(hit) updateRow_(userSh,hit.row,{active:false,updated_at:new Date()});
+  });
+
+  setSetting_('workflow_version','27.2');
+  SpreadsheetApp.flush();
+  Logger.log('Upgrade V27.2 selesai.');
+}
+
+function buatAdminAwalPemilihan(username, password, nama) {
+  if (!username || !password) throw new Error('Isi username dan password.');
+  const ss = SpreadsheetApp.openById(PBJWF.DB_ID);
+  ensureSheet_(ss, PBJWF.SHEETS.USERS, PBJ_HEADERS.PBJ_USERS);
+  const existing = findRow_(sheet_(PBJWF.SHEETS.USERS), 'username', String(username).trim().toLowerCase());
+  if (existing) throw new Error('Username sudah ada.');
+  const salt = randomToken_().slice(0,24);
+  appendObj_(sheet_(PBJWF.SHEETS.USERS), {
+    user_id:id_('USR'), username:String(username).trim().toLowerCase(), password_hash:hashPassword_(password,salt), salt:salt,
+    nama:String(nama||'Administrator PBJ'), role:'ADMIN', opd:'', pokja_id:'', active:true, created_at:new Date(), updated_at:new Date(), last_login:''
+  });
+  Logger.log('Admin awal dibuat: ' + username);
+}
+
+// Satu akun dapat menjadi anggota beberapa Pokja. Keanggotaan disimpan di PBJ_POKJA_MEMBERS;
+// kolom pokja_id pada akun lama tetap dipakai untuk kompatibilitas.
+function pokjaMembershipIds_(u){
+  if(String(u.role||'')!=='POKJA')return [];
+  const list=[];const add=id=>{id=String(id||'').trim();if(id&&!list.includes(id))list.push(id);};
+  add(u.pokja_id);
+  try{rows_(sheet_(PBJWF.SHEETS.MEMBERS)).forEach(m=>{if(String(m.user_id)===String(u.user_id)&&truthy_(m.active))add(m.pokja_id)});}catch(_){}
+  const active=new Set(rows_(sheet_(PBJWF.SHEETS.POKJA)).filter(p=>truthy_(p.active)).map(p=>String(p.pokja_id)));
+  return list.filter(id=>active.has(id));
+}
+function pokjaScopedUser_(u,selected){
+  const ids=pokjaMembershipIds_(u),id=ids.includes(String(selected||''))?String(selected):ids[0]||'';
+  return {...u,pokja_ids:ids,pokja_id:String(u.role)==='POKJA'?id:(u.pokja_id||'')};
+}
+function pbjRevocationKey_(id){return 'pbj_revoked_after_'+String(id||'');}
+function revokeUserSessions_(userId){
+  const sh=sheet_(PBJWF.SHEETS.SESSIONS),last=sh.getLastRow();
+  try{scriptCache_()?.put(pbjRevocationKey_(userId),String(Date.now()),21600)}catch(_){}
+  if(last<2)return;
+  const keys=headers_(sh),uid=keys.indexOf('user_id')+1,act=keys.indexOf('active')+1;
+  if(uid<1||act<1)return;
+  const ids=sh.getRange(2,uid,last-1,1).getValues(),flags=sh.getRange(2,act,last-1,1).getValues();
+  let changed=false;
+  for(let i=0;i<ids.length;i++){if(String(ids[i][0])===String(userId)&&truthy_(flags[i][0])){flags[i][0]=false;changed=true}}
+  if(changed){sh.getRange(2,act,last-1,1).setValues(flags);invalidateShardTable_(sh);}
+}
+function switchActivePokja_(user,payload){
+  requireRole_(user,['POKJA']);const id=String(payload.pokjaId||'').trim(),ids=pokjaMembershipIds_(user);
+  if(!ids.includes(id))throw new Error('Akun tidak terdaftar pada Pokja yang dipilih.');
+  const token=String(payload.token||'');if(!headers_(sheet_(PBJWF.SHEETS.SESSIONS)).includes('selected_pokja_id'))ensureSheet_(ss_(),PBJWF.SHEETS.SESSIONS,PBJ_HEADERS.PBJ_SESSIONS);
+  const hit=findRow_(sheet_(PBJWF.SHEETS.SESSIONS),'token_hash',hash_(token));
+  if(!hit||!truthy_(hit.obj.active)||String(hit.obj.user_id)!==String(user.user_id))throw new Error('Sesi tidak valid. Silakan masuk kembali.');
+  updateRow_(sheet_(PBJWF.SHEETS.SESSIONS),hit.row,{selected_pokja_id:id,last_seen:new Date()});
+  dropSessionCache_(token);
+  cacheSession_(token,pokjaScopedUser_(user,id),hit.obj.expires_at);
+  audit_(user,'SWITCH_ACTIVE_POKJA','',{pokjaId:id});
+  return publicUser_(pokjaScopedUser_(user,id));
+}
+function changeOwnPassword_(user,payload){
+  const current=String(payload.currentPassword||''),next=String(payload.newPassword||'');
+  if(next.length<8||next.length>128)throw new Error('Password baru minimal 8 karakter.');
+  if(current===next)throw new Error('Password baru harus berbeda dari password lama.');
+  const sh=sheet_(PBJWF.SHEETS.USERS),hit=findRow_(sh,'user_id',String(user.user_id||''));
+  if(!hit||!truthy_(hit.obj.active)||String(hit.obj.deleted_at||''))throw new Error('Akun tidak aktif.');
+  if(hashPassword_(current,hit.obj.salt)!==String(hit.obj.password_hash||''))throw new Error('Password lama tidak sesuai.');
+  const salt=randomToken_().slice(0,24);
+  updateRow_(sh,hit.row,{salt,password_hash:hashPassword_(next,salt),updated_at:new Date()});
+  audit_(user,'CHANGE_OWN_PASSWORD','',{});revokeUserSessions_(user.user_id);
+  return true;
+}
+function savePokjaMemberships_(userId,ids){
+  const sh=ensureSheet_(ss_(),PBJWF.SHEETS.MEMBERS,PBJ_HEADERS.PBJ_POKJA_MEMBERS),existing=rows_(sh).filter(m=>String(m.user_id)===String(userId));
+  const wanted=new Set(ids.map(String));
+  existing.forEach(m=>{const hit=findRow_(sh,'member_id',m.member_id);if(hit)updateRow_(sh,hit.row,{active:wanted.has(String(m.pokja_id)),updated_at:new Date()});wanted.delete(String(m.pokja_id));});
+  wanted.forEach(id=>appendObj_(sh,{member_id:id_('MBR'),user_id:userId,pokja_id:id,position:'ANGGOTA',active:true,created_at:new Date(),updated_at:new Date()}));
+}
+function sessionCacheKey_(rawToken){return 'pbj_sess_'+hash_(String(rawToken||'')).slice(0,36);}
+function cacheSession_(rawToken,user,expiresAt){try{const c=scriptCache_();if(!c)return;const exp=new Date(expiresAt||0).getTime()||0;if(exp<=Date.now())return;c.put(sessionCacheKey_(rawToken),JSON.stringify({user:user,exp:exp,issuedAt:Date.now()}),30);}catch(_){}}
+function dropSessionCache_(rawToken){try{scriptCache_()?.remove(sessionCacheKey_(rawToken));}catch(_){}}
+
+function login_(payload) {
+  const username = String(payload.username||'').trim().toLowerCase();
+  const password = String(payload.password||'');
+  if (!username || !password) throw new Error('Username dan password wajib diisi.');
+  const hit = findRow_(sheet_(PBJWF.SHEETS.USERS), 'username', username);
+  if (!hit || !truthy_(hit.obj.active)||String(hit.obj.deleted_at||'')) throw new Error('Akun tidak aktif atau tidak ditemukan.');
+  if (String(hit.obj.role||'') === 'VERIFIKATOR_UKPBJ') throw new Error('Akun ini perlu diperbarui oleh Admin.');
+  if (hashPassword_(password, hit.obj.salt) !== String(hit.obj.password_hash||'')) throw new Error('Username atau password salah.');
+  const rawToken = randomToken_(),expiresAt=new Date(Date.now()+PBJWF.SESSION_HOURS*3600000);
+  if(!headers_(sheet_(PBJWF.SHEETS.SESSIONS)).includes('selected_pokja_id'))ensureSheet_(ss_(),PBJWF.SHEETS.SESSIONS,PBJ_HEADERS.PBJ_SESSIONS);
+  appendObj_(sheet_(PBJWF.SHEETS.SESSIONS), {token_hash:hash_(rawToken),user_id:hit.obj.user_id,expires_at:expiresAt,created_at:new Date(),last_seen:new Date(),active:true,selected_pokja_id:hit.obj.pokja_id||''});
+  const scoped=pokjaScopedUser_(hit.obj,hit.obj.pokja_id);
+  cacheSession_(rawToken,scoped,expiresAt);
+  if(truthy_(payload.fast))return {token:rawToken,data:publicUser_(scoped),fast:true};
+  updateRow_(sheet_(PBJWF.SHEETS.USERS), hit.row, {last_login:new Date()});
+  audit_(hit.obj,'LOGIN','',{});
+  const boot=bootstrap_(scoped,{});
+  return {token:rawToken,data:publicUser_(scoped),bootstrap:boot};
+}
+
+function recordLoginMeta_(user) {
+  try {
+    const sh=sheet_(PBJWF.SHEETS.USERS),hit=findRow_(sh,'user_id',String(user.user_id||''));
+    if(hit)updateRow_(sh,hit.row,{last_login:new Date()});
+    audit_(user,'LOGIN','',{});
+  } catch(_) {}
+  return true;
+}
+
+function logout_(token, user) {
+  dropSessionCache_(token);
+  const hit = findRow_(sheet_(PBJWF.SHEETS.SESSIONS), 'token_hash', hash_(token));
+  if (hit) updateRow_(sheet_(PBJWF.SHEETS.SESSIONS), hit.row, {active:false,last_seen:new Date()});
+  audit_(user,'LOGOUT','',{});
+  return {data:true};
+}
+
+function requireSession_(rawToken) {
+  if (!rawToken) throw new Error('Sesi belum tersedia. Silakan masuk kembali.');
+  try{const cached=scriptCache_()?.get(sessionCacheKey_(rawToken));if(cached){const box=JSON.parse(cached);if(box?.user&&truthy_(box.user.active)&&Number(box.exp||0)>Date.now()&&(!scriptCache_()?.get(pbjRevocationKey_(box.user.user_id))||Number(box.issuedAt||0)>Number(scriptCache_()?.get(pbjRevocationKey_(box.user.user_id))||0)))return box.user;}}catch(_){}
+  const hit = findRow_(sheet_(PBJWF.SHEETS.SESSIONS), 'token_hash', hash_(rawToken));
+  if (!hit || !truthy_(hit.obj.active)) throw new Error('Sesi sudah berakhir. Silakan masuk kembali.');
+  const exp = new Date(hit.obj.expires_at).getTime();
+  if (!exp || exp < Date.now()) { updateRow_(sheet_(PBJWF.SHEETS.SESSIONS), hit.row, {active:false}); throw new Error('Sesi sudah berakhir. Silakan masuk kembali.'); }
+  const u = findRow_(sheet_(PBJWF.SHEETS.USERS), 'user_id', hit.obj.user_id);
+  if (!u || !truthy_(u.obj.active)||String(u.obj.deleted_at||'')) throw new Error('Akun tidak aktif.');
+  const lastSeen=new Date(hit.obj.last_seen||0).getTime();
+  if(!lastSeen||Date.now()-lastSeen>5*60000)updateRow_(sheet_(PBJWF.SHEETS.SESSIONS), hit.row, {last_seen:new Date()});
+  const scoped=pokjaScopedUser_(u.obj,hit.obj.selected_pokja_id);
+  cacheSession_(rawToken,scoped,hit.obj.expires_at);
+  return scoped;
+}
+
+function syncVersion_(){try{const c=scriptCache_(),key='orbita_prod_sync_version_v1',cached=c?.get(key);if(cached)return cached;const active=PropertiesService.getScriptProperties().getProperty('ORBITA_DB_ACTIVE_V1'),rootModified=DriveApp.getFileById(PBJWF.DB_ID).getLastUpdated().getTime(),activeModified=active?DriveApp.getFileById(active).getLastUpdated().getTime():0;const v=String(Math.max(rootModified,activeModified));c?.put(key,v,3);return v;}catch(_){return String(new Date().getTime());}}
+function syncPulse_(user){return {version:syncVersion_(),serverTime:new Date().toISOString()};}
+
+function requestOrder_(r){
+  const created=new Date(r&&r.created_at||0).getTime()||0,updated=new Date(r&&r.updated_at||0).getTime()||0;
+  const m=String(r&&r.request_id||'').match(/-(\d+)$/),seq=m?Number(m[1]):0;
+  return [Math.max(created,updated),created,seq];
+}
+function latestPackagesByRup_(rows){
+  const map={};(rows||[]).forEach(r=>{
+    const key=[String(r.year||''),String(r.kode_rup||r.request_id||'')].join('|'),old=map[key];
+    if(!old){map[key]=r;return;}
+    const a=requestOrder_(r),b=requestOrder_(old);
+    if(a[0]>b[0]||(a[0]===b[0]&&(a[1]>b[1]||(a[1]===b[1]&&a[2]>b[2]))))map[key]=r;
+  });return Object.keys(map).map(k=>map[k]);
+}
+
+function linkedAncestorsForPokja_(allReqs,assignedReqs){
+  const byId={};(allReqs||[]).forEach(r=>byId[String(r.request_id||'')]=r);
+  const out=[],seen={};(assignedReqs||[]).forEach(r=>{let id=String(r.previous_request_id||''),guard=0;while(id&&guard++<10&&!seen[id]){const prev=byId[id];if(!prev)break;seen[id]=true;out.push(prev);id=String(prev.previous_request_id||'');}});
+  return out;
+}
+function pokjaCanReadLinkedRequest_(user,req,requestRows){
+  if(!req||user.role!=='POKJA')return false;
+  const rows=requestRows||rows_(sheet_(PBJWF.SHEETS.REQUESTS)),byId={};rows.forEach(r=>byId[String(r.request_id||'')]=r);
+  const target=String(req.request_id||'');
+  return rows.some(r=>{if(String(r.assigned_pokja_id||'')!==String(user.pokja_id||''))return false;let id=String(r.previous_request_id||''),guard=0,seen={};while(id&&guard++<10&&!seen[id]){if(id===target)return true;seen[id]=true;const p=byId[id];if(!p)break;id=String(p.previous_request_id||'');}return false;});
+}
+
+// v28.67: Setelah seluruh transaksi terverifikasi selesai, status final disimpan SEKALI
+// pada baris permohonan aslinya. Bootstrap berikutnya tidak membaca Report lagi
+// untuk paket tersebut; Report tetap dibaca saat detail paket dibuka secara sengaja.
+// Jangan mengubah status hanya karena Report kosong, bermasalah, atau belum lengkap.
+function reportNeedsSync_(r){return r.status!==STATUS.SELESAI&&reportEligible_(r);}
+function persistConfirmedCompleted_(stored,calculated){
+  const byId=Object.create(null);
+  (stored||[]).forEach(r=>{if(r.request_id)byId[String(r.request_id)]=r;});
+  const candidates=(calculated||[]).filter(r=>{
+    const old=byId[String(r.request_id)],p=r.inaproc_progress;
+    return old&&reportNeedsSync_(old)&&r.status===STATUS.SELESAI&&
+      p?.state==='ready'&&Number(p.count)>0&&Number(p.completed)===Number(p.count);
+  }).slice(0,4); // maksimal empat write saat satu sinkronisasi, sisanya pada sinkron berikutnya
+  if(!candidates.length)return 0;
+  let lock=null,locked=false,count=0;
+  try{
+    lock=LockService.getScriptLock();
+    locked=lock.tryLock(50); // login/upload tidak menunggu proses penguncian status
+    if(!locked)return 0;
+    PBJ_DB_LOCKED=true;
+    const table=sheet_(PBJWF.SHEETS.REQUESTS);
+    for(const r of candidates){
+      const hit=findRow_(table,'request_id',String(r.request_id));
+      if(!hit||!reportNeedsSync_(hit.obj))continue;
+      if(String(hit.obj.kode_rup)!==String(r.kode_rup)||String(hit.obj.opd)!==String(r.opd)||String(hit.obj.year)!==String(r.year))continue;
+      const now=new Date();
+      updateRow_(table,hit.row,{status:STATUS.SELESAI,completed_at:now,updated_at:now});
+      // Satu catatan riwayat untuk menunjukkan dasar perubahan otomatis.
+      try{audit_({user_id:'SYSTEM',role:'SYSTEM'},'AUTO_INAPROC_SELESAI',r.request_id,{sumber:'Report',transaksi:Number(r.inaproc_progress.count),selesai:Number(r.inaproc_progress.completed)});}catch(err){Logger.log('Audit otomatis belum tercatat: '+String(err));}
+      count++;
+    }
+  }catch(error){Logger.log('Pencatatan status selesai akan dicoba lagi: '+String(error));}
+  finally{if(locked){PBJ_DB_LOCKED=false;lock.releaseLock();}}
+  return count;
+}
+
+function bootstrap_(user, payload) {
+  const stored=rows_(sheet_(PBJWF.SHEETS.REQUESTS));
+  // Paket dengan status SELESAI sudah final, tidak perlu dicocokkan ulang setiap refresh.
+  const report=stored.some(reportNeedsSync_)?readInaprocReport_():null;
+  const allReqs=stored.map(r=>r.status===STATUS.SELESAI?r:requestWithReport_(r,report));
+  if(report?.state==='ready')persistConfirmedCompleted_(stored,allReqs);
+  let reqs=user.role==='KEPALA_UKPBJ'?allReqs.filter(r=>!['DRAFT','PERLU_KELENGKAPAN'].includes(String(r.status||''))):allReqs,packageSource=reqs;
+  if(user.role==='PPK'){reqs=allReqs.filter(r=>String(r.ppk_user_id)===String(user.user_id));packageSource=reqs;}
+  if(user.role==='POKJA'){const assigned=allReqs.filter(r=>String(r.assigned_pokja_id||'')===String(user.pokja_id||''));const linked=linkedAncestorsForPokja_(allReqs,assigned);const ids={};reqs=assigned.concat(linked).filter(r=>{const id=String(r.request_id||'');if(ids[id])return false;ids[id]=true;return true});packageSource=assigned;}
+  const packageReqs=packageSource,counts = {};
+  packageReqs.forEach(r => counts[r.status] = (counts[r.status]||0)+1);
+  let list=reqs.slice();
+  const status=String(payload && payload.status || '').trim();
+  const search=String(payload && payload.search || '').trim().toLowerCase();
+  if(status){const groups={GROUP_DRAFT:[STATUS.DRAFT,STATUS.PERLU_KELENGKAPAN],GROUP_PENDING:[STATUS.DIAJUKAN,STATUS.MENUNGGU_DISPOSISI],GROUP_REVIEW:[STATUS.DITUGASKAN_POKJA,STATUS.REVIU_POKJA,STATUS.REVIU_ULANG,STATUS.PERLU_PERBAIKAN_PPK,STATUS.PERLU_DETAIL_PPK],GROUP_INAPROC:[STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC],GROUP_ONGOING:[STATUS.DIAJUKAN,STATUS.MENUNGGU_DISPOSISI,STATUS.DITUGASKAN_POKJA,STATUS.REVIU_POKJA,STATUS.REVIU_ULANG,STATUS.PERLU_PERBAIKAN_PPK,STATUS.PERLU_DETAIL_PPK,STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC],GROUP_CLOSED:[STATUS.DITOLAK_KEPALA,STATUS.BATAL]};const selected=groups[status]||[status];list=list.filter(x=>selected.includes(x.status));}
+  if(search)list=list.filter(x=>[x.request_id,x.kode_rup,x.judul_permohonan,x.nama_paket,x.opd,x.status].join(' ').toLowerCase().indexOf(search)>=0);
+  list.sort((a,b)=>new Date(b.updated_at||0)-new Date(a.updated_at||0));
+  const dashboard={user:publicUser_(user),counts:counts,total:packageReqs.length,pokja:listPokjaCapacity_(allReqs),updatedAt:new Date().toISOString()};
+  const result={user:publicUser_(user),dashboard:dashboard,requests:list.slice(0,500).map(publicRequest_),updatedAt:dashboard.updatedAt,syncVersion:syncVersion_()};
+  // Tidak ada lagi snapshot SELESAI yang habis setelah 360 detik.
+  // bootstrapFast membaca status final langsung dari data permohonan.
+
+  const activeId=String(payload&&payload.detailRequestId||'');
+  if(activeId){const active=reqs.find(r=>String(r.request_id)===activeId);if(active&&(String(active.updated_at||'')!==String(payload.detailUpdatedAt||'')||String(active.inaproc_version||'')!==String(payload.detailInaprocVersion||'')))result.detail=requestDetail_(user,activeId,false,report);}
+  return result;
+}
+
+
+function bootstrapFast_(user,payload) {
+  const raw=rows_(sheet_(PBJWF.SHEETS.REQUESTS));
+  // Sudah terverifikasi? Status SELESAI permanen di baris asal, tanpa cache TTL.
+  const stored=raw;
+  let reqs=user.role==='KEPALA_UKPBJ'?stored.filter(r=>!['DRAFT','PERLU_KELENGKAPAN'].includes(String(r.status||''))):stored,packageSource=reqs;
+  if(user.role==='PPK'){reqs=stored.filter(r=>String(r.ppk_user_id)===String(user.user_id));packageSource=reqs;}
+  if(user.role==='POKJA'){const assigned=stored.filter(r=>String(r.assigned_pokja_id||'')===String(user.pokja_id||''));const linked=linkedAncestorsForPokja_(stored,assigned);const ids={};reqs=assigned.concat(linked).filter(r=>{const id=String(r.request_id||'');if(ids[id])return false;ids[id]=true;return true});packageSource=assigned;}
+  const packageReqs=packageSource,counts={};
+  packageReqs.forEach(r=>counts[r.status]=(counts[r.status]||0)+1);
+  let list=reqs.slice();
+  const status=String(payload&&payload.status||'').trim(),search=String(payload&&payload.search||'').trim().toLowerCase();
+  if(status){const groups={GROUP_DRAFT:[STATUS.DRAFT,STATUS.PERLU_KELENGKAPAN],GROUP_PENDING:[STATUS.DIAJUKAN,STATUS.MENUNGGU_DISPOSISI],GROUP_REVIEW:[STATUS.DITUGASKAN_POKJA,STATUS.REVIU_POKJA,STATUS.REVIU_ULANG,STATUS.PERLU_PERBAIKAN_PPK,STATUS.PERLU_DETAIL_PPK],GROUP_INAPROC:[STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC],GROUP_ONGOING:[STATUS.DIAJUKAN,STATUS.MENUNGGU_DISPOSISI,STATUS.DITUGASKAN_POKJA,STATUS.REVIU_POKJA,STATUS.REVIU_ULANG,STATUS.PERLU_PERBAIKAN_PPK,STATUS.PERLU_DETAIL_PPK,STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC],GROUP_CLOSED:[STATUS.DITOLAK_KEPALA,STATUS.BATAL]};const selected=groups[status]||[status];list=list.filter(x=>selected.includes(x.status));}
+  if(search)list=list.filter(x=>[x.request_id,x.kode_rup,x.judul_permohonan,x.nama_paket,x.opd,x.status].join(' ').toLowerCase().indexOf(search)>=0);
+  list.sort((a,b)=>new Date(b.updated_at||0)-new Date(a.updated_at||0));
+  const pokja=user.role==='PPK'?[]:listPokjaCapacity_(stored),updatedAt=new Date().toISOString();
+  return {user:publicUser_(user),dashboard:{user:publicUser_(user),counts:counts,total:packageReqs.length,pokja:pokja,updatedAt:updatedAt},requests:list.slice(0,500).map(publicRequest_),updatedAt:updatedAt,syncVersion:'',fast:true};
+}
+
+function productCategoryPublicRow_(r,includeCategory){
+  const out={
+    id:String(r.category_id||''),level1:String(r.level_1||''),level2:String(r.level_2||''),level3:String(r.level_3||''),
+    path:String(r.path||''),productType:String(r.product_type||''),productSubType:String(r.product_sub_type||'')
+  };
+  if(includeCategory)out.category=String(r.kelompok||'').trim();
+  return out;
+}
+
+function listProductCategories_(user,payload){
+  const sh=sheet_(PBJWF.SHEETS.PRODUCT_CATEGORIES),all=rows_(sh).filter(r=>truthy_(r.aktif));
+  const category=String(payload&&payload.category||'').trim();
+  if(!category){
+    const groups={};
+    all.forEach(r=>{const name=String(r.kelompok||'').trim();if(!name)return;const sort=Number(r.urutan)||999999;if(!groups[name]||sort<groups[name])groups[name]=sort;});
+    const orderedGroups=Object.keys(groups).sort((a,b)=>groups[a]-groups[b]||a.localeCompare(b,'id'));
+    if(payload&&payload.includeAll){
+      const ordered=all.slice().sort((a,b)=>{
+        const ak=String(a.kelompok||''),bk=String(b.kelompok||'');
+        const ag=orderedGroups.indexOf(ak),bg=orderedGroups.indexOf(bk);
+        return ag-bg||(Number(a.urutan)||999999)-(Number(b.urutan)||999999);
+      });
+      return {groups:orderedGroups,rows:ordered.map(r=>productCategoryPublicRow_(r,true))};
+    }
+    return {groups:orderedGroups};
+  }
+  const rows=all.filter(r=>String(r.kelompok||'').trim()===category).sort((a,b)=>(Number(a.urutan)||999999)-(Number(b.urutan)||999999));
+  return {category:category,rows:rows.map(r=>productCategoryPublicRow_(r,false))};
+}
+
+let PBJ_CONSTRUCTION_CATEGORY_CACHE=null;
+function listConstructionCategories_(user,payload){
+  const now=Date.now();
+  if(PBJ_CONSTRUCTION_CATEGORY_CACHE&&now-PBJ_CONSTRUCTION_CATEGORY_CACHE.at<5*60*1000)return PBJ_CONSTRUCTION_CATEGORY_CACHE.data;
+  const sh=sheet_(PBJWF.SHEETS.CONSTRUCTION_CATEGORIES);
+  const all=rows_(sh).filter(r=>truthy_(r.aktif)).sort((a,b)=>(Number(a.urutan)||999999)-(Number(b.urutan)||999999));
+  const rows=all.map(r=>({
+    id:String(r.category_id||''),level1:String(r.level_1||''),level2:String(r.level_2||''),level3:String(r.level_3||''),
+    path:String(r.path||[r.level_1,r.level_2,r.level_3].filter(Boolean).join(' > ')),
+    productType:String(r.product_type||''),productSubType:String(r.product_sub_type||'')
+  }));
+  const data={rows:rows};
+  PBJ_CONSTRUCTION_CATEGORY_CACHE={at:now,data:data};
+  return data;
+}
+
+function rowsByCategoryIdFast_(sheetName,categoryId,maxCols){
+  const id=String(categoryId||'').trim();if(!id)return[];
+  const ss=ss_(),sh=ss.getSheetByName(sheetName);if(!sh||sh.getLastRow()<2)return[];
+  const hits=sh.getRange(2,1,sh.getLastRow()-1,1).createTextFinder(id).matchEntireCell(true).findAll();
+  if(!hits.length)return[];
+  const rowNums=hits.map(r=>r.getRow()).sort((a,b)=>a-b),start=rowNums[0],end=rowNums[rowNums.length-1];
+  const values=sh.getRange(start,1,end-start+1,Math.min(maxCols||sh.getLastColumn(),sh.getLastColumn())).getDisplayValues();
+  return values.filter(r=>String(r[0]||'').trim()===id);
+}
+
+function getCategoryReference_(user,payload){
+  const categoryId=String(payload&&payload.categoryId||'').trim();if(!categoryId)return {categoryId:'',kbliText:'',kbli:[]};
+  const cache=CacheService.getScriptCache(),cacheKey='orbita_prod_cat_ref_v2790_'+categoryId;
+  try{const hit=cache.get(cacheKey);if(hit)return JSON.parse(hit)}catch(_){}
+  const rows=rowsByCategoryIdFast_(PBJWF.SHEETS.CATEGORY_KBLI,categoryId,7);
+  const items=rows.filter(r=>truthy_(r[5])).sort((a,b)=>(Number(a[6])||999999)-(Number(b[6])||999999)).map(r=>({code:String(r[3]||'').trim(),version:String(r[4]||'').trim()})).filter(x=>x.code);
+  const out={categoryId:categoryId,kbli:items,kbliText:items.map(x=>`KBLI ${x.version||'-'} - ${x.code}`).join(' / ')};
+  try{cache.put(cacheKey,JSON.stringify(out),21600)}catch(_){}
+  return out;
+}
+
+function upgradePemilihanV2790(){
+  return withWorkflowLock_(()=>{const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));setSetting_('workflow_version','27.90');SpreadsheetApp.flush();Logger.log('Versi 27.90 siap. Master KBLI menggunakan sheet PBJ_KATEGORI_KBLI dengan lookup per kategori dan cache.');return {ok:true};});
+}
+
+function upgradePemilihanV2784(){
+  return withWorkflowLock_(()=>{const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));setSetting_('workflow_version','27.84');SpreadsheetApp.flush();Logger.log('Versi 27.84 siap. Master kategori dibaca dari sheet PBJ_KATEGORI_PRODUK.');return {ok:true};});
+}
+
+function upgradePemilihanV2785(){
+  return withWorkflowLock_(()=>{const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));setSetting_('workflow_version','27.85');SpreadsheetApp.flush();Logger.log('Versi 27.85 siap. Master kategori dimuat sekaligus saat form dibuka agar Detail Produk lebih cepat.');return {ok:true};});
+}
+
+function upgradePemilihanV2786(){
+  return withWorkflowLock_(()=>{const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));setSetting_('workflow_version','27.86');SpreadsheetApp.flush();Logger.log('Versi 27.86 siap. Form Pekerjaan Konstruksi aktif dan kategori dibaca dari sheet PBJ_KATEGORI_KONSTRUKSI.');return {ok:true};});
+}
+
+function upgradePemilihanV2787(){
+  return withWorkflowLock_(()=>{const ss=ss_();Object.keys(PBJ_HEADERS).filter(name=>name!==PBJWF.SHEETS.MAIL_QUEUE).forEach(name=>ensureSheet_(ss,name,PBJ_HEADERS[name]));setSetting_('workflow_version','27.87');SpreadsheetApp.flush();Logger.log('Versi 27.87 siap. Kategori konstruksi memakai pemilih bertingkat dan draft PPK dapat dihapus.');return {ok:true};});
+}
+
+function dashboard_(user) { return bootstrap_(user,{}).dashboard; }
+// Daftar PPK hanya dari OPD akun yang sedang masuk. Data lama dipakai ulang;
+// tidak membuat sheet maupun request tambahan. Dipanggil saat popup dibuka saja.
+function listPpkHistory_(user){
+  requireRole_(user,['PPK']);
+  const opd=norm_(user.opd||'');
+  if(!opd)return {items:[]};
+  const requests=rows_(sheet_(PBJWF.SHEETS.REQUESTS));
+  const seen={},items=[];
+  requests.filter(r=>norm_(r.opd||'')===opd && (r.submitted_at||!['DRAFT','PERLU_KELENGKAPAN'].includes(String(r.status||''))))
+    .sort((a,b)=>new Date(b.submitted_at||b.updated_at||b.created_at||0)-new Date(a.submitted_at||a.updated_at||a.created_at||0))
+    .forEach(r=>{
+      if(items.length>=60)return;
+      const name=String(r.ppk_nama||'').trim(),email=String(r.ppk_email||'').trim();
+      if((name.match(/\p{L}/gu)||[]).length<3||!/^\S+@\S+\.\S+$/.test(email))return;
+      const key=norm_(name);if(seen[key])return;seen[key]=true;
+      items.push({name:name,email:email});
+    });
+  return {items:items};
+}
+function listRequests_(user,payload) { return bootstrap_(user,payload||{}).requests; }
+
+function visibleRequests_(user) {
+  const allRows = rows_(sheet_(PBJWF.SHEETS.REQUESTS));
+  const rows=user.role==='KEPALA_UKPBJ'?allRows.filter(r=>!['DRAFT','PERLU_KELENGKAPAN'].includes(String(r.status||''))):allRows;
+  if (user.role === 'PPK') return rows.filter(r => String(r.ppk_user_id) === String(user.user_id));
+  if (user.role === 'POKJA') { const assigned=rows.filter(r => String(r.assigned_pokja_id||'') === String(user.pokja_id||'')); const linked=linkedAncestorsForPokja_(rows,assigned); const seen={}; return assigned.concat(linked).filter(r=>{const id=String(r.request_id||'');if(seen[id])return false;seen[id]=true;return true;}); }
+  return rows;
+}
+
+function canSeeOrder_(user){return ['ADMIN','KEPALA_UKPBJ','POKJA','PENGAWAS'].includes(user.role);}
+function visibleDetail_(user,detail){
+  if(canSeeOrder_(user))return detail;
+  const orderIds=new Set(detail.docs.filter(d=>d.doc_type==='SURAT_PERINTAH_POKJA').map(d=>d.doc_id));
+  const docs=detail.docs.filter(d=>d.doc_type!=='SURAT_PERINTAH_POKJA');
+  const reviews=(detail.reviews||[]).filter(r=>r.doc_type!=='SURAT_PERINTAH_POKJA'&&!orderIds.has(r.doc_id));
+  const audit=detail.audit.filter(a=>{try{return JSON.parse(a.detail_json||'{}').docType!=='SURAT_PERINTAH_POKJA';}catch(_){return a.action!=='UPLOAD_DOCUMENT';}}).map(a=>{
+    if(a.action!=='ASSIGN_POKJA')return a;
+    let q={};try{q=JSON.parse(a.detail_json||'{}');}catch(_){}
+    return {...a,detail_json:JSON.stringify({pokjaId:q.pokjaId,pokjaName:q.pokjaName,sopStartedAt:q.sopStartedAt})};
+  });
+  return {...detail,docs:docs,reviews:reviews,audit:audit};
+}
+
+function canReadLinkedRequest_(user,req){
+  if(!req)return false;
+  if(user.role==='PPK')return String(req.ppk_user_id||'')===String(user.user_id||'');
+  if(user.role==='POKJA')return String(req.assigned_pokja_id||'')===String(user.pokja_id||'')||pokjaCanReadLinkedRequest_(user,req);
+  return true;
+}
+
+function previousRequestHistory_(user,req,requestRows,auditRows){
+  const out=[],seen={};let previousId=String(req.previous_request_id||''),guard=0;
+  while(previousId&&guard++<10&&!seen[previousId]){
+    seen[previousId]=true;
+    const previous=(requestRows||[]).find(x=>String(x.request_id)===previousId);
+    if(!previous||!canReadLinkedRequest_(user,previous))break;
+    const previousAudit=(auditRows||[]).filter(x=>String(x.request_id)===previousId).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    const safeAudit=visibleDetail_(user,{docs:[],reviews:[],audit:previousAudit}).audit;
+    out.push({request:publicRequest_(previous),audit:safeAudit});
+    previousId=String(previous.previous_request_id||'');
+  }
+  return out.reverse();
+}
+
+function requestDetail_(user, requestId, fresh=false, reportSource) {
+  const req = getRequestAuthorized_(user, requestId);
+  const report=reportEligible_(req)?(reportSource||readInaprocReport_()):null;
+  const present=detail=>{const request=requestWithReport_(req,report);if(report?.state==='ready'&&request.status===STATUS.SELESAI&&req.status!==STATUS.SELESAI)persistConfirmedCompleted_([req],[request]);const title=requestDocumentTitle_(req);
+    const namedDocs=(detail.docs||[]).map(d=>({...d,file_name:prettyDocumentFileName_(String(d.doc_label||docTypeLabel_(d.doc_type)||'Dokumen'),title,Number(d.version)||1,String(d.file_name||''))}));
+    return visibleDetail_(user,{...detail,docs:namedDocs,request:publicRequest_(request),inaproc:reportEligible_(req)?inaprocProgress_(req,report,true):null});};
+  const cacheKey='detail2726:'+hash_([req.request_id,req.updated_at,user.user_id,user.role].join('|'));
+  try{const cached=CacheService.getScriptCache().get(cacheKey);if(cached&&!fresh)return present(JSON.parse(cached));}catch(_){}
+  const docs = rows_(sheet_(PBJWF.SHEETS.DOCS)).filter(x => x.request_id === req.request_id).sort((a,b)=>Number(a.doc_type===b.doc_type?b.version-a.version:0));
+  const reviews = rows_(sheet_(PBJWF.SHEETS.REVIEWS)).filter(x => x.request_id === req.request_id);
+  const notes = rows_(sheet_(PBJWF.SHEETS.NOTES)).filter(x => x.request_id === req.request_id).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+  const allAudit = rows_(sheet_(PBJWF.SHEETS.AUDIT));
+  const audit = allAudit.filter(x => x.request_id === req.request_id).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+  const requestRows=req.previous_request_id?rows_(sheet_(PBJWF.SHEETS.REQUESTS)):[];
+  const previousHistory=req.previous_request_id?previousRequestHistory_(user,req,requestRows,allAudit):[];
+  const cfg = activeDocConfig_();
+  const result={request:publicRequest_(req),docs:docs,reviews:reviews,notes:notes,audit:audit,previousHistory:previousHistory,docConfig:cfg,pokja:rows_(sheet_(PBJWF.SHEETS.POKJA)).filter(p=>truthy_(p.active))};
+  try{const text=JSON.stringify(result);if(text.length<100000)CacheService.getScriptCache().put(cacheKey,text,60);}catch(_){}
+  return present(result);
+}
+
+// Report is read once per response. Its progress is derived, never written over
+// the workflow or back into the source sheet. Documents keep their existing cache.
+function reportEligible_(r){return [STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC,STATUS.SELESAI].includes(r.status)&&(requestSelectionProcess_(r)!=='MINI_KOMPETISI'||!r.mini_stage||r.mini_stage==='HANDOVER')&&(requestSelectionProcess_(r)!=='NEGOSIASI'||!r.nego_stage||r.nego_stage==='HANDOVER');}
+function reportRup_(v){const s=String(v==null?'':v).trim();return /^\d+(?:\.0+)?$/.test(s)?s.replace(/\.0+$/,''):'';}
+function reportOpd_(v){return String(v||'').trim().replace(/\s+/g,' ').toUpperCase();}
+function reportKey_(rup,opd,year){return JSON.stringify([reportRup_(rup),reportOpd_(opd),String(year||'')]);}
+function reportYear_(v){const d=new Date(v);return v&&!isNaN(d.getTime())?String(new Date(d.getTime()+7*3600000).getUTCFullYear()):'';}
+function readInaprocReport_(){
+  try{
+    const sh=ss_().getSheetByName(PBJWF.REPORT_SHEET);
+    if(!sh)return {state:'unavailable',message:'Sheet Report belum tersedia.'};
+    if(sh.getLastRow()<1)return {state:'unavailable',message:'Kolom pada sheet Report belum tersedia.'};
+    const values=sh.getRange(1,1,sh.getLastRow(),sh.getLastColumn()).getValues();
+    const headers=values.shift().map(x=>String(x).trim().toLowerCase());
+    const names=['rup_code','rup_name','nama satuan kerja','total','order_date','shipment_status','status'];
+    if(names.some(n=>!headers.includes(n)))return {state:'unavailable',message:'Kolom pada sheet Report belum lengkap.'};
+    const index=Object.create(null),cols=names.map(n=>headers.indexOf(n));
+    values.forEach((row,i)=>{
+      const v=cols.map(c=>normalizeCell_(row[c])),rup=reportRup_(v[0]),opd=reportOpd_(v[2]),year=reportYear_(v[4]);
+      if(!rup||!opd||!year)return;
+      const key=reportKey_(rup,opd,year),amount=typeof v[3]==='number'?v[3]:Number(String(v[3]??'').trim());
+      const item={row:i+2,rup_code:rup,rup_name:String(v[1]||''),opd:String(v[2]||''),total:v[3]!==''&&v[3]!=null&&Number.isFinite(amount)?amount:null,order_date:v[4]||'',shipment_status:String(v[5]||'').trim().toUpperCase(),status:String(v[6]||'').trim().toUpperCase()};
+      (index[key]||(index[key]=[])).push(item);
+    });
+    return {state:'ready',index:index};
+  }catch(_){return {state:'unavailable',message:'Progres belum tersedia. Coba lagi.'};}
+}
+function inaprocProgress_(req,source,includeRows){
+  const unavailable=!source||source.state==='unavailable';
+  const items=unavailable?[]:(source.index[reportKey_(req.kode_rup,req.opd,req.year)]||[]);
+  const completed=items.filter(x=>['PAYMENT_OUTSIDE_SYSTEM','COMPLETED'].includes(x.status)).length;
+  const state=unavailable?'unavailable':items.length?'ready':'empty';
+  const message=unavailable?(source&&source.message||'Report belum bisa dibaca.'):(items.length?'':'Belum ada transaksi.');
+  const summary={state:state,message:message,count:items.length,completed:completed,total:items.reduce((n,x)=>n+(x.total||0),0),missing_values:items.filter(x=>x.total==null).length};
+  summary.version=hash_(JSON.stringify([state,message,items]));
+  return includeRows?{...summary,transactions:items}:summary;
+}
+function requestWithReport_(req,source){
+  if(!reportEligible_(req))return req;
+  const p=inaprocProgress_(req,source,false);
+  const status=p.count?(p.completed===p.count?STATUS.SELESAI:STATUS.PROSES_INAPROC):req.status;
+  return {...req,status:status,inaproc_progress:p,inaproc_version:p.version};
+}
+
+// Laporan penugasan Pokja untuk pendukung SKP.
+function skpDate_(v,time=false){const d=new Date(v);if(!v||isNaN(d.getTime()))return '—';const j=new Date(d.getTime()+7*3600000),p=n=>String(n).padStart(2,'0');return p(j.getUTCDate())+'-'+p(j.getUTCMonth()+1)+'-'+j.getUTCFullYear()+(time?' '+p(j.getUTCHours())+':'+p(j.getUTCMinutes())+' WIB':'');}
+function skpPeriod_(payload){
+  const from=String(payload.from||''),to=String(payload.to||'');
+  const valid=s=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&!isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s;
+  if(!valid(from)||!valid(to)||from>to)throw new Error('Periksa tanggal periode penugasan.');
+  return {from:from,to:to,start:Date.parse(from+'T00:00:00+07:00'),end:Date.parse(to+'T23:59:59.999+07:00')};
+}
+function skpShortDocumentName_(doc){
+  const type=String(doc.doc_type||'').toUpperCase(),label=String(doc.doc_label||'').trim();
+  const names={SURAT_PERMOHONAN:'Surat Permohonan E-Purchasing',SK_PPK:'SK Pengangkatan PPK',DPA_ANGGARAN:'Dokumen DPA Anggaran',SCREENSHOT_RUP:'Screenshot RUP',KAK:'KAK - Spesifikasi Teknis',HPS:'HPS',RANCANGAN_KONTRAK:'Rancang Kontrak',DATA_RUP:'Data - ID RUP',WAKTU_PENGGUNAAN:'Rencana Waktu Penggunaan',PENDUKUNG:'Dokumen Pendukung',SURAT_PERINTAH_POKJA:'Surat Perintah Pokja'};
+  let base=names[type]||label||'Dokumen',version=Number(doc.version)||1;
+  const m=String(doc.file_name||'').match(/\.([a-z0-9]{2,5})$/i),ext=m?'.'+m[1].toLowerCase():'';
+  if(version>1)base+=' - Revisi '+version;
+  return base+ext;
+}
+function skpDocumentUrl_(doc){
+  const id=String(doc.drive_file_id||'').trim();
+  return id?'https://drive.google.com/uc?export=download&id='+encodeURIComponent(id):String(doc.drive_url||'');
+}
+function skpReviewLabel_(status){return String(status||'').toUpperCase()==='PERLU_PERBAIKAN'?'Perlu perbaikan':String(status||'').toUpperCase()==='SESUAI'?'Sesuai':String(status||'').replace(/_/g,' ');}
+function pokjaSkpReport_(user,payload){
+  requireRole_(user,['POKJA']);
+  if(!String(user.pokja_id||'').trim())throw new Error('Akun belum terdaftar pada Pokja.');
+  const period=skpPeriod_(payload),all=rows_(sheet_(PBJWF.SHEETS.REQUESTS));
+  const assigned=all.filter(r=>String(r.assigned_pokja_id||'')===String(user.pokja_id)&&r.assigned_at&&Date.parse(r.assigned_at)>=period.start&&Date.parse(r.assigned_at)<=period.end);
+  const report=assigned.some(reportEligible_)?readInaprocReport_():null;
+  const requestIds=new Set(assigned.map(r=>String(r.request_id||'')));
+  const allDocs=assigned.length?rows_(sheet_(PBJWF.SHEETS.DOCS)).filter(d=>requestIds.has(String(d.request_id||''))):[];
+  const allReviews=assigned.length?rows_(sheet_(PBJWF.SHEETS.REVIEWS)).filter(rv=>requestIds.has(String(rv.request_id||''))&&String(rv.doc_type||'')==='__PAKET__'):[];
+  const auditRows=assigned.length&&payload.includeHistory?rows_(sheet_(PBJWF.SHEETS.AUDIT)).filter(a=>requestIds.has(String(a.request_id||''))&&/^(MINI_|NEGO_|RESUBMIT_REVISION)/.test(String(a.action||''))):[];
+  const teams=rows_(sheet_(PBJWF.SHEETS.POKJA));
+  const items=assigned.sort((a,b)=>Date.parse(a.assigned_at)-Date.parse(b.assigned_at)).map(r=>{
+    const p=reportEligible_(r)?inaprocProgress_(r,report,true):null;
+    const reached=!!p&&p.transactions.some(t=>['ON_PROCESS','ON_ADDENDUM','PAYMENT_OUTSIDE_SYSTEM','COMPLETED'].includes(t.status));
+    const stage=reached?4:r.review_completed_at?3:r.review_started_at?2:1;
+    const dates=p?p.transactions.map(t=>t.order_date).filter(Boolean).sort((a,b)=>Date.parse(a)-Date.parse(b)):[];
+    const docs=allDocs.filter(d=>String(d.request_id)===String(r.request_id));
+    const assignment=docs.filter(d=>String(d.doc_type)==='SURAT_PERINTAH_POKJA').sort((a,b)=>Number(b.version||0)-Number(a.version||0)||Date.parse(b.uploaded_at||0)-Date.parse(a.uploaded_at||0))[0]||null;
+    const namedDocs=docs.filter(d=>String(d.doc_type)!=='SURAT_PERINTAH_POKJA').sort((a,b)=>Date.parse(a.uploaded_at||0)-Date.parse(b.uploaded_at||0)||Number(a.version||0)-Number(b.version||0)).map(d=>({name:skpShortDocumentName_(d),url:skpDocumentUrl_(d),doc_type:d.doc_type,version:Number(d.version)||1,uploaded_at:d.uploaded_at||''}));
+    const isProcessDoc=d=>/^(BA_|SURAT_PENETAPAN_PA_KPA|NEGO_)/.test(String(d.doc_type||''));
+    const preparationDocs=namedDocs.filter(d=>!isProcessDoc(d)),processDocs=namedDocs.filter(isProcessDoc);
+    const reviewRounds=allReviews.filter(rv=>String(rv.request_id)===String(r.request_id)).sort((a,b)=>Number(a.round||0)-Number(b.round||0)||Date.parse(a.updated_at||a.created_at||0)-Date.parse(b.updated_at||b.created_at||0)).map(rv=>({round:Number(rv.round)||1,status:skpReviewLabel_(rv.status),note:String(rv.note||''),date:rv.updated_at||rv.created_at||''}));
+    const actions=auditRows.filter(a=>String(a.request_id)===String(r.request_id)).sort((a,b)=>Date.parse(a.created_at||0)-Date.parse(b.created_at||0)).map(a=>{let info={};try{info=JSON.parse(a.detail_json||'{}')||{}}catch(_){}return {action:a.action,date:a.created_at||'',note:String(info.note||'').slice(0,500)};});
+    return {selection_process:requestSelectionProcess_(r),mini_stage:r.mini_stage||'',nego_stage:r.nego_stage||'',actions:actions,request_id:r.request_id,kode_rup:r.kode_rup,nama_paket:r.nama_paket,opd:r.opd,pagu:Number(r.pagu)||0,assigned_at:r.assigned_at,review_started_at:r.review_started_at||'',review_completed_at:r.review_completed_at||'',current_round:Number(r.current_round)||1,order_date:dates[0]||'',assignment_document:assignment?{name:skpShortDocumentName_(assignment),url:skpDocumentUrl_(assignment)}:null,documents:preparationDocs,process_documents:processDocs,review_rounds:reviewRounds,status:requestWithReport_(r,report).status,stage:stage,reached:reached,source_state:p?p.state:'not_started',transaction_count:p?p.count:0,completed_transactions:p?p.completed:0,process_statuses:p?[...new Set(p.transactions.map(t=>t.status))]:[]};
+  });
+  return {user:publicUser_(user),pokja:(teams.find(t=>String(t.pokja_id)===String(user.pokja_id))||{}).nama||user.pokja_id,period:{from:period.from,to:period.to},generated_at:new Date().toISOString(),counts:{assigned:items.length,reviewed:items.filter(r=>!!r.review_completed_at).length,started:items.filter(r=>r.reached).length,pending:items.filter(r=>!r.reached).length},items:items};
+}
+function skpEsc_(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function skpStatus_(r){
+  if(r.status===STATUS.SELESAI)return 'Selesai';
+  if(r.selection_process==='MINI_KOMPETISI'){
+    if(r.status===STATUS.BATAL||r.mini_stage==='BATAL')return 'Kompetisi batal';
+    if(r.mini_stage==='GAGAL')return 'Kompetisi gagal';
+    if(r.mini_stage==='TAYANG')return 'Sedang ditayangkan';
+    if(r.mini_stage==='EVALUASI')return 'Evaluasi pemenang';
+    if(r.mini_stage==='HANDOVER'&&!r.reached)return 'Handover PPK';
+    if(r.mini_stage==='SIAP_TAYANG')return 'Menunggu penayangan';
+  }
+  if(r.selection_process==='NEGOSIASI'&&r.nego_stage==='HANDOVER'&&!r.reached)return 'Handover PPK';
+  if(r.source_state==='unavailable')return 'Data belum tersedia';
+  if(r.reached)return 'INAPROC Berjalan';
+  return r.stage===3?'Menunggu INAPROC':r.stage===2?'Reviu Berjalan':'Ditugaskan';
+}
+function skpLinkHtml_(doc){if(!doc||!doc.url)return '<span class="muted">Belum tersedia</span>';return '<a href="'+skpEsc_(doc.url)+'">'+skpEsc_(doc.name||'Buka dokumen')+'</a>';}
+function pokjaSkpPdfHtml_(report){
+  const e=skpEsc_,d=skpDate_,pages=[];
+  // Satu paket per halaman agar dokumen dan riwayat reviu tetap terbaca.
+  if(report.items.length)report.items.forEach(item=>pages.push([item]));else pages.push([]);
+  const eventNames={MINI_TAYANG:'Ditayangkan di INAPROC',MINI_PERUBAHAN:'Perubahan kompetisi',MINI_BATAL:'Kompetisi dibatalkan',MINI_GAGAL:'Kompetisi gagal',MINI_EVALUASI:'Evaluasi pemenang',MINI_HANDOVER:'Handover ke PPK',NEGO_HANDOVER:'Handover Negosiasi',NEGO_BATAL:'Negosiasi dibatalkan',RESUBMIT_REVISION:'Tindak lanjut PPK'};
+  const itemHtml=r=>{
+    const docLinks=(r.documents||[]).map(x=>'<a class="doc-link" href="'+e(x.url)+'">'+e(x.name)+'</a>').join('')||'<span class="muted">Belum ada dokumen persiapan.</span>';
+    const processLinks=(r.process_documents||[]).map(x=>'<a class="doc-link" href="'+e(x.url)+'">'+e(x.name)+'</a>').join('')||'<span class="muted">Belum ada dokumen proses.</span>';
+    const reviews=(r.review_rounds||[]).map(x=>'<div class="review-row"><b>Reviu ke-'+e(x.round)+' · '+e(x.status)+'</b><span>'+d(x.date,true)+'</span>'+(x.note?'<p>'+e(x.note)+'</p>':'')+'</div>').join('')||'<span class="muted">Belum ada hasil reviu.</span>';
+    const milestones=(r.actions||[]).slice(-8).map(x=>'<div class="review-row"><b>'+e(eventNames[x.action]||x.action)+'</b><span>'+d(x.date,true)+'</span>'+(x.note?'<p>'+e(x.note)+'</p>':'')+'</div>').join('')||'<span class="muted">Belum ada tindakan lanjutan.</span>';
+    const process=e(r.selection_process==='MINI_KOMPETISI'?'Mini Kompetisi':'Negosiasi');
+    return '<article class="package"><div class="package-head"><div><small>RUP '+e(r.kode_rup)+' · '+e(r.request_id)+'</small><h2>'+e(r.nama_paket)+'</h2><p>'+e(r.opd)+' · '+process+'</p></div><span class="status '+(r.reached?'ok':'wait')+'">'+e(skpStatus_(r))+'</span></div><div class="milestones"><div><small>Penugasan</small><b>'+d(r.assigned_at)+'</b><span>'+skpLinkHtml_(r.assignment_document)+'</span></div><div><small>Mulai reviu</small><b>'+d(r.review_started_at)+'</b></div><div><small>Selesai reviu</small><b>'+d(r.review_completed_at)+'</b></div><div><small>INAPROC</small><b>'+e(skpStatus_(r))+'</b>'+(r.order_date?'<span>Pesanan '+d(r.order_date)+'</span>':'')+(r.transaction_count?'<span>'+e(r.transaction_count)+' transaksi</span>':'')+'</div></div><div class="detail-grid"><section><h3>Dokumen Persiapan PPK</h3><div class="doc-list">'+docLinks+'</div></section><section><h3>Dokumen Proses Pemilihan</h3><div class="doc-list">'+processLinks+'</div></section></div><div class="detail-grid"><section><h3>Riwayat Reviu</h3><div class="review-list">'+reviews+'</div></section></div><div class="report-process"><h3>Riwayat Proses Pemilihan</h3><div class="review-list">'+milestones+'</div></div></article>';
+  };
+  return '<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Dokumen Laporan Pokja</title><style>@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#19334c;font-size:10px;line-height:1.4;margin:0}.page{page-break-after:always}.page:last-child{page-break-after:auto}.brand{font-size:10px;letter-spacing:1px;color:#376b99;margin:0 0 6px}h1{font-size:21px;margin:0 0 3px;color:#154b78}.subtitle{margin:0 0 13px;color:#61778a}.meta{width:100%;border-collapse:collapse;margin-bottom:9px}.meta td{border:0;padding:2px 0}.summary{padding:8px 11px;background:#edf5fb;border-left:4px solid #2784bf;margin:9px 0 12px}.package{border:1px solid #d8e4ec;border-radius:10px;padding:12px}.package-head{display:flex;justify-content:space-between;gap:20px;border-bottom:1px solid #e2eaf0;padding-bottom:9px}.package-head small{color:#61778a}.package-head h2{font-size:16px;margin:3px 0}.package-head p{margin:0;color:#61778a}.status{height:max-content;border-radius:999px;padding:5px 9px;font-weight:bold;background:#fff4df;color:#915d10}.status.ok{background:#e8f6ef;color:#087a5b}.milestones{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px}.milestones>div{border:1px solid #e0e8ee;border-radius:8px;padding:8px;min-height:65px}.milestones small{display:block;color:#6c8292}.milestones b{display:block;margin:3px 0}.milestones span{display:block;font-size:8px;margin-top:3px;color:#61778a}.milestones a,.doc-list a{color:#0b6ca8;text-decoration:underline}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.detail-grid section{border:1px solid #e0e8ee;border-radius:8px;padding:9px}.detail-grid h3{font-size:11px;margin:0 0 7px}.doc-list{display:flex;flex-wrap:wrap;gap:5px}.doc-link{display:inline-block;border:1px solid #cfe0ea;border-radius:6px;padding:4px 6px;background:#f6fafc;font-size:8px}.review-list{display:grid;gap:5px}.report-process{margin-top:10px;border:1px solid #e0e8ee;border-radius:8px;padding:9px}.report-process h3{font-size:11px;margin:0 0 7px}.review-row{border-left:3px solid #6eaed3;padding:4px 7px;background:#f7fbfd}.review-row b{font-size:9px}.review-row span{float:right;color:#6c8292;font-size:8px}.review-row p{margin:3px 0 0;color:#435f70;font-size:8px}.muted{color:#778c99}.footer{margin-top:10px;border-top:1px solid #dfe7ef;padding-top:6px;font-size:8px;color:#61778a}.empty{padding:30px 0;color:#61778a}</style></head><body>'+pages.map((items,page)=>'<section class="page"><p class="brand">UKPBJ KOTA BOGOR</p><h1>Dokumen Laporan Pokja</h1><p class="subtitle">Rekap Kegiatan Pemilihan Penyedia</p><table class="meta"><tr><td><b>Nama:</b> '+e(report.user.nama)+'</td><td><b>Periode penugasan:</b> '+d(report.period.from)+' s.d. '+d(report.period.to)+'</td></tr><tr><td><b>Pokja:</b> '+e(report.pokja)+'</td><td><b>Dicetak:</b> '+d(report.generated_at,true)+'</td></tr></table><div class="summary">'+report.counts.assigned+' penugasan &nbsp; | &nbsp; '+report.counts.reviewed+' selesai reviu &nbsp; | &nbsp; '+report.counts.started+' masuk INAPROC</div>'+(items.length?items.map(itemHtml).join(''):'<div class="empty">Belum ada penugasan pada periode ini.</div>')+'<div class="footer">'+e(report.pokja)+' &nbsp; | &nbsp; Halaman '+(page+1)+' dari '+pages.length+'</div></section>').join('')+'</body></html>';
+}
+function exportPokjaSkpPdf_(user,payload){
+  const report=pokjaSkpReport_(user,{...payload,includeHistory:true});
+  const pdf=HtmlService.createHtmlOutput(pokjaSkpPdfHtml_(report)).getAs('application/pdf');
+  return {fileName:'Dokumen-Laporan-Pokja-'+report.period.from+'-'+report.period.to+'.pdf',mimeType:'application/pdf',base64:Utilities.base64Encode(pdf.getBytes())};
+}
+
+function scriptCache_(){try{return typeof CacheService!=='undefined'&&CacheService.getScriptCache?CacheService.getScriptCache():null;}catch(_){return null;}}
+
+// Satu OPD yang memiliki banyak RUP tetap dapat dicache (batas 100 KB/item CacheService).
+function readRupCache_(cache,key){
+  try{
+    const value=cache.get(key);if(!value)return null;
+    const head=JSON.parse(value);
+    if(Array.isArray(head))return head;
+    if(!head||!head.parts||!head.batch||head.parts>40)return null;
+    const keys=Array.from({length:head.parts},(_,i)=>key+'_'+head.batch+'_'+i);
+    const parts=cache.getAll(keys),text=keys.map(k=>parts[k]);
+    if(text.some(x=>typeof x!=='string'))return null;
+    const items=JSON.parse(text.join(''));
+    return Array.isArray(items)?items:null;
+  }catch(_){return null}
+}
+function writeRupCache_(cache,key,items){
+  try{
+    const packed=JSON.stringify(items),ttl=PBJWF.RUP_CACHE_SECONDS;
+    if(packed.length<=75000){cache.put(key,packed,ttl);return;}
+    const chunks=packed.match(/[\s\S]{1,45000}/g)||[];
+    if(chunks.length>40)return;
+    const batch=Utilities.getUuid().replace(/-/g,'').slice(0,12),entries={};
+    chunks.forEach((chunk,i)=>entries[key+'_'+batch+'_'+i]=chunk);
+    cache.putAll(entries,ttl);
+    cache.put(key,JSON.stringify({batch,parts:chunks.length}),ttl);
+  }catch(_){/* Tidak menggagalkan pembacaan RUP bila cache penuh */}
+}
+function rupMasterOptions_(opdFilter,force) {
+  const opdNorm=norm_(opdFilter||'');
+  const cache=scriptCache_();
+  const cacheKey='PBJ_RUP_DETAILPSW_2791_'+Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5,opdNorm||'ALL')).replace(/=+$/,'');
+  if(cache&&!force){const hit=readRupCache_(cache,cacheKey);if(hit)return hit;}
+  const sh=SpreadsheetApp.openById(PBJWF.RUP_DB_ID).getSheetByName(PBJWF.RUP_SHEET);
+  if(!sh)throw new Error('Sheet DETAILPSW tidak ditemukan.');
+  const lastRow=sh.getLastRow(),lastCol=Math.min(13,sh.getLastColumn());
+  if(lastRow<2||lastCol<1)return [];
+  const data=sh.getRange(1,1,lastRow,lastCol).getDisplayValues();
+  const headers=data[0].map(String),idx={};headers.forEach((h,i)=>idx[String(h).trim().toLowerCase()]=i);
+  const required=['satuan kerja','kode rup','nama paket','pagu anggaran','metode pemilihan'];
+  const missing=required.filter(k=>idx[k]==null);if(missing.length)throw new Error('Kolom DETAILPSW belum lengkap: '+missing.join(', ')+'.');
+  const get=(row,name)=>{const i=idx[String(name).toLowerCase()];return i==null?'':String(row[i]??'').trim();};
+  const items=[],seen={};
+  for(let i=1;i<data.length;i++){
+    const row=data[i];
+    if(norm_(get(row,'Metode Pemilihan'))!=='epurchasing')continue;
+    const pagu=money_(get(row,'Pagu Anggaran'));if(pagu<=200000000)continue;
+    const opd=get(row,'Satuan Kerja');if(opdNorm&&norm_(opd)!==opdNorm)continue;
+    const kodeRup=get(row,'Kode RUP').replace(/\D/g,'');if(!kodeRup||seen[kodeRup])continue;seen[kodeRup]=true;
+    items.push({kodeRup:kodeRup,namaPaket:get(row,'Nama Paket'),opd:opd,program:get(row,'Program'),kegiatan:get(row,'Kegiatan'),subKegiatan:get(row,'Sub Kegiatan'),jenis:get(row,'Jenis Pengadaan'),cara:get(row,'Cara Pengadaan'),metode:get(row,'Metode Pemilihan')||'E-Purchasing',pagu:pagu,pdn:get(row,'Produk Dalam Negeri'),sumberDana:get(row,'Sumber Dana'),waktuPemilihan:get(row,'Waktu Pemilihan'),tahun:2026});
+  }
+  items.sort((a,b)=>String(a.namaPaket||'').localeCompare(String(b.namaPaket||''),'id',{sensitivity:'base'})||String(a.kodeRup).localeCompare(String(b.kodeRup)));
+  if(cache)writeRupCache_(cache,cacheKey,items);
+  return items;
+}
+
+function listRupOptions_(user,payload) {
+  requireRole_(user,['PPK','ADMIN']);
+  const selected=String(payload.method||'').trim();
+  const method=norm_(selected);
+  if(!method)return {method:'',available:false,items:[],message:'Pilih metode pengadaan terlebih dahulu.'};
+  if(method==='tender')return {method:'Tender',available:false,items:[],message:'Pengajuan Tender saat ini belum tersedia.'};
+  if(method==='seleksi')return {method:'Seleksi',available:false,items:[],message:'Pengajuan Seleksi saat ini belum tersedia.'};
+  if(method!=='epurchasing')throw new Error('Metode pengadaan tidak dikenali.');
+  if(user.role==='PPK'&&!String(user.opd||'').trim())throw new Error('Satuan kerja akun belum diatur.');
+
+  let base;
+  try{base=rupMasterOptions_(user.role==='PPK'?user.opd:'',payload.force===true);}
+  catch(err){throw new Error('RUP dari DETAILPSW belum dapat dibaca. '+String(err&&err.message||err));}
+  const reserved={};
+  rows_(sheet_(PBJWF.SHEETS.REQUESTS)).forEach(r=>{
+    if(['DRAFT','PERLU_KELENGKAPAN','DITOLAK_KEPALA','BATAL'].includes(String(r.status||'')))return;
+    const code=String(r.kode_rup||'');reserved[code]=(reserved[code]||0)+Math.max(0,Number(r.hps_alokasi)||Number(r.pagu)||0);
+  });
+  const items=base.map(x=>({...x,sisaPagu:Math.max(0,Number(x.pagu)-Number(reserved[x.kodeRup]||0)),terpakai:Number(reserved[x.kodeRup]||0),activeRequestId:''}));
+  const selectable=items.filter(x=>x.sisaPagu>0).length;
+  return {method:'E-Purchasing',available:true,items,message:selectable+' RUP memiliki sisa pagu yang dapat digunakan.',source:'DETAILPSW',selectableCount:selectable,activeCount:0};
+}
+
+function lookupRup_(kodeRup) {
+  kodeRup=String(kodeRup||'').replace(/\D/g,'');
+  if(!kodeRup)throw new Error('Kode RUP belum diisi.');
+  const sh=SpreadsheetApp.openById(PBJWF.RUP_DB_ID).getSheetByName(PBJWF.RUP_SHEET);
+  if(!sh)throw new Error('Sheet DETAILPSW tidak ditemukan.');
+  const lastCol=Math.min(13,sh.getLastColumn());
+  const headers=sh.getRange(1,1,1,lastCol).getDisplayValues()[0].map(String);
+  const idx={};headers.forEach((h,i)=>idx[String(h).trim().toLowerCase()]=i);
+  const codeCol=(idx['kode rup']==null?-1:idx['kode rup'])+1;
+  if(!codeCol)throw new Error('Kolom Kode RUP tidak ditemukan.');
+  const finder=sh.getRange(2,codeCol,Math.max(1,sh.getLastRow()-1),1).createTextFinder(kodeRup).matchEntireCell(true).findNext();
+  if(!finder)throw new Error('Kode RUP tidak ditemukan.');
+  const raw=sh.getRange(finder.getRow(),1,1,lastCol).getValues()[0];
+  const disp=sh.getRange(finder.getRow(),1,1,lastCol).getDisplayValues()[0];
+  const get=n=>{const i=idx[String(n).toLowerCase()];return i==null?'':disp[i];};
+  const getRaw=n=>{const i=idx[String(n).toLowerCase()];return i==null?'':raw[i];};
+  const metode=String(get('Metode Pemilihan')||'').trim();
+  const pagu=money_(getRaw('Pagu Anggaran'));
+  if(norm_(metode)!=='epurchasing')throw new Error('Permohonan ini hanya untuk paket E-Purchasing.');
+  if(pagu<=200000000)throw new Error('Pagu paket harus di atas Rp200 juta.');
+  return {
+    kodeRup:kodeRup,
+    namaPaket:get('Nama Paket'),
+    opd:get('Satuan Kerja'),
+    program:get('Program'),
+    kegiatan:get('Kegiatan'),
+    subKegiatan:get('Sub Kegiatan'),
+    jenis:get('Jenis Pengadaan'),
+    cara:get('Cara Pengadaan'),
+    metode:metode,
+    pagu:pagu,
+    pdn:get('Produk Dalam Negeri'),
+    sumberDana:get('Sumber Dana'),
+    waktuPemilihan:get('Waktu Pemilihan'),
+    tahun:2026
+  };
+}
+
+function isKajiWorkflow_(request){return String(request&&request.workflow_scheme||'')==='KAJI_ULANG_2026';}
+function requestSelectionProcess_(request){
+  const value=String(request&&request.selection_process||'').toUpperCase();
+  if(value==='PERSIAPAN')return value;
+  if(value==='NEGOSIASI'||value==='MINI_KOMPETISI')return value;
+  return ['NON_CONSTRUCTION','CONSTRUCTION'].indexOf(String(request&&request.competition_type||'').toUpperCase())>=0?'MINI_KOMPETISI':'NEGOSIASI';
+}
+function isNewKaji2817_(request){return isKajiWorkflow_(request)&&Boolean(String(request?.ppk_email||'').trim()&&Number(request?.hps_alokasi)>0);}
+function requestedSelectionProcess_(data){
+  const value=String(data&&data.selectionProcess||'').trim().toUpperCase();
+  if(value&&value!=='NEGOSIASI'&&value!=='MINI_KOMPETISI')throw new Error('Proses permohonan tidak dikenali.');
+  return value||(data&&data.competitionType?'MINI_KOMPETISI':'NEGOSIASI');
+}
+function requestMailTitle_(req){return String(req&&(req.judul_permohonan||req.nama_paket)||'-').trim()||'-';}
+function requestMailSubject_(label,req){return 'ORBITA PBJ - '+label+' '+String(req&&req.request_id||'')+' - '+requestMailTitle_(req).slice(0,90);}
+function handoverMailBody_(req,processLabel){
+  const ppkName=String(req&&req.ppk_nama||'PPK').trim()||'PPK';
+  const packageName=requestMailTitle_(req);
+  const requestId=String(req&&req.request_id||'-').trim()||'-';
+  const kodeRup=String(req&&req.kode_rup||'-').trim()||'-';
+  return [
+    '',
+    '',
+    'Hasil pemilihan lewat '+processLabel+' sudah disampaikan. Berikut rincian paketnya:',
+    'Nomor Permohonan: '+requestId,
+    'Kode RUP: '+kodeRup,
+    'Judul Permohonan: '+packageName,
+    'Metode Pemilihan: '+requestMailMethod_(req),
+    '',
+    'Hasil pemilihan sudah disampaikan melalui ORBITA PBJ dan dapat ditindaklanjuti oleh PPK.',
+    '',
+    'Pengingat PPK: Hasil pemilihan sudah disampaikan. Mohon segera buat Surat Pesanan di katalog.inaproc.id paling lambat 3 hari kerja sejak hari ini agar paket tidak terlambat diproses.',
+    '',
+    'Buka ORBITA PBJ untuk melihat rincian paket.'
+  ].join('\n');
+}
+function ppkStatusMail_(req,eventKind,detail){
+  const ppk=String(req&&req.ppk_nama||'PPK').trim()||'PPK',id=String(req&&req.request_id||'-').trim()||'-';
+  const messages={
+    KAJI_PERBAIKAN:{title:'Kaji Ulang - Dokumen Persiapan Perlu Perbaikan',message:'Hasil kaji ulang dari Pokja menyatakan dokumen persiapan perlu diperbaiki.',label:'Catatan Kaji Ulang',next:'Cek catatan Pokja dan perbaiki dokumen yang diminta. Setelah selesai, kirim kembali lewat ORBITA PBJ.'},
+    MINI_DETAIL:{title:'Lengkapi Detail Mini Kompetisi',message:'Pokja telah menetapkan proses Mini Kompetisi. Detail pemilihan sekarang perlu dilengkapi oleh PPK.',label:'Catatan Pokja',next:'Buka ORBITA PBJ, lengkapi detail Mini Kompetisi dan lokasi pekerjaan, lalu kirim kembali ke Pokja.'},
+    REVIU_PERBAIKAN:{title:'Permohonan Dikembalikan untuk Perbaikan',message:'Hasil reviu Pokja menyatakan permohonan perlu diperbaiki sebelum proses dilanjutkan.',label:'Catatan Reviu',next:'Mohon periksa catatan Pokja, lakukan perbaikan yang diminta, lalu kirim kembali permohonan melalui ORBITA PBJ.'},
+    MINI_GAGAL:{title:'Mini Kompetisi Dinyatakan Gagal',message:'Mini Kompetisi untuk paket ini dinyatakan gagal oleh Pokja. Permohonan dikembalikan kepada PPK untuk ditindaklanjuti.',label:'Alasan Gagal',next:'Cek alasan gagal dan arahan Pokja di ORBITA PBJ untuk tindak lanjutnya.'},
+    MINI_BATAL:{title:'Pemberitahuan Pembatalan Mini Kompetisi',message:'Mini Kompetisi untuk paket ini telah dibatalkan. Proses pemilihan tidak dilanjutkan pada permohonan tersebut.',label:'Alasan Pembatalan',next:'Cek berita acara dan alasan pembatalan di ORBITA PBJ. Jika paket masih dibutuhkan, koordinasikan tindak lanjutnya dengan UKPBJ.'},
+    NEGO_BATAL:{title:'Negosiasi Dibatalkan',message:'Negosiasi untuk permohonan ini dibatalkan di INAPROC. Pesanan tidak dapat dipenuhi oleh penyedia.',label:'Alasan Pembatalan',next:'Cek Riwayat Paket di ORBITA dan koordinasikan tindak lanjut dengan Pokja/UKPBJ jika pengadaan masih dibutuhkan.'},
+    DITOLAK_KEPALA:{title:'Permohonan Ditolak Kepala UKPBJ',message:'Permohonan pemilihan penyedia ini ditolak oleh Kepala UKPBJ dan tidak dilanjutkan pada pengajuan saat ini.',label:'Alasan Penolakan',next:'Cek alasan penolakan. Kalau paket masih akan diajukan, perbaiki dulu bagian yang diminta lalu gunakan fitur pengajuan ulang di ORBITA PBJ.'}
+  };
+  const info=messages[eventKind];if(!info)return null;
+  const lines=[
+    info.message,'',
+    'Nomor Permohonan: '+id,
+    'Kode RUP: '+String(req&&req.kode_rup||'-'),
+    'Metode Pemilihan: '+requestMailMethod_(req),
+    'Judul Permohonan: '+requestMailTitle_(req),
+    'OPD: '+String(req&&req.opd||'-'),'',
+    info.label+': '+(String(detail||'').trim()||'Silakan lihat catatan pada detail permohonan.'),'',
+    'Tindak Lanjut: '+info.next,'',
+    'Cek detail permohonan di ORBITA PBJ.'
+  ];
+  return {subject:requestMailSubject_(info.title,req),body:lines.join('\n')};
+}
+function notifyPpkStatus_(req,eventKind,detail,suffix){
+  if(!req||!String(req.ppk_email||'').trim())return;
+  const mail=ppkStatusMail_(req,eventKind,detail);
+  if(mail)bestEffortMail_(eventKind+':'+req.request_id+(suffix==null?'':':'+String(suffix)),req.ppk_email,mail.subject,mail.body);
+}
+function requestFormPatch_(data,rup) {
+  const q=data.qualifications||data.qualification||{};
+  const competitionType=String(data.competitionType||'NON_CONSTRUCTION').toUpperCase();
+  const productDetails=Array.isArray(data.productDetails)?data.productDetails:[];
+  const constructionDetails=Array.isArray(data.constructionDetails)?data.constructionDetails:[];
+  return {
+    competition_type:competitionType,
+    competition_title:String(data.competitionTitle||rup.namaPaket||'').trim()||rup.namaPaket,
+    schedule_start_date:String(data.scheduleStartDate||''),schedule_end_date:String(data.scheduleEndDate||''),
+    schedule_start_time:String(data.scheduleStartTime||''),schedule_end_time:String(data.scheduleEndTime||''),
+    qualification_json:JSON.stringify(q||{}),
+    product_category:competitionType==='CONSTRUCTION'?'':String(data.productCategory||''),
+    product_details_json:JSON.stringify(competitionType==='CONSTRUCTION'?[]:productDetails),
+    offer_type:competitionType==='CONSTRUCTION'?'':String(data.offerType||'ITEMIZED').toUpperCase(),
+    payment_type:competitionType==='CONSTRUCTION'?String(data.paymentType||'SINGLE').toUpperCase():'',
+    payment_terms_count:competitionType==='CONSTRUCTION'?(Number(data.paymentTermsCount)||0):'',
+    payment_terms_note:competitionType==='CONSTRUCTION'?String(data.paymentTermsNote||''):'',
+    construction_details_json:JSON.stringify(competitionType==='CONSTRUCTION'?constructionDetails:[]),
+    work_location:String(data.workLocation||''),
+    completion_date:String(data.completionDate||'')
+  };
+}
+
+function saveDraftRequest_(user,payload) {
+  requireRole_(user,['PPK','ADMIN']);
+  const data=payload.data||{}, requestId=String(payload.requestId||data.requestId||'').trim();
+  if(!requestId)return createRequest_(user,data);
+  ensureRequestSchema_();
+  const req=getRequestAuthorized_(user,requestId);
+  if(user.role!=='ADMIN'&&req.ppk_user_id!==user.user_id)throw new Error('Draft bukan milik akun ini.');
+  if(user.role!=='ADMIN'&&!['DRAFT','PERLU_KELENGKAPAN',...(isKajiWorkflow_(req)?['PERLU_DETAIL_PPK']:[])].includes(req.status))throw new Error('Detail tidak dapat diubah pada status ini.');
+  if(isKajiWorkflow_(req)&&req.status==='PERLU_DETAIL_PPK'&&String(data.kodeRup||req.kode_rup)!==String(req.kode_rup))throw new Error('RUP sudah dikunci setelah Kaji Ulang.');
+  const rup=lookupRup_(data.kodeRup||req.kode_rup);
+  if(user.role==='PPK'&&user.opd&&norm_(user.opd)!==norm_(rup.opd))throw new Error('Kode RUP bukan milik OPD akun ini.');
+  if(requestSelectionProcess_(req)!=='MINI_KOMPETISI')throw new Error('Detail ini bukan Mini Kompetisi.');
+  if(isKajiWorkflow_(req)&&req.status==='PERLU_DETAIL_PPK'&&!req.method_locked_at)throw new Error('Metode belum ditetapkan Pokja.');
+  if(isKajiWorkflow_(req)&&req.status==='PERLU_DETAIL_PPK'&&String(data.competitionType||'').toUpperCase()!==String(req.competition_type||'').toUpperCase())throw new Error('Jenis Mini Kompetisi sudah ditetapkan Pokja dan tidak dapat diubah.');
+  const patch={selection_process:'MINI_KOMPETISI',kode_rup:rup.kodeRup,nama_paket:rup.namaPaket,opd:rup.opd,jenis:rup.jenis,cara:rup.cara,metode_pengadaan:rup.metode,metode_epurchasing:'E-Purchasing',pagu:rup.pagu,sumber_dana:rup.sumberDana,waktu_pemilihan:rup.waktuPemilihan,program:rup.program||'',kegiatan:rup.kegiatan||'',sub_kegiatan:rup.subKegiatan||'',produk_dalam_negeri:rup.pdn||'',notes:String(data.notes||req.notes||''),updated_at:new Date(),...requestFormPatch_(data,rup)};
+  updateRequest_(requestId,patch);
+  audit_(user,'SAVE_DRAFT_REQUEST',requestId,{competitionType:patch.competition_type,productCategory:patch.product_category});
+  return publicRequest_(getRequest_(requestId));
+}
+
+function deleteRowsPhysicalByPredicate_(sh,predicate){
+  const lr=sh.getLastRow(),lc=sh.getLastColumn();if(lr<2||lc<1)return 0;
+  const values=sh.getRange(1,1,lr,lc).getValues(),headers=values[0].map(String),matches=[];
+  for(let i=1;i<values.length;i++){
+    const row=values[i],obj={};headers.forEach((key,j)=>obj[key]=normalizeCell_(row[j]));
+    if(predicate(obj))matches.push(i+1);
+  }
+  if(!matches.length)return 0;
+  invalidateShardTable_(sh);
+  let end=matches[matches.length-1],start=end,count=0;
+  for(let i=matches.length-2;i>=-1;i--){
+    const row=i>=0?matches[i]:null;
+    if(row!==null&&row===start-1){start=row;continue}
+    sh.deleteRows(start,end-start+1);count+=end-start+1;
+    if(row!==null){start=end=row}
+  }
+  return count;
+}
+
+function deleteRowsByPredicate_(sh,predicate){
+  const name=sh.getName();
+  const parts=isShardTable_(name)&&sh.getParent().getId()===PBJWF.DB_ID?shardSheets_(name,sh):[sh];
+  let count=0;parts.forEach(part=>{count+=deleteRowsPhysicalByPredicate_(part,predicate);invalidateShardTable_(part);});
+  return count;
+}
+
+function deleteDraftRequest_(user,payload){
+  requireRole_(user,['PPK','ADMIN']);
+  const requestId=String(payload.requestId||'').trim();if(!requestId)throw new Error('Permohonan belum dipilih.');
+  const hit=getRequestHitAuthorized_(user,requestId),req=hit.obj;
+  if(user.role!=='ADMIN'&&req.ppk_user_id!==user.user_id)throw new Error('Draft bukan milik akun ini.');
+  if(!['DRAFT','PERLU_KELENGKAPAN'].includes(String(req.status||'')))throw new Error('Hanya permohonan yang masih Draft yang dapat dihapus.');
+
+  const linkedAuditIds=new Set();
+  rows_(sheet_(PBJWF.SHEETS.AUDIT)).forEach(a=>{
+    if(String(a.request_id||'')===requestId){linkedAuditIds.add(String(a.audit_id||''));return}
+    if(String(a.action||'')!=='REAPPLY_REQUEST')return;
+    try{const d=JSON.parse(a.detail_json||'{}');if(String(d.newRequestId||'')===requestId)linkedAuditIds.add(String(a.audit_id||''));}catch(_){}
+  });
+
+  if(req.folder_id){
+    try{DriveApp.getFolderById(String(req.folder_id)).setTrashed(true);}catch(_){}
+  }
+
+  deleteRowsByPredicate_(sheet_(PBJWF.SHEETS.DOCS),r=>String(r.request_id||'')===requestId);
+  deleteRowsByPredicate_(sheet_(PBJWF.SHEETS.REVIEWS),r=>String(r.request_id||'')===requestId);
+  deleteRowsByPredicate_(sheet_(PBJWF.SHEETS.NOTES),r=>String(r.request_id||'')===requestId);
+  deleteRowsByPredicate_(sheet_(PBJWF.SHEETS.AUDIT),r=>linkedAuditIds.has(String(r.audit_id||'')));
+  deleteRowsByPredicate_(sheet_(PBJWF.SHEETS.REQUESTS),r=>String(r.request_id||'')===requestId);
+
+  audit_(user,'DELETE_DRAFT_REQUEST',requestId,{kodeRup:req.kode_rup,namaPaket:req.nama_paket,previousRequestId:req.previous_request_id||''});
+  return {requestId:requestId,deleted:true};
+}
+
+function createRequest_(user, data) {
+  requireRole_(user,['PPK','ADMIN']);
+  const selectionProcess=data.initialPreparation===true?'PERSIAPAN':requestedSelectionProcess_(data);
+  if(selectionProcess==='MINI_KOMPETISI'&&!['NON_CONSTRUCTION','CONSTRUCTION'].includes(String(data.competitionType||'').toUpperCase()))throw new Error('Jenis kompetisi belum dipilih.');
+  const selectedMethod=String(data.metodePengadaan||data.metodeEpurchasing||'E-Purchasing').trim();
+  if(norm_(selectedMethod)!=='epurchasing')throw new Error('Pengajuan '+(selectedMethod||'metode ini')+' saat ini belum tersedia.');
+  const rup = lookupRup_(data.kodeRup);
+  if (user.role === 'PPK' && user.opd && norm_(user.opd) !== norm_(rup.opd)) throw new Error('Kode RUP bukan milik OPD akun ini.');
+  ensureRequestSchema_();
+  const allUserRequests=rows_(sheet_(PBJWF.SHEETS.REQUESTS));
+  const sameRup=allUserRequests.filter(r=>String(r.kode_rup)===String(rup.kodeRup));
+  const existing = null; // RUP dapat digunakan beberapa permohonan selama masih ada sisa pagu.
+  const requestedPreviousId=String(data.previousRequestId||'').trim();
+  let previous=null;
+  if(requestedPreviousId){
+    previous=sameRup.find(r=>String(r.request_id)===requestedPreviousId);
+    if(!previous||previous.status!==STATUS.DITOLAK_KEPALA)throw new Error('Paket asal pengajuan ulang tidak valid. Muat ulang halaman lalu coba lagi.');
+    if(user.role!=='ADMIN'&&previous.ppk_user_id!==user.user_id)throw new Error('Paket asal pengajuan ulang bukan milik akun ini.');
+    const alreadyReapplied=rows_(sheet_(PBJWF.SHEETS.AUDIT)).some(a=>a.request_id===previous.request_id&&a.action==='REAPPLY_REQUEST');
+    if(alreadyReapplied)throw new Error('Pengajuan ulang untuk paket ini sudah pernah dibuat.');
+    // Metode, RUP dan identitas PPK tetap dari permohonan asal. Judul dan HPS boleh diubah.
+    if(norm_(previous.metode_pengadaan||previous.metode_epurchasing)!==norm_(selectedMethod))throw new Error('Metode pengadaan harus mengikuti permohonan sebelumnya.');
+    if(!String(previous.ppk_nama||'').trim()||!String(previous.ppk_email||'').trim())throw new Error('Data PPK permohonan sebelumnya belum lengkap. Hubungi admin UKPBJ.');
+    const requestedHps=Number(data.hpsAlokasi);
+    if(!Number.isSafeInteger(requestedHps)||requestedHps<=0)throw new Error('Total HPS harus lebih dari nol dan dalam rupiah penuh.');
+    // Pakai hasil baca RUP di atas agar tidak membaca ulang seluruh Sheet permohonan.
+    const allocated=sameRup.reduce((sum,r)=>['DRAFT','PERLU_KELENGKAPAN','DITOLAK_KEPALA','BATAL'].includes(String(r.status||''))?sum:sum+Math.max(0,Number(r.hps_alokasi)||Number(r.pagu)||0),0);
+    const remaining=Math.max(0,Number(rup.pagu)-allocated);
+    if(requestedHps>remaining)throw new Error('Total HPS melebihi sisa pagu RUP ('+remaining.toLocaleString('id-ID')+' tersisa).');
+  } else {
+    previous=null;
+  }
+  if (existing) throw new Error('Permohonan masih berjalan.');
+  // Validasi sisi server: tidak dapat dilewati dengan mengubah input di browser.
+  const validPpkName=String(previous?previous.ppk_nama:data.ppkNama||'').trim();
+  if((validPpkName.match(/\p{L}/gu)||[]).length<3)throw new Error('Nama PPK minimal 3 huruf.');
+  // Judul hanya label permohonan. Nama paket dan data RUP asli tidak ditimpa.
+  // Pengajuan ulang boleh mengganti judul; RUP, metode dan identitas PPK tetap mengikuti asal.
+  const requestTitle=String(data.judulPermohonan||((selectionProcess==='MINI_KOMPETISI')?data.competitionTitle:'')||(previous?(previous.judul_permohonan||previous.nama_paket):'')||'').trim();
+  const normalizedTitle=t=>String(t||'').normalize('NFKC').replace(/\s+/g,' ').trim().toLowerCase();
+  if(user.role==='PPK'&&requestTitle&&allUserRequests.some(r=>String(r.ppk_user_id||'')===String(user.user_id)&&normalizedTitle(r.judul_permohonan||r.nama_paket)===normalizedTitle(requestTitle))){
+    throw new Error('Judul permohonan ini sudah pernah dipakai di akun Anda. Gunakan judul yang berbeda.');
+  }
+  if(selectionProcess==='PERSIAPAN'&&requestTitle.length<5)throw new Error('Judul permohonan minimal 5 karakter.');
+  if(requestTitle.length>180)throw new Error('Judul permohonan maksimal 180 karakter.');
+  const id = requestIdForRup_(rup.kodeRup);
+  const folder = createRequestFolder_(id, rup);
+  const now = new Date();
+  const obj = {request_id:id,year:rup.tahun||2026,kode_rup:rup.kodeRup,nama_paket:rup.namaPaket,judul_permohonan:requestTitle||rup.namaPaket,opd:rup.opd,ppk_user_id:user.user_id,jenis:rup.jenis,cara:rup.cara,metode_pengadaan:rup.metode,metode_epurchasing:'E-Purchasing',pagu:rup.pagu,sumber_dana:rup.sumberDana,waktu_pemilihan:rup.waktuPemilihan,status:STATUS.DRAFT,current_round:1,folder_id:folder.getId(),created_at:now,updated_at:now,notes:previous?String(previous.notes||''):String(data.notes||''),selection_process:selectionProcess,ppk_nama:previous?String(previous.ppk_nama||''):String(data.ppkNama||'').trim(),ppk_email:previous?String(previous.ppk_email||''):String(data.ppkEmail||'').trim(),hps_alokasi:Number(data.hpsAlokasi)||0,workflow_scheme:selectionProcess==='PERSIAPAN'?'KAJI_ULANG_2026':'',program:rup.program||'',kegiatan:rup.kegiatan||'',sub_kegiatan:rup.subKegiatan||'',produk_dalam_negeri:rup.pdn||'',previous_request_id:previous?previous.request_id:'',...(selectionProcess==='MINI_KOMPETISI'?requestFormPatch_(data,rup):{})};
+  appendObj_(sheet_(PBJWF.SHEETS.REQUESTS), obj); audit_(user,'CREATE_REQUEST',id,{kodeRup:rup.kodeRup,previousRequestId:obj.previous_request_id});
+  if(previous){audit_(user,'REAPPLY_REQUEST',previous.request_id,{newRequestId:id});touchRequest_(previous.request_id);}
+  return publicRequest_(obj);
+}
+
+// ===== v27.9 DIRECT BINARY / RESUMABLE DRIVE UPLOAD =====
+// Browser tidak menerima OAuth token. Apps Script hanya membuka resumable session
+// dengan token deployer, lalu mengirim session URI sekali pakai ke browser.
+function ensureDirectUploadSecret_() {
+  const props=PropertiesService.getScriptProperties();
+  let secret=props.getProperty('TRAXPBJ_DIRECT_UPLOAD_SECRET');
+  if(!secret){secret=[Utilities.getUuid(),Utilities.getUuid(),randomToken_()].join('-');props.setProperty('TRAXPBJ_DIRECT_UPLOAD_SECRET',secret);}
+  return secret;
+}
+
+function b64WebText_(text){return Utilities.base64EncodeWebSafe(String(text),Utilities.Charset.UTF_8).replace(/=+$/,'');}
+function b64WebDecodeText_(text){let s=String(text||'');while(s.length%4)s+='=';return Utilities.newBlob(Utilities.base64DecodeWebSafe(s)).getDataAsString();}
+function safeTextEqual_(a,b){a=String(a||'');b=String(b||'');if(a.length!==b.length)return false;let d=0;for(let i=0;i<a.length;i++)d|=a.charCodeAt(i)^b.charCodeAt(i);return d===0;}
+function signDirectUploadTicket_(claims){const body=b64WebText_(JSON.stringify(claims));const sig=Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(body,ensureDirectUploadSecret_(),Utilities.Charset.UTF_8)).replace(/=+$/,'');return body+'.'+sig;}
+function readDirectUploadTicket_(ticket){const parts=String(ticket||'').split('.');if(parts.length!==2)throw new Error('Sesi upload tidak valid. Ulangi upload.');const expected=Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(parts[0],ensureDirectUploadSecret_(),Utilities.Charset.UTF_8)).replace(/=+$/,'');if(!safeTextEqual_(parts[1],expected))throw new Error('Sesi upload tidak valid. Ulangi upload.');let claims;try{claims=JSON.parse(b64WebDecodeText_(parts[0]));}catch(_){throw new Error('Sesi upload tidak valid. Ulangi upload.');}if(!claims||Number(claims.exp||0)<Date.now())throw new Error('Sesi upload sudah kedaluwarsa. Ulangi upload.');return claims;}
+
+function docTypeLabel_(docType){
+  const map={SURAT_PERMOHONAN:'Surat Permohonan E-Purchasing',SK_PPK:'SK Pengangkatan PPK',DPA_ANGGARAN:'Dokumen DPA Anggaran',SCREENSHOT_RUP:'Screenshot RUP',KAK:'KAK - Spesifikasi Teknis',HPS:'HPS',RANCANGAN_KONTRAK:'Rancang Kontrak',SURAT_PERINTAH_POKJA:'Surat Perintah Pokja'};
+  return map[String(docType||'')]||String(docType||'Dokumen').replace(/_/g,' ');
+}
+function fileExtension_(name){const m=String(name||'').match(/(\.[A-Za-z0-9]{1,8})$/);return m?m[1].toLowerCase():'';}
+function isPreparationReplacementStage_(req,purpose){return String(purpose||'').toUpperCase()==='DOCUMENT'&&['DRAFT','PERLU_KELENGKAPAN'].includes(String(req&&req.status||''));}
+// Nama file sesuai judul per permohonan. Nama RUP tetap disimpan terpisah.
+function requestDocumentTitle_(req){
+  return String(req&&(req.judul_permohonan||req.nama_paket)||'').trim();
+}
+function prettyDocumentFileName_(label,packageName,version,sourceName){
+  const ext=fileExtension_(sourceName),clean=x=>sanitizeFileName_(String(x||'').replace(/[_]+/g,' ')).replace(/\s+-\s+-+/g,' - ');
+  const base=(clean(label)||'Dokumen')+' - '+(clean(packageName)||'Paket');
+  const rev=Number(version)>1?' - Revisi '+Number(version):'';
+  const maxBase=Math.max(20,150-ext.length-rev.length);
+  return base.slice(0,maxBase).trim()+rev+ext;
+}
+
+const MINI_DOCS={
+  BA_HASIL_REVIU:'Dokumen Persiapan Pengadaan',
+  SURAT_PENYAMPAIAN_HASIL:'Surat Penyampaian Hasil Pemilihan',
+  BA_PERSETUJUAN_POKJA:'Berita Acara Persetujuan Pokja',
+  BA_PERSETUJUAN:'Berita Acara Persetujuan Perubahan Kompetisi',
+  BA_PEMBATALAN:'Berita Acara Pembatalan Kompetisi',
+  BA_HASIL_EVALUASI:'Berita Acara Hasil Evaluasi Mini Kompetisi',
+  SURAT_PENETAPAN_PA_KPA:'Surat Penetapan Pemenang PA/KPA'
+};
+function kajiDocAllowed_(user,req,type){
+  requireRole_(user,['POKJA','ADMIN']);
+  return type==='BA_KAJI_ULANG'&&isKajiWorkflow_(req)&&['DITUGASKAN_POKJA','REVIU_POKJA','REVIU_ULANG'].includes(req.status);
+}
+function miniDocAllowed_(user,req,type){
+  requireRole_(user,['POKJA','ADMIN']);
+  if(requestSelectionProcess_(req)!=='MINI_KOMPETISI'||!MINI_DOCS[type])throw new Error('Dokumen ini hanya untuk Mini Kompetisi.');
+  const stage=String(req.mini_stage||'');
+  if(type==='BA_HASIL_REVIU'||type==='BA_PERSETUJUAN_POKJA')return [STATUS.REVIU_POKJA,STATUS.REVIU_ULANG].includes(req.status)||(isKajiWorkflow_(req)&&req.status===STATUS.SIAP_INAPROC&&stage==='SIAP_TAYANG');
+  if(req.status!==STATUS.SIAP_INAPROC)return false;
+  if(type==='SURAT_PENYAMPAIAN_HASIL')return stage==='EVALUASI';
+  if(type==='BA_PERSETUJUAN')return stage==='TAYANG';
+  if(type==='BA_PEMBATALAN')return stage==='TAYANG'||stage==='EVALUASI';
+  return stage==='TAYANG'||stage==='EVALUASI';
+}
+function miniRequireDoc_(req,type,since){
+  const doc=currentDocs_(req.request_id).find(d=>d.doc_type===type);
+  if(!doc||since&&new Date(doc.uploaded_at).getTime()<=new Date(since).getTime())throw new Error(MINI_DOCS[type]+' wajib diunggah untuk tahap ini.');
+  return doc;
+}
+function miniRequireReviewDocs_(req){
+  // Reviu ulang dapat memakai BA yang masih aktif. Jangan menolak dokumen
+  // hanya karena tanggal unggahnya sebelum kompetisi dinyatakan gagal.
+  // BA hasil reviu dan BA persetujuan tetap harus dua dokumen terpisah.
+  const docs=currentDocs_(req.request_id);
+  ['BA_HASIL_REVIU','BA_PERSETUJUAN_POKJA'].forEach(type=>{
+    if(!docs.some(d=>String(d.doc_type)===type))throw new Error(MINI_DOCS[type]+' belum diunggah.');
+  });
+}
+function miniWorkflow_(user,payload){
+  requireRole_(user,['POKJA','ADMIN']);
+  const req=getRequestAuthorized_(user,payload.requestId),action=String(payload.step||'').toUpperCase(),stage=String(req.mini_stage||'');
+  if(requestSelectionProcess_(req)!=='MINI_KOMPETISI')throw new Error('Tahapan ini hanya untuk Mini Kompetisi.');
+  if(req.status!==STATUS.SIAP_INAPROC)throw new Error('Tahap pemilihan belum dapat diproses.');
+  const note=String(payload.note||'').trim().slice(0,2000),now=new Date(),patch={updated_at:now};
+  if(action==='TAYANG'&&stage==='SIAP_TAYANG'){
+    patch.mini_stage='TAYANG';patch.mini_tayang_at=now;
+  }else if(action==='PERUBAHAN'&&stage==='TAYANG'){
+    if(!note)throw new Error('Uraian perubahan wajib diisi.');
+    // BA Persetujuan Perubahan tidak wajib, catatan perubahan tetap tersimpan.
+    const end=String(payload.scheduleEndDate||'').trim(),completion=String(payload.completionDate||'').trim();
+    if(end){if(!/^\d{4}-\d{2}-\d{2}$/.test(end)||end<String(req.schedule_start_date||''))throw new Error('Tanggal akhir penawaran tidak sesuai.');patch.schedule_end_date=end;}
+    if(completion){if(!/^\d{4}-\d{2}-\d{2}$/.test(completion)||completion<String(end||req.schedule_end_date||''))throw new Error('Tanggal penyelesaian tidak sesuai.');patch.completion_date=completion;}
+    patch.mini_last_change_at=now;
+  }else if((action==='BATAL'||action==='GAGAL')&&(stage==='TAYANG'||stage==='EVALUASI')){
+    if(!note)throw new Error('Alasan '+(action==='BATAL'?'pembatalan':'gagal kompetisi')+' wajib diisi.');
+    if(action==='BATAL')miniRequireDoc_(req,'BA_PEMBATALAN',req.mini_tayang_at);
+    if(action==='BATAL'){patch.status=STATUS.BATAL;patch.mini_stage='BATAL';}
+    else{patch.status=STATUS.PERLU_PERBAIKAN_PPK;patch.mini_stage='GAGAL';patch.mini_failure_at=now;}
+  }else if(action==='EVALUASI'&&stage==='TAYANG'){
+    patch.mini_stage='EVALUASI';
+  }else if(action==='HANDOVER'&&stage==='EVALUASI'){
+    miniRequireDoc_(req,'BA_HASIL_EVALUASI',req.mini_tayang_at);
+    if(isNewKaji2817_(req))miniRequireDoc_(req,'SURAT_PENYAMPAIAN_HASIL',null);
+    if(Number(req.pagu)>100000000000)miniRequireDoc_(req,'SURAT_PENETAPAN_PA_KPA',req.mini_tayang_at);
+    patch.mini_stage='HANDOVER';patch.mini_handover_at=now;
+  }else throw new Error('Tahap pemilihan sudah berubah. Perbarui halaman.');
+  ensureRequestSchema_();updateRequest_(req.request_id,patch);
+  audit_(user,'MINI_'+action,req.request_id,{note:note,round:Number(req.current_round)||1, ...(action==='PERUBAHAN'?{scheduleEndDate:patch.schedule_end_date||'',completionDate:patch.completion_date||''}:{})});
+  if(action==='HANDOVER')bestEffortMail_('HANDOVER:'+req.request_id,req.ppk_email,requestMailSubject_('Penyampaian Hasil Pemilihan',req),handoverMailBody_(req,'Mini Kompetisi'));
+  if(action==='GAGAL'){
+    appendNote_(user,req.request_id,'MINI_KOMPETISI','PERLU_PERBAIKAN',note);
+    notifyPpkStatus_(req,'MINI_GAGAL',note,String(now.getTime()));
+  }
+  if(action==='BATAL')notifyPpkStatus_(req,'MINI_BATAL',note);
+  return publicRequest_(getRequest_(req.request_id));
+}
+
+// Arsip proses Negosiasi disimpan terpisah dari dokumen Mini Kompetisi.
+const NEGO_DOCS={
+  SURAT_PENYAMPAIAN_HASIL:'Surat Penyampaian Hasil Pemilihan',
+  NEGO_BA_HASIL_REVIU:'Berita Acara Hasil Reviu Dokumen Pemilihan Paket Negosiasi',
+  NEGO_BA_HASIL_EVALUASI:'Berita Acara Hasil Evaluasi Kesepakatan Negosiasi Harga',
+  NEGO_SURAT_PENETAPAN_PA_KPA:'Surat Penetapan Pemenang PA/KPA'
+};
+function negoDocAllowed_(user,req,type){
+  requireRole_(user,['POKJA','ADMIN']);
+  if(requestSelectionProcess_(req)!=='NEGOSIASI'||!NEGO_DOCS[type])throw new Error('Dokumen ini hanya untuk Negosiasi.');
+  if(type==='SURAT_PENYAMPAIAN_HASIL')return req.status===STATUS.SIAP_INAPROC&&['SIAP_NEGOSIASI','NEGOSIASI','HASIL_NEGOSIASI'].includes(String(req.nego_stage||''));
+  return req.status===STATUS.SIAP_INAPROC&&['SIAP_NEGOSIASI','NEGOSIASI','HASIL_NEGOSIASI'].includes(String(req.nego_stage||''));
+}
+function negoWorkflow_(user,payload){
+  requireRole_(user,['POKJA','ADMIN']);
+  const req=getRequestAuthorized_(user,payload.requestId),step=String(payload.step||'').toUpperCase(),stage=String(req.nego_stage||'');
+  if(requestSelectionProcess_(req)!=='NEGOSIASI')throw new Error('Tahapan ini hanya untuk Negosiasi.');
+  if(req.status!==STATUS.SIAP_INAPROC||!['SIAP_NEGOSIASI','NEGOSIASI','HASIL_NEGOSIASI'].includes(stage)||!['HANDOVER','BATAL'].includes(step))throw new Error('Tahapan Negosiasi sudah berubah. Perbarui halaman.');
+  if(step==='BATAL'){
+    // ORBITA hanya mencatat pembatalan yang sudah terjadi di INAPROC; tidak membatalkan transaksi INAPROC.
+    if(String(payload.reason||'')!=='PESANAN_TIDAK_DAPAT_DIPENUHI')throw new Error('Pilih alasan pembatalan yang sesuai.');
+    if(payload.inaprocCancelled!==true)throw new Error('Pastikan Negosiasi sudah dibatalkan di INAPROC.');
+    const extra=String(payload.note||'').trim();
+    if(extra.length>500)throw new Error('Catatan maksimal 500 karakter.');
+    const reason='Pesanan tidak bisa dipenuhi oleh penyedia';
+    const explanation=extra?reason+'. '+extra:reason+'.';
+    const now=new Date();
+    updateRequest_(req.request_id,{status:STATUS.BATAL,nego_stage:'BATAL',updated_at:now});
+    audit_(user,'NEGO_BATAL',req.request_id,{reason, note:explanation,source:'INAPROC',round:Number(req.current_round)||1,previousStatus:req.status,previousStage:stage});
+    notifyPpkStatus_(req,'NEGO_BATAL',explanation,String(now.getTime()));
+    return publicRequest_(getRequest_(req.request_id));
+  }
+  // Satu pembacaan dokumen aktif untuk semua validasi. Tidak perlu request tambahan ke Sheet.
+  const docs=currentDocs_(req.request_id),required=['NEGO_BA_HASIL_REVIU','NEGO_BA_HASIL_EVALUASI'];
+  if(Number(req.pagu)>100000000000)required.push('NEGO_SURAT_PENETAPAN_PA_KPA');
+  for(const type of required){if(!docs.some(doc=>doc.doc_type===type))throw new Error(NEGO_DOCS[type]+' wajib diunggah sebelum handover ke PPK.');}
+  if(isNewKaji2817_(req)&&!docs.some(d=>d.doc_type==='SURAT_PENYAMPAIAN_HASIL'))throw new Error('Unggah Surat Penyampaian Hasil Pemilihan sebelum handover.');
+  const now=new Date();ensureRequestSchema_();updateRequest_(req.request_id,{nego_stage:'HANDOVER',nego_handover_at:now,updated_at:now});
+  audit_(user,'NEGO_HANDOVER',req.request_id,{round:Number(req.current_round)||1,documents:required});
+  bestEffortMail_('HANDOVER:'+req.request_id,req.ppk_email,requestMailSubject_('Penyampaian Hasil Pemilihan',req),handoverMailBody_(req,'Negosiasi'));
+  return publicRequest_(getRequest_(req.request_id));
+}
+
+function directUploadContext_(user,payload){
+  const purpose=String(payload.purpose||'DOCUMENT').toUpperCase();
+  const requestId=String(payload.requestId||'').trim();
+  const req=purpose==='BROADCAST'?(requireRole_(user,['ADMIN']),{request_id:'',folder_id:getOrCreateChildFolder_(getOrCreateWorkflowFolder_(),'BROADCAST').getId()}):getRequestAuthorized_(user,requestId);
+  const meta=payload.file||{};
+  const safeName=sanitizeFileName_(meta.name||'');
+  const mimeType=String(meta.mimeType||'application/octet-stream').slice(0,160);
+  const sizeBytes=Number(meta.sizeBytes||0);
+  if(!safeName)throw new Error('File belum dipilih.');
+  if(!Number.isFinite(sizeBytes)||sizeBytes<=0)throw new Error('File kosong.');
+  if(sizeBytes>PBJWF.MAX_FILE_BYTES)throw new Error('Ukuran file maksimal 10 MB.');
+  let docType='';
+  if(purpose==='BROADCAST'){
+    if(!/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|jpg|jpeg|png|zip)$/i.test(safeName))throw new Error('Lampiran hanya PDF, Office, gambar, atau ZIP.');
+    docType='BROADCAST_ATTACHMENT';
+  }else if(purpose==='KAJI_DOCUMENT'){
+    docType=String(payload.docType||'');
+    if(!kajiDocAllowed_(user,req,docType))throw new Error('Tahap Kaji Ulang belum aktif.');
+    if(!/\.(pdf|doc|docx)$/i.test(safeName))throw new Error('BA Kaji Ulang harus PDF, DOC, atau DOCX.');
+  }else if(purpose==='DOCUMENT'){
+    requireRole_(user,['PPK','ADMIN']);
+    if(!['DRAFT','PERLU_KELENGKAPAN','PERLU_PERBAIKAN_PPK'].includes(req.status)&&user.role!=='ADMIN')throw new Error('Dokumen tidak dapat diubah pada status ini.');
+    docType=String(payload.docType||'').trim();
+    if(!activeDocConfig_().some(x=>x.doc_type===docType))throw new Error('Jenis dokumen tidak dikenali.');
+  }else if(purpose==='MINI_DOCUMENT'){
+    docType=String(payload.docType||'').trim();
+    if(!miniDocAllowed_(user,req,docType))throw new Error('Dokumen tidak dapat diunggah pada tahap ini.');
+    if(!/\.(pdf|doc|docx)$/i.test(safeName))throw new Error('Gunakan file PDF, DOC, atau DOCX.');
+  }else if(purpose==='NEGO_DOCUMENT'){
+    docType=String(payload.docType||'').trim();
+    if(!negoDocAllowed_(user,req,docType))throw new Error('Dokumen tidak dapat diunggah pada tahap ini.');
+    if(!/\.pdf$/i.test(safeName)||!['application/pdf','application/octet-stream'].includes(mimeType))throw new Error('Dokumen Negosiasi harus PDF maksimal 10 MB.');
+  }else if(purpose==='ASSIGNMENT'){
+    requireRole_(user,['KEPALA_UKPBJ','ADMIN']);
+    if(![STATUS.MENUNGGU_DISPOSISI,STATUS.DIAJUKAN].includes(req.status))throw new Error('Paket belum siap didisposisikan.');
+    if(!/\.(pdf|doc|docx)$/i.test(safeName))throw new Error('Surat perintah harus berupa PDF, DOC, atau DOCX.');
+    docType='SURAT_PERINTAH_POKJA';
+  }else throw new Error('Tujuan upload tidak dikenali.');
+  // Tidak mengganti folder dokumen produksi.
+  return {purpose:purpose,req:req,docType:docType,safeName:safeName,mimeType:mimeType,sizeBytes:sizeBytes};
+}
+
+function beginDirectUpload_(user,payload){
+  const ctx=directUploadContext_(user,payload);
+  const nonce=Utilities.getUuid().replace(/-/g,'');
+  const tempName='TMP_DIRECT_'+nonce+'_'+ctx.safeName;
+  const metadata={name:tempName,parents:[String(ctx.req.folder_id)],mimeType:ctx.mimeType};
+  const endpoint='https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id%2Cname%2CmimeType%2Csize%2CwebViewLink';
+  const response=UrlFetchApp.fetch(endpoint,{method:'post',contentType:'application/json; charset=UTF-8',headers:{Authorization:'Bearer '+ScriptApp.getOAuthToken(),'X-Upload-Content-Type':ctx.mimeType,'X-Upload-Content-Length':String(ctx.sizeBytes)},payload:JSON.stringify(metadata),muteHttpExceptions:true,followRedirects:false});
+  const code=response.getResponseCode();
+  const headers=response.getAllHeaders?response.getAllHeaders():response.getHeaders();
+  const sessionUrl=String(headers.Location||headers.location||'');
+  if(code<200||code>=300||!sessionUrl)throw new Error('Google Drive belum dapat membuka sesi upload. Coba lagi.');
+  const exp=Date.now()+30*60*1000;
+  const ticket=signDirectUploadTicket_({v:2,purpose:ctx.purpose,requestId:ctx.req.request_id,docType:ctx.docType,fileName:ctx.safeName,mimeType:ctx.mimeType,sizeBytes:ctx.sizeBytes,userId:String(user.user_id),folderId:String(ctx.req.folder_id),tempName:tempName,sessionHash:hash_(sessionUrl),nonce:nonce,exp:exp});
+  return {mode:'DIRECT_RESUMABLE',sessionUrl:sessionUrl,ticket:ticket,expiresAt:new Date(exp).toISOString(),fileName:ctx.safeName,sizeBytes:ctx.sizeBytes};
+}
+
+function directDriveMeta_(f){return {id:f.getId(),name:f.getName(),mimeType:f.getMimeType(),size:String(f.getSize()),webViewLink:f.getUrl()};}
+function findDirectTempFile_(claims){
+  try{
+    const folder=DriveApp.getFolderById(String(claims.folderId||'')),it=folder.getFilesByName(String(claims.tempName||''));
+    while(it.hasNext()){
+      const f=it.next();if(f.isTrashed&&f.isTrashed())continue;
+      if(Number(f.getSize())===Number(claims.sizeBytes))return f;
+    }
+  }catch(_){ }
+  return null;
+}
+function probeDirectUpload_(user,payload){
+  const claims=readDirectUploadTicket_(payload.ticket||'');
+  if(String(claims.userId)!==String(user.user_id))throw new Error('Sesi upload bukan milik akun ini.');
+  if(String(claims.requestId)!==String(payload.requestId||''))throw new Error('Sesi upload tidak sesuai paket.');
+  if(String(claims.purpose)!==String(payload.purpose||''))throw new Error('Sesi upload tidak sesuai proses.');
+  const sessionUrl=String(payload.sessionUrl||'').trim();if(!sessionUrl)throw new Error('Sesi upload tidak tersedia.');
+  if(!claims.sessionHash||!safeTextEqual_(String(claims.sessionHash),String(hash_(sessionUrl))))throw new Error('Sesi upload tidak valid. Ulangi upload.');
+  const ready=findDirectTempFile_(claims);if(ready)return {complete:true,offset:Number(claims.sizeBytes),drive:directDriveMeta_(ready)};
+  let response;
+  try{response=UrlFetchApp.fetch(sessionUrl,{method:'put',headers:{'Content-Range':'bytes */'+String(claims.sizeBytes)},payload:'',muteHttpExceptions:true,followRedirects:false});}
+  catch(_){return {complete:false,offset:0,temporary:true};}
+  const code=response.getResponseCode(),headers=response.getAllHeaders?response.getAllHeaders():response.getHeaders();
+  if(code>=200&&code<300){
+    let data={};try{data=JSON.parse(response.getContentText()||'{}');}catch(_){ }
+    if(data&&data.id)return {complete:true,offset:Number(claims.sizeBytes),drive:data};
+    const found=findDirectTempFile_(claims);if(found)return {complete:true,offset:Number(claims.sizeBytes),drive:directDriveMeta_(found)};
+  }
+  if(code===308){const range=String(headers.Range||headers.range||''),m=range.match(/bytes=0-(\d+)/i),offset=m?Number(m[1])+1:0;return {complete:false,offset:offset,code:code};}
+  if(code===404||code===410)return {complete:false,offset:0,expired:true,code:code};
+  return {complete:false,offset:0,temporary:code>=500||code===429,code:code};
+}
+
+function verifyDirectUploadClaims_(user,payload,purpose){
+  const claims=readDirectUploadTicket_(payload.ticket||'');
+  if(String(claims.userId)!==String(user.user_id))throw new Error('Sesi upload bukan milik akun ini.');
+  if(String(claims.purpose)!==String(purpose))throw new Error('Sesi upload tidak sesuai proses.');
+  if(String(claims.requestId)!==String(payload.requestId||''))throw new Error('Sesi upload tidak sesuai paket.');
+  return claims;
+}
+
+// Upload pengganti pada satu tahap memakai nomor versi yang sama.
+// Dokumen lama tetap diarsipkan (is_current=false) agar riwayat tidak hilang.
+// Setelah permohonan dikirim / dikembalikan untuk putaran baru, nomor versi naik.
+function documentVersionForUpload_(all,req,purpose){
+  if(!all.length)return 1;
+  const maxVersion=all.reduce((n,d)=>Math.max(n,Number(d.version)||0),0);
+  const current=all.filter(d=>truthy_(d.is_current)).sort((a,b)=>new Date(b.uploaded_at||0)-new Date(a.uploaded_at||0))[0];
+  if(!current)return maxVersion+1;
+  let since=null;
+  if(purpose==='KAJI_DOCUMENT')since=req.review_started_at;
+  else if(purpose==='DOCUMENT'&&req.status==='PERLU_PERBAIKAN_PPK')since=req.review_completed_at||req.review_started_at||req.submitted_at;
+  else if(purpose==='MINI_DOCUMENT')since=req.mini_last_change_at||null;
+  else if(purpose==='NEGO_DOCUMENT')since=req.nego_started_at||null;
+  if(since){
+    const boundary=new Date(since).getTime(),uploaded=new Date(current.uploaded_at||0).getTime();
+    if(Number.isFinite(boundary)&&Number.isFinite(uploaded)&&uploaded<boundary)return maxVersion+1;
+  }
+  return maxVersion;
+}
+
+function existingDirectDoc_(requestId,fileId){return rows_(sheet_(PBJWF.SHEETS.DOCS)).find(d=>String(d.request_id)===String(requestId)&&String(d.drive_file_id)===String(fileId))||null;}
+
+function getVerifiedDirectDriveFile_(claims,fileId){
+  
+  fileId=String(fileId||'').trim();if(!fileId)throw new Error('Google Drive tidak mengembalikan ID file.');
+  let f,lastErr;
+  for(let i=0;i<3&&!f;i++){try{f=DriveApp.getFileById(fileId);}catch(err){lastErr=err;if(i<2)Utilities.sleep(180);}}
+  if(!f)throw new Error('File hasil upload belum dapat diverifikasi di Google Drive.'+(lastErr?'':''));
+  if(f.isTrashed&&f.isTrashed())throw new Error('File hasil upload sudah tidak tersedia.');
+  if(String(f.getName())!==String(claims.tempName))throw new Error('File hasil upload tidak sesuai sesi.');
+  if(Number(f.getSize())!==Number(claims.sizeBytes))throw new Error('Ukuran file hasil upload tidak sesuai. Ulangi upload.');
+  let parentOk=false;const parents=f.getParents();while(parents.hasNext()){if(String(parents.next().getId())===String(claims.folderId)){parentOk=true;break;}}
+  if(!parentOk)throw new Error('Lokasi file hasil upload tidak sesuai paket.');
+  return f;
+}
+
+function finalizeDirectUpload_(user,payload){
+  const uploadPurpose=String(payload.purpose||'DOCUMENT').toUpperCase();
+  if(['MINI_DOCUMENT','NEGO_DOCUMENT','KAJI_DOCUMENT'].includes(uploadPurpose))requireRole_(user,['POKJA','ADMIN']);else requireRole_(user,['PPK','ADMIN']);
+  const claims=verifyDirectUploadClaims_(user,payload,uploadPurpose);
+  if(String(claims.docType)!==String(payload.docType||''))throw new Error('Jenis dokumen tidak sesuai sesi upload.');
+  const already=existingDirectDoc_(claims.requestId,payload.driveFileId);if(already)return already;
+  
+  const driveFile=getVerifiedDirectDriveFile_(claims,payload.driveFileId);
+  return withWorkflowLock_(()=>{
+    const existing=existingDirectDoc_(claims.requestId,payload.driveFileId);if(existing)return existing;
+    const reqHit=getRequestHitAuthorized_(user,claims.requestId),req=reqHit.obj;
+    if(uploadPurpose==='KAJI_DOCUMENT'){if(!kajiDocAllowed_(user,req,claims.docType))throw new Error('Tahap Kaji Ulang telah berubah.');}
+    else if(uploadPurpose==='MINI_DOCUMENT'){if(!miniDocAllowed_(user,req,claims.docType))throw new Error('Tahap dokumen telah berubah.');}
+    else if(uploadPurpose==='NEGO_DOCUMENT'){if(!negoDocAllowed_(user,req,claims.docType))throw new Error('Tahap dokumen telah berubah.');}
+    else if(!['DRAFT','PERLU_KELENGKAPAN','PERLU_PERBAIKAN_PPK'].includes(req.status)&&user.role!=='ADMIN')throw new Error('Dokumen tidak dapat diubah pada status ini.');
+    const cfg=uploadPurpose==='KAJI_DOCUMENT'?{label:'BA Hasil Reviu Kaji Ulang'}:uploadPurpose==='MINI_DOCUMENT'?{label:MINI_DOCS[claims.docType]}:uploadPurpose==='NEGO_DOCUMENT'?{label:NEGO_DOCS[claims.docType]}:activeDocConfig_().find(x=>x.doc_type===claims.docType);if(!cfg)throw new Error('Jenis dokumen tidak dikenali.');
+    const docsSh=sheet_(PBJWF.SHEETS.DOCS);const all=rows_(docsSh).filter(x=>x.request_id===req.request_id&&x.doc_type===claims.docType);
+    const current=all.filter(x=>truthy_(x.is_current)).sort((a,b)=>new Date(b.uploaded_at||0)-new Date(a.uploaded_at||0))[0]||null;
+    const replaceOnly=isPreparationReplacementStage_(req,uploadPurpose)&&current;
+    const version=replaceOnly?Math.max(1,Number(current.version)||1):documentVersionForUpload_(all,req,uploadPurpose);
+    const displayName=prettyDocumentFileName_(cfg.label,requestDocumentTitle_(req),version,claims.fileName);
+    driveFile.setName(displayName);
+    const uploadedAt=new Date();
+    let obj;
+    if(replaceOnly){
+      const hit=findRow_(docsSh,'doc_id',current.doc_id);if(!hit)throw new Error('Dokumen lama tidak ditemukan.');
+      const previousFileId=String(current.drive_file_id||'');
+      const patch={doc_label:cfg.label,version:version,drive_file_id:driveFile.getId(),drive_url:driveFile.getUrl(),file_name:displayName,mime_type:claims.mimeType,size_bytes:Number(claims.sizeBytes),uploader_user_id:user.user_id,uploaded_at:uploadedAt,is_current:true};
+      updateRow_(docsSh,hit.row,patch);
+      obj={...current,...patch};
+      try{if(previousFileId&&previousFileId!==String(driveFile.getId()))DriveApp.getFileById(previousFileId).setTrashed(true);}catch(_){ }
+    }else{
+      all.filter(x=>truthy_(x.is_current)).forEach(x=>{const hit=findRow_(docsSh,'doc_id',x.doc_id);if(hit)updateRow_(docsSh,hit.row,{is_current:false});});
+      obj={doc_id:id_('DOC'),request_id:req.request_id,doc_type:claims.docType,doc_label:cfg.label,version:version,drive_file_id:driveFile.getId(),drive_url:driveFile.getUrl(),file_name:displayName,mime_type:claims.mimeType,size_bytes:Number(claims.sizeBytes),uploader_user_id:user.user_id,uploaded_at:uploadedAt,is_current:true};
+      appendObj_(docsSh,obj);
+    }
+    const docTouchAt=new Date();updateRow_(sheet_(PBJWF.SHEETS.REQUESTS),reqHit.row,{updated_at:docTouchAt});obj._requestUpdatedAt=docTouchAt.toISOString();obj._audit=audit_(user,'UPLOAD_DOCUMENT',req.request_id,{docType:claims.docType,version:version,fileName:displayName,mode:'DIRECT_RESUMABLE',replacement:all.length>0&&version===Math.max(...all.map(x=>Number(x.version)||0)),initialReplacement:Boolean(replaceOnly)});return obj;
+  });
+}
+
+function assignPokjaDirect_(user,payload){
+  requireRole_(user,['KEPALA_UKPBJ','ADMIN']);
+  const claims=verifyDirectUploadClaims_(user,payload,'ASSIGNMENT');
+  const existingDoc=existingDirectDoc_(claims.requestId,payload.driveFileId);
+  let driveFile=null;if(!existingDoc)driveFile=getVerifiedDirectDriveFile_(claims,payload.driveFileId);
+  const assigned=withWorkflowLock_(()=>{
+    let req=getRequestAuthorized_(user,claims.requestId);
+    let pokja=findRow_(sheet_(PBJWF.SHEETS.POKJA),'pokja_id',String(payload.pokjaId||''));if(!pokja||!truthy_(pokja.obj.active))throw new Error('Pokja tidak aktif atau tidak ditemukan.');
+    let doc=existingDirectDoc_(claims.requestId,payload.driveFileId);
+    if(doc&&String(req.assigned_pokja_id||'')===String(pokja.obj.pokja_id)&&[STATUS.DITUGASKAN_POKJA,STATUS.REVIU_POKJA,STATUS.PERLU_PERBAIKAN_PPK,STATUS.REVIU_ULANG,STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC,STATUS.SELESAI].includes(req.status))return {...publicRequest_(req),assignment_document:doc};
+    if(![STATUS.MENUNGGU_DISPOSISI,STATUS.DIAJUKAN].includes(req.status))throw new Error('Paket belum siap didisposisikan.');
+    ensureRequestSchema_();const docsSh=sheet_(PBJWF.SHEETS.DOCS),docType='SURAT_PERINTAH_POKJA';
+    if(!doc){const previous=rows_(docsSh).filter(d=>d.request_id===req.request_id&&d.doc_type===docType);const version=previous.reduce((n,d)=>Math.max(n,Number(d.version)||0),0)+1;const displayName=prettyDocumentFileName_('Surat Perintah Pokja',requestDocumentTitle_(req),version,claims.fileName);driveFile.setName(displayName);const now=new Date();doc={doc_id:id_('DOC'),request_id:req.request_id,doc_type:docType,doc_label:'Surat Perintah Pokja',version:version,drive_file_id:driveFile.getId(),drive_url:driveFile.getUrl(),file_name:displayName,mime_type:claims.mimeType,size_bytes:Number(claims.sizeBytes),uploader_user_id:user.user_id,uploaded_at:now,is_current:true};appendObj_(docsSh,doc);previous.filter(d=>truthy_(d.is_current)).forEach(d=>{const hit=findRow_(docsSh,'doc_id',d.doc_id);if(hit)updateRow_(docsSh,hit.row,{is_current:false});});audit_(user,'UPLOAD_DOCUMENT',req.request_id,{docType:docType,version:version,fileName:displayName,mode:'DIRECT_RESUMABLE'});}
+    const now=new Date();updateRequest_(req.request_id,{status:STATUS.DITUGASKAN_POKJA,head_user_id:user.user_id,assigned_pokja_id:pokja.obj.pokja_id,assigned_at:now,sop_started_at:now,updated_at:now});appendNote_(user,req.request_id,'DISPOSISI','DITUGASKAN',String(payload.note||('Ditugaskan kepada '+pokja.obj.nama)));audit_(user,'ASSIGN_POKJA',req.request_id,{pokjaId:pokja.obj.pokja_id,pokjaName:pokja.obj.nama,orderDocId:doc.doc_id,sopStartedAt:now.toISOString(),uploadMode:'DIRECT_RESUMABLE'});return {...publicRequest_(getRequest_(req.request_id)),assignment_document:doc};
+  });
+  notifyPokjaStatus_(assigned,'DISPOSISI',String(payload.note||''),'initial');
+  return assigned;
+}
+
+function uploadDocument_(user, payload) {
+  const purpose=String(payload.purpose||'').toUpperCase(),mini=purpose==='MINI_DOCUMENT',nego=purpose==='NEGO_DOCUMENT',kaji=purpose==='KAJI_DOCUMENT',special=mini||nego||kaji;
+  requireRole_(user,special?['POKJA','ADMIN']:['PPK','ADMIN']);
+  let req = getRequestAuthorized_(user,payload.requestId);
+  if(!special&&!['DRAFT','PERLU_KELENGKAPAN','PERLU_PERBAIKAN_PPK'].includes(req.status) && user.role !== 'ADMIN') throw new Error('Dokumen tidak dapat diubah pada status ini.');
+  const docType = String(payload.docType||'').trim();
+  if(kaji&&!kajiDocAllowed_(user,req,docType))throw new Error('Tahap Kaji Ulang telah berubah.');
+  if(mini&&!miniDocAllowed_(user,req,docType))throw new Error('Dokumen tidak dapat diunggah pada tahap ini.');
+  if(nego&&!negoDocAllowed_(user,req,docType))throw new Error('Dokumen tidak dapat diunggah pada tahap ini.');
+  if(mini&&!/\.(pdf|doc|docx)$/i.test(String(payload.file?.name||'')))throw new Error('Gunakan file PDF, DOC, atau DOCX.');
+  if(nego&&(!/\.pdf$/i.test(String(payload.file?.name||''))||!['application/pdf','application/octet-stream'].includes(String(payload.file?.mimeType||'application/octet-stream'))))throw new Error('Dokumen Negosiasi harus PDF maksimal 10 MB.');
+  const cfg = kaji?{label:'BA Hasil Reviu Kaji Ulang'}:mini?{label:MINI_DOCS[docType]}:nego?{label:NEGO_DOCS[docType]}:activeDocConfig_().find(x=>x.doc_type===docType);
+  if (!cfg) throw new Error('Jenis dokumen tidak dikenali.');
+  const file = payload.file||{};
+  const prepared = prepareUpload_(file);
+
+  // Transfer ke Drive dilakukan di luar workflow lock. Upload file adalah proses
+  // paling lambat; menahannya di dalam ScriptLock membuat aksi user lain ikut antre.
+  const folder = DriveApp.getFolderById(req.folder_id);
+  const tempName = id_('TMP')+'_'+prepared.safeName;
+  const driveFile = folder.createFile(Utilities.newBlob(prepared.bytes,prepared.mimeType,tempName));
+
+  try {
+    return withWorkflowLock_(()=>{
+      // Status bisa berubah ketika file sedang ditransfer, jadi validasi ulang tepat
+      // sebelum metadata/versi disimpan.
+      req = getRequestAuthorized_(user,payload.requestId);
+      if(kaji){if(!kajiDocAllowed_(user,req,docType))throw new Error('Tahap Kaji Ulang telah berubah.');}
+      else if(mini){if(!miniDocAllowed_(user,req,docType))throw new Error('Tahap dokumen telah berubah.');}
+      else if(nego){if(!negoDocAllowed_(user,req,docType))throw new Error('Tahap dokumen telah berubah.');}
+      else if (!['DRAFT','PERLU_KELENGKAPAN','PERLU_PERBAIKAN_PPK'].includes(req.status) && user.role !== 'ADMIN') throw new Error('Dokumen tidak dapat diubah pada status ini.');
+      const docsSh = sheet_(PBJWF.SHEETS.DOCS);
+      const all = rows_(docsSh).filter(x=>x.request_id===req.request_id && x.doc_type===docType);
+      const current=all.filter(x=>truthy_(x.is_current)).sort((a,b)=>new Date(b.uploaded_at||0)-new Date(a.uploaded_at||0))[0]||null;
+      const replaceOnly=isPreparationReplacementStage_(req,purpose||'DOCUMENT')&&current;
+      const version = replaceOnly?Math.max(1,Number(current.version)||1):documentVersionForUpload_(all,req,purpose||'DOCUMENT');
+      const finalName=prettyDocumentFileName_(cfg.label,requestDocumentTitle_(req),version,prepared.safeName);
+      if (typeof driveFile.setName === 'function') driveFile.setName(finalName);
+      const uploadedAt=new Date();
+      let obj;
+      if(replaceOnly){
+        const hit=findRow_(docsSh,'doc_id',current.doc_id);if(!hit)throw new Error('Dokumen lama tidak ditemukan.');
+        const previousFileId=String(current.drive_file_id||'');
+        const patch={doc_label:cfg.label,version:version,drive_file_id:driveFile.getId(),drive_url:driveFile.getUrl(),file_name:finalName,mime_type:prepared.mimeType,size_bytes:prepared.bytes.length,uploader_user_id:user.user_id,uploaded_at:uploadedAt,is_current:true};
+        updateRow_(docsSh,hit.row,patch);
+        obj={...current,...patch};
+        try{if(previousFileId&&previousFileId!==String(driveFile.getId()))DriveApp.getFileById(previousFileId).setTrashed(true);}catch(_){ }
+      }else{
+        all.filter(x=>truthy_(x.is_current)).forEach(x=>{const hit=findRow_(docsSh,'doc_id',x.doc_id);if(hit)updateRow_(docsSh,hit.row,{is_current:false});});
+        obj = {doc_id:id_('DOC'),request_id:req.request_id,doc_type:docType,doc_label:cfg.label,version:version,drive_file_id:driveFile.getId(),drive_url:driveFile.getUrl(),file_name:finalName,mime_type:prepared.mimeType,size_bytes:prepared.bytes.length,uploader_user_id:user.user_id,uploaded_at:uploadedAt,is_current:true};
+        appendObj_(docsSh,obj);
+      }
+      const docTouchAt=new Date();updateRequest_(req.request_id,{updated_at:docTouchAt});obj._requestUpdatedAt=docTouchAt.toISOString();obj._audit=audit_(user,'UPLOAD_DOCUMENT',req.request_id,{docType:docType,version:version,fileName:finalName,mode:'LEGACY_BASE64',replacement:all.length>0&&version===Math.max(...all.map(x=>Number(x.version)||0)),initialReplacement:Boolean(replaceOnly)});
+      return obj;
+    });
+  } catch(err) {
+    try{driveFile.setTrashed(true);}catch(_){ }
+    throw err;
+  }
+}
+
+function prepareUpload_(file) {
+  if (!file || !file.base64 || !file.name) throw new Error('File belum dipilih.');
+  // Cek panjang base64 dulu supaya payload terlalu besar ditolak sebelum decode.
+  if (String(file.base64).length > Math.ceil(PBJWF.MAX_FILE_BYTES/3)*4+8) throw new Error('Ukuran file maksimal 10 MB.');
+  const bytes = Utilities.base64Decode(file.base64);
+  if (!bytes.length) throw new Error('File kosong.');
+  if (bytes.length > PBJWF.MAX_FILE_BYTES) throw new Error('Ukuran file maksimal 10 MB.');
+  return {bytes:bytes,safeName:sanitizeFileName_(file.name),mimeType:file.mimeType||'application/octet-stream'};
+}
+
+function submitRequest_(user, requestId) {
+  requireRole_(user,['PPK','ADMIN']); const req=getRequestAuthorized_(user,requestId);
+  if (!['DRAFT','PERLU_KELENGKAPAN'].includes(req.status) && user.role!=='ADMIN') throw new Error('Permohonan belum dapat dikirim pada status ini.');
+  if(!isKajiWorkflow_(req))assertCompetitionDetails_(req);
+  if(isNewKaji2817_(req)){checkRupAllocation_(req);if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(req.ppk_email||'')))throw new Error('Isi alamat email PPK yang valid.');}
+  assertDocsComplete_(req.request_id);
+  const submittedAt=new Date();
+  updateRequest_(req.request_id,{status:STATUS.MENUNGGU_DISPOSISI,submitted_at:submittedAt,updated_at:submittedAt});
+  audit_(user,'SUBMIT_REQUEST',req.request_id,{to:'KEPALA_UKPBJ',submittedAt:submittedAt.toISOString()});
+  // Penerima selalu dibaca dari akun Kepala UKPBJ aktif di Admin, tanpa alamat email tetap.
+  // Cukup satu antrean per penerima/permohonan; tidak ada pengiriman ganda dari jalur lama.
+  notifyAccountUsers_(req,'KEPALA_UKPBJ','PERMOHONAN_BARU',{title:'Permohonan Baru',text:'Ada permohonan baru dari PPK yang perlu diperiksa Kepala UKPBJ.',next:'Buka ORBITA PBJ untuk memeriksa dokumen persiapan dan melakukan disposisi.'});
+  return publicRequest_(getRequest_(req.request_id));
+}
+
+
+function assertCompetitionDetails_(req){
+  if(requestSelectionProcess_(req)==='MINI_KOMPETISI'){
+    if(isNewKaji2817_(req)){
+      const construction=String(req.competition_type||'').toUpperCase()==='CONSTRUCTION';
+      let details=[];try{details=JSON.parse((construction?req.construction_details_json:req.product_details_json)||'[]');}catch(_){}
+      if(!Array.isArray(details)||!details.length)throw new Error('Tambahkan minimal satu detail '+(construction?'pekerjaan':'produk')+'.');
+      if(details.some(d=>!(Number(d&&d.hps)>0)||!(Number(d&&d.qty)>0)||!String(d&&d.unit||'').trim()))throw new Error('Lengkapi HPS, jumlah, dan satuan.');
+      if(!construction&&!String(req.product_category||''))throw new Error('Pilih kategori produk.');
+      if(!String(req.work_location||'').trim())throw new Error('Isi lokasi pekerjaan.');
+      const total=details.reduce((n,d)=>n+(Number(d.hps)||0)*(Number(d.qty)||0),0);
+      if(total>Number(req.hps_alokasi||0))throw new Error('Total HPS detail melebihi HPS yang diajukan pada dokumen persiapan.');
+      return;
+    }
+    const competitionType=String(req.competition_type||'NON_CONSTRUCTION').toUpperCase();
+    if(!['NON_CONSTRUCTION','CONSTRUCTION'].includes(competitionType))throw new Error('Jenis kompetisi tidak dikenali.');
+    if(!String(req.schedule_start_date||'')||!String(req.schedule_end_date||'')||!String(req.schedule_start_time||'')||!String(req.schedule_end_time||''))throw new Error('Jadwal kompetisi belum lengkap.');
+    const today=Utilities.formatDate(new Date(),'Asia/Jakarta','yyyy-MM-dd');
+    if(requestDateYmd_(req.schedule_start_date)<today)throw new Error('Tanggal mulai sudah lewat. Perbarui jadwal kompetisi sebelum mengirim permohonan.');
+    if(requestDateYmd_(req.schedule_end_date)<requestDateYmd_(req.schedule_start_date))throw new Error('Tanggal berakhir tidak boleh sebelum tanggal mulai.');
+    let q={};try{q=JSON.parse(req.qualification_json||'{}')}catch(_){};
+    const hasQualification=Boolean(q.umk||q.nonUmk||q.mikro||q.kecil||q.menengah||q.besar);
+    if(!hasQualification)throw new Error('Kualifikasi penyedia belum dipilih.');
+    if(competitionType==='NON_CONSTRUCTION'){
+      if(q.umk&&!(q.mikro||q.kecil))throw new Error('Pilih minimal satu jenis UMK.');
+      if(q.nonUmk&&!(q.menengah||q.besar))throw new Error('Pilih minimal satu jenis Non-UMK.');
+      if(!String(req.product_category||''))throw new Error('Kategori produk belum dipilih.');
+      let details=[];try{details=JSON.parse(req.product_details_json||'[]')}catch(_){};
+      if(!Array.isArray(details)||!details.length)throw new Error('Tambahkan minimal satu detail produk.');
+      if(details.some(d=>!(Number(d&&d.hps)>0)||!(Number(d&&d.qty)>0)||!String(d&&d.unit||'').trim()))throw new Error('Lengkapi HPS, jumlah, dan satuan pada setiap detail produk.');
+      const totalProductHps=details.reduce((sum,d)=>sum+((Number(d&&d.hps)||0)*(Number(d&&d.qty)||0)),0);
+      const rupPagu=Number(req.pagu)||0;
+      if(rupPagu>0&&totalProductHps>rupPagu)throw new Error('Total HPS produk melebihi pagu RUP.');
+      const offerType=String(req.offer_type||'ITEMIZED').toUpperCase();
+      if(offerType==='NON_ITEMIZED'&&details.length<2)throw new Error('Non-Itemized dapat dipilih setelah detail produk lebih dari satu item.');
+      req.offer_type=offerType;
+    }else{
+      if(!q.kecil&&!q.menengah&&!q.besar)throw new Error('Pilih minimal satu jenis penyedia konstruksi.');
+      let details=[];try{details=JSON.parse(req.construction_details_json||'[]')}catch(_){};
+      if(!Array.isArray(details)||!details.length)throw new Error('Tambahkan minimal satu detail pekerjaan konstruksi.');
+      if(details.some(d=>!String(d&&d.categoryPath||'').trim()||!(Number(d&&d.hps)>0)||!(Number(d&&d.qty)>0)||!String(d&&d.unit||'').trim()))throw new Error('Lengkapi kategori, HPS, jumlah, dan satuan pada setiap detail pekerjaan.');
+      const totalConstructionHps=details.reduce((sum,d)=>sum+((Number(d&&d.totalPrice)||((Number(d&&d.hps)||0)*(Number(d&&d.qty)||0))||0)),0);
+      const rupPagu=Number(req.pagu)||0;
+      if(rupPagu>0&&totalConstructionHps>rupPagu)throw new Error('Total HPS pekerjaan melebihi pagu RUP.');
+      const paymentType=String(req.payment_type||'').toUpperCase();
+      if(!['SINGLE','TERMIN'].includes(paymentType))throw new Error('Pilih tipe pembayaran.');
+      if(paymentType==='TERMIN'&&!(Number(req.payment_terms_count)>0))throw new Error('Isi jumlah termin.');
+    }
+    if(!String(req.work_location||'').trim())throw new Error('Lokasi pekerjaan belum diisi.');
+    if(!String(req.completion_date||''))throw new Error('Tanggal penyelesaian pekerjaan belum dipilih.');
+    if(requestDateYmd_(req.completion_date)<requestDateYmd_(req.schedule_end_date))throw new Error('Tanggal penyelesaian pekerjaan tidak boleh sebelum tanggal berakhir kompetisi.');
+  }
+
+}
+// Undangan kaji ulang dibuat hanya saat Pokja telah ditetapkan. Tidak menambah kolom Sheet.
+// PDF tersimpan sebagai dokumen paket; notifikasi dikirim oleh pengirim DATA ORBITA.
+function invitationDate_(value){
+  const v=String(value||'').trim();
+  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v))throw new Error('Isi tanggal dan jam undangan.');
+  const stamp=new Date(v+':00+07:00');
+  if(isNaN(stamp.getTime())||Utilities.formatDate(stamp,'Asia/Jakarta',"yyyy-MM-dd'T'HH:mm")!==v)throw new Error('Tanggal atau jam undangan tidak sesuai.');
+  return stamp;
+}
+function canSendKajiInvitation_(req){
+  const invitations=currentDocs_(req.request_id).filter(d=>String(d.doc_type)==='SURAT_UNDANGAN_KAJI_ULANG');
+  if(!invitations.length)return true;
+  const latest=invitations.reduce((a,b)=>new Date(a.uploaded_at)>new Date(b.uploaded_at)?a:b);
+  const events=rows_(sheet_(PBJWF.SHEETS.AUDIT)).filter(x=>x.request_id===req.request_id);
+  let lastInvite=-1,lastReturn=-1;
+  events.forEach((x,i)=>{if(x.action==='KIRIM_UNDANGAN_KAJI')lastInvite=i;if(x.action==='RESUBMIT_KAJI_REVISION'||x.action==='ADMIN_RETURN_POKJA')lastReturn=i;});
+  if(lastReturn<0||lastReturn<=lastInvite)return false;
+  // Gunakan timestamp untuk dokumen yang sudah tercatat sebelum pembaruan ini.
+  return new Date(events[lastReturn].created_at).getTime()>new Date(latest.uploaded_at).getTime();
+}
+function sendKajiInvitation_(user,payload){
+  requireRole_(user,['POKJA','ADMIN']);
+  const req=getRequestAuthorized_(user,payload.requestId);
+  if(!isKajiWorkflow_(req)||!['DITUGASKAN_POKJA','REVIU_POKJA','REVIU_ULANG'].includes(String(req.status||'')))throw new Error('Undangan hanya dapat dikirim setelah disposisi dan sebelum Kaji Ulang selesai.');
+  if(!req.assigned_pokja_id)throw new Error('Pokja belum ditetapkan oleh Kepala UKPBJ.');
+  if(!canSendKajiInvitation_(req))throw new Error('Undangan Kaji Ulang sudah dikirim. Undangan baru hanya dapat dibuat setelah PPK mengirim kembali perbaikan Kaji Ulang.');
+  const email=String(req.ppk_email||'').trim();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new Error('Email PPK belum tersedia. Minta PPK melengkapinya sebelum mengirim undangan.');
+  const start=invitationDate_(payload.start),end=invitationDate_(payload.end);
+  if(end.getTime()<=start.getTime())throw new Error('Jam selesai harus setelah jam mulai.');
+  const method=String(payload.method||'').trim().toUpperCase();
+  if(!['OFFLINE','ONLINE'].includes(method))throw new Error('Pilih mekanisme undangan Offline atau Online.');
+  const place=String(payload.place||'').trim(),provided=String(payload.provided||'').trim(),attendees=String(payload.attendees||'').trim(),attachment=String(payload.attachment||'').trim();
+  if(!place||!provided||!attendees)throw new Error('Isi tempat/tautan, dokumen yang disiapkan, dan peserta yang harus hadir.');
+  if([place,provided,attendees,attachment].some(x=>x.length>1000))throw new Error('Isian undangan maksimal 1.000 karakter per bagian.');
+  const sh=sheet_(PBJWF.SHEETS.DOCS),old=currentDocs_(req.request_id).filter(d=>String(d.doc_type)==='SURAT_UNDANGAN_KAJI_ULANG');
+  const version=rows_(sh).filter(d=>d.request_id===req.request_id&&d.doc_type==='SURAT_UNDANGAN_KAJI_ULANG').reduce((m,d)=>Math.max(m,Number(d.version)||0),0)+1;
+  const pokja=findRow_(sheet_(PBJWF.SHEETS.POKJA),'pokja_id',req.assigned_pokja_id)?.obj;
+  const sender=String(pokja?.nama||'Pokja Pemilihan'),ppk=String(req.ppk_nama||'PPK');
+  const prettyTime=x=>Utilities.formatDate(x,'Asia/Jakarta','dd MMMM yyyy, HH:mm')+' WIB';
+  const timeLabel=prettyTime(start)+' s.d. '+prettyTime(end);
+  const subject=requestMailSubject_('Undangan Kaji Ulang',req);
+  const values=[['Nomor Permohonan',req.request_id],['Kode RUP',req.kode_rup],['Nama Paket',req.nama_paket],['Metode Pengadaan',req.metode_pengadaan||'E-Purchasing'],['Waktu',timeLabel],['Tempat / Tautan',place],['Mekanisme',method==='OFFLINE'?'Offline':'Online'],['Yang Harus Disiapkan',provided],['Yang Harus Hadir',attendees],['Lampiran',attachment||'-']];
+  // Buat surat PDF sekali, hanya ketika tombol Kirim Undangan ditekan.
+  let temp=null,file=null,registered=false;
+  try{
+    const document=DocumentApp.create('Undangan Kaji Ulang - '+req.request_id);
+    temp=DriveApp.getFileById(document.getId());
+    const body=document.getBody();
+    const INK='#15334A',MUTED='#516779',RED='#BA2027',PALE='#F4F8FB';
+    body.setMarginTop(39).setMarginBottom(42).setMarginLeft(49).setMarginRight(49);
+    // Kop surat memakai favicon resmi ORBITA yang disertakan di kode, tanpa request tambahan.
+    const head=body.appendTable([['','']]);head.setBorderWidth(0);
+    const imgCell=head.getCell(0,0),textCell=head.getCell(0,1);
+    imgCell.setWidth(58);textCell.setWidth(420);
+    const logo=Utilities.newBlob(Utilities.base64Decode('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAcRklEQVR42t17eZSdVZXvb+9zzneHuqkxqVRGMkAmAwQQROABKqjoA0UhNs+RKI/R4SmDDa/XrUKXtLQ0PAaVSaVlCAm2RFFAURsH0DxlDBAJgQyVqaqSGm/de7/vnL3fH9+tohiSVBh69XpfVlJZdevWPWefvX97/357H8J/0qMApf9RtLe3U/uY19oBtLe3Kyj9EQIU/x88pKpUBHh08+N8igAXAVZVetsX+daftFI7iDoAGf2mNdDEM4Dc07/5TSFev75Aw8NR8GQQJ5g0deIQjl/SN2vWkjKAmAwrZNQJqAhQu6oSkf6XNUAR4I7UdRUEUBThke//n1nht39d1NrZd1i0s+9QX+ppUg2NXkI9gMhZZ4KqioQyRHZarhsuTJ7ZMzy1+dHt0xueKBx3yN8PPmNZJ+Lk5TBSxVtpCHorYns0Zp1F57/9eEbv8geOj17c+P6kv+8IEyf75TTJZEhQhyqc+jQmFIAAQgRlQAmokEPZ5lBRg8RGJcnmNurEpkdK82f8/PBbv/UwmZZ+iI7iyVuBFfQmNw4AarJZdH/tsmN7/vCHpYObth1XX9HFbZUYWQ0IxmMoq1JxgNEIRgisIFJAkVpBARVWxEbgEVCXEBViR4DDoDPY4rSshbrHJi2e98CkU0+7K/fJ09ZDZMTr5D/dAKOnbgx6rr9p0QvL7z7bbuj8RFulPDmrAgNGhq1w8BAKFFjJk4HnHKAWLASGgJShBARKPYBQBWMYLAoKpFCjYAu14ESBAWuwq2nCk3UHLb5l4aUX30WLFu1EzZneqDfQG4x1UdXsY59ddkb10b98dWbv4OKcevjIiXEWoiAWIoCgROkKQVAIuLZiMyZ2AiENAwFIqOZbqXcQCQSqHqJOQS4W2hpZ7Zs+9aGmE0+8cv6V33oISfLKUHy7DDDyIZW7bpu34dofXxbWrl86hX02k4GUyJO3llgZRAwKBFFFYIvAaZxnfACrgqBgBbhmoDASS2CIGoSaAawIIgWsAgIPDw8niRiOeCAAWxrqu6MDF95w4A9uupYaG3sVYNrHkKB92jyzvnBZ8ehdP/nld/bb1nNkHRJInqTCwkYIRhmBACGGgqDEYCGkrwEy4qwQEEYMwDUsSD8kEJAwAUjfY0VhRKAsSFiQUAxHBlGAVAPzDptBedbs5e/8p69fTB88bvO+4gKNe/PW6MYLLjl58J6Hrm4e7JvLDSpDzlMuAeU9I59YmECoWiA2isAKUoYVhQupy1dsgLBiJFuOLEFBIABW0vBImOFrmcEI134CqeFUUTGKihNE6tRWCbvEUf+0qQ/NO/OMS5q+tOyxoo7fCGY8m2drdfMFXzmt+ye/vO6A/uqsugxk2CQMEGW9hVGHUsQYjBhCBk6ArE9PT0kQW0HFCYQEIFVhQBgIpBBS1P4Qq8IpgUigJOlrrBACSBksBmIsBAwOCueFsgpkhcGVwbl9L6w/6uqvXPLUCQ/9YlMRRX4YD+ub8oAiwB3GSNe5HSftXLX8poml4ek2w6IkTKpwaiBkETOh5BTBKKxXRKKwIcApAENINCiINQqGEIREBMo1A4uAlGDZQg1UCUoITAQkpIgNQcEwwcIKo2IAp0DOBwAeCQOJI7BwoLKY7snT/jq//ZufpaXHPqtjIHifDTACeFu//a/v3HXtHbfP7e+dP9wQZDBnOBMr6isAYFG2BgqCkwQwVQQGEgDBGhg1ahMgUpAkgv4oB5/LKxkTB5JYFAIVwx4ZCsHFWoHRBPVkUJd4BBIkhuCZYb2FEwbVsERJAAppeJBCRAGwJEnEu2bP+fnCn968jKZN69lbdrB72vzw6odnPHnBpf+8/2DvfBNBEgJHAcgGgjeEYQtUTUBDFSiIoIoEzjMycFquAokz1JfNIdQXttmGCc/FU9qeyra1rcsVGraw5T4DimNoNsTl1lJP34yhnm0zubfrIOrceVjWDxesKkQwmiVYgXwSUIqA3kyKC41VIBcDiQF6s8IF8ZLbsP7k1eecd7GqXgqisCcj2N1VeKqaeeK9p3y9aVPn+6JskH5nOZII+RKgRBh0QGwFrAqQIOaAMimMdZpIRAP5Asz0GevMzKk/bTrswFXNXzrvKY6iIU2S1z8KZhhj4ON46vZTlv5b8rfn3peTqggSHgHEQIrYBggprBJICSoEAUGgsAJ466nJx+hd8/z5ned9/akZzLerCI07BEbS3YbPfenT8S8f+P7EZDCX5ARk8jSh7GBDwFAWGHIAQVCXCFgBVdVEgZ6so8GpbRsmHbLktlnvOXE5/cPH1sL7V+BKO4pAccyHdqT/EJGsueDcT/Y/vPo7+3UNtbWIqGdPFUuQGl4rexhRuEBgZQQQJM2aIAISl0CSoNkkS92tU59vO+sLp9Z/+dPPFlHkDnTIHg2QMk5S/fOfp6/9/Pk/a9u69ZCkkBEEx1kvYCZUTUDZAcKCKFbUBQJ71YQytD1XQHnx7FVNp3zg8lnnnfsYgqS6QLFIaG/fLZ1VFJnQIcMX/eNxG+5/cEW0c1drs82rq1ZJCfCGERuCEMFoAhcAJwZQhpJCSOBNgJCgYiw8smgaFkli5V2HL7pu/q9+8hUQ6euFAb/SHAQYg8evvu7j8c7uA4ODsjI5jhCYEUiQ/haBUUKUAAik/RHT5kn52B152LVLrvrWF2adffZjGoS0WGQASh0dsvvNgwgdqqrZzb979Py2zTtbW01G4hDTUIYw7AwAQl1MaKgARghCBgkbeDI1bmFgg4ELjHyF0JAABp6c9Tq4ecPpWy//1tEEaPHV+x1rgDRlQHXFz6f7J19c1mAiC+fUJUI+xAiWoACMAFYIJlFkNdJYDDY3Fqr+qMVXzFl+88W0YEFPeqLpxsfBLgiAdp/75ROoa9uHyJGWJSFxjMQwEgN4VigFKHkEBqoGKFug7BQlx6hYiwAH0ggRKyLfD5gqVXPQpqFyW/nhv56lqlEHoK9Wp/gV0cCEJ5bffVJL98CBdYE0MDMrgwDECFBKkdgIwyECgsNAbgKixQffuOSm268goqoWU3ceP7foEFXlsObZ0yYNDtQlOVXLiqxPdEI5lkIc1GrQxHqNbYJsEjAhCcj7gEgCnMSw4mE0wIiiihghEggDVUsoBK+yYeOJfdfftBiAtheL9JosMJImNEhh9UHHfLRJEoqEZFgdeVZYYlQoIBClbA6AipFB51hmz/rNkpu/943RzXd0yL6wKxCw488/mxT39BzcICIxqyZe2AWAiUlEkaiHmLSKzBMUokRGiDStEoMxiAVgQwjCMBIUwSoJODhCbmhwstz/x4+r6uOvDkVbU2UJgHae99XDG3fsOgYuAdiSEUIwBNYAp4TAAKmChXXAeypPn7p1xodPuILq63v2efMA0F4koEPxyAutfd5PLpgMk+YRF/LVSj7XmxAqCpBLkjxKpaY6EVuBp6rEcIBGhlWDQFVImBEMqVUHjSOuuByZiS394GFL6zfVxS+uPRl/+vUNALaOgP2oAToAReRQeX7T8S3l4XotqFYME9TWxApFxgNVByQEuEQhhRzllsy7vXDx+b8tXnLBvm9+zFPe3jdxu+VCab/Jj7fNX7iqdcrUv7jJrZuj5onDFRXO9vfV9XV2zh3s3rG4sqP3BO3uPyju72/MxJ7y1RiiAWoIMRMlbLG9uTnWGVPvP/gjH71p+0Mrz6quX//RoYGeOfrAn5YA2AoaFRxgR1NfNS68OP/oYzPOwzNpyYKcJxhJiYtVoAIgIVUnoEzLxM7WYw9bQUSqxSJ1dHSM3/NVCe3thP8Aa7GITf3WNS06+P5JHzimOPvcc9aOUYTHPk+B6ae6q/f68nW3LexZv/aoXZ2d78qWqrO8xE2ewLBRn6ufuLFp7gG/mHFt+92Uyw6uP+rYT0REYCt14ZkXTlLV+4lIXtbuazm495IrDum+654HJla6Wo0RLdsMCRyynsDwYBEMZgHxqlESkRx1+DVtP/3xhSCS8SoxxWKROzo6xnLh1CA/+2seE7NZOmrxriLA7cXia9+cGvjlXE6AihpsW9dcfeSployqwZw5vTj00B5ijqEK3bWr4bHTT7uz4e/PfKi1wojbFj3S8vRD7yei0gju2VoZhq2b1u5npdqkbFKXF0HJpsnRBoJQCgAcQL6+IS7MOuC3RBS0WGSkm9o74nd0CJxF5cbbDqj+/qkFplRq8bn8cN/OzaubPnLqhhoeKe3h9414T3tHB4goAOiu/R19Vpx+ujl9xQrBnQ+1SNXPTDggGwiV0lDr1pUrWwCU0oRIsO0AYAyG+gbntsSJY4aSMnEtTKR2XEwKTkQDiDCx4cX69xy5Btfsm5SmV98y/+n7fvaZ566+4WONfZX9bTWxlUJGSk/9+fn1//2T98058YRb6Utnrt0TeamBl47tE6C9PU1tI+21lYuUiLRyyb8srNs6MDfvCUMZQp9W2uTp5w4AsAnUTgDUdgBC1kBLQ/vXBYU1rJoyDLASiIDAAlYBgxAiC2muewanvL+z5po6ns13ffvbh2668ZZbm3dsX6KZtKCwWcKE8gA3D9oFbtvOBVs3bf3gzuI/n00dX39kPCInASP9RB0TJlB0QFVp2ymfP2nSQCVnMhmpkGcyUoetXbPHEJC0EJJK1dhytTUfUv1VoVAlsKb6XSCFEmCJCJEDCtl1ZEyyt0WqptVl6c57p/aufPBfMts6l9RlIHkDcUYUSNRYaOQg7IdDvrNzcdcDv76q5+crplHKr/ZdtS6mVWjvd287cNcLf/+wiStgECIhrVclHe6bDCK0v4oOZ0xcqTcQVFXAlmECg2oGUCIEKCgIERloff1GiIyQqd2fEhHAjG13LV9a99Lm92ZzOalaIaNCTkxNkSPEUELWaDYRcZs3H7Hj7l+eQcZ8Z7T1Mt7sUqtFVLXw9+M/9r+zPTtnaZ5VGJwT1ko1QagMN8AYdHivox4wsHp1zoaknowiGEJCDKXUAARAOCA2oqqp6lKoK/SOp0lKgOqaTS3Vl178+IThQbUguMBkxYHEgcWBxYJgwEJkWNASl7j09LpT5PEXm/bFC0Y2z5FD59JPXRJteP60PMeqUSAogSijSBS2Umlgw7VGPYgBoB6As8SwimCAhBUCBWmKAwIgqXUyIhhhZT/K7nfriykwbblz+UyfVPfXAlNMCSnXQBVU04JTMcOzYsgmxNZjQv/wfj0/WTW5BmzjMQDVTj7acNrnv1Z55PELG8sDRK6KSBXkgSFnkFiLjEeOxnhWGgJ1QRPHoaQeBmkTw3PK/GjEk0GgAIiSGfY+OxZI9vS4uJxLQiVTRQURHAIE3hACp/yeVWElbZaAFYlUAfZRNcS5cX4EiFnlhpsXPXfKP3yp/OSaz80txRnOsFatkE8ErJySuSgC2L0OG3zHu+PhnKsMRYxCDFgIKpEgCqlsTULIiIVTRpmE+qRSPzLZsdsyv/a1MrOpPypk+xqDAwkAYZhAiAIhlzAyPuXxRhiFYas5yaOco66WQ+cMpL7drnucOmHGE+ecddqGG258YMJfHj27TcoZzasKZ0glhyFLUOeRC2UEG+ALmQFJhRrUOnIAgGESs8sh7dKIKKIkbW4ESq3EQUktKQUP3TU0G8zo2AMAttfS48zzz9+QTGhe22Us2Bo1rGBWsAZY8bDqQailWXIY1gx04uTN2VNP7dpbOZ0y2FCI12/8vNu+Y0Yjc8gqqSelmAEbCI4sqggwIeWyXJ/frN5jRBxhAERRJJmo0OkqBomxYBDyXhEbhedaPVCrPV21Crtr4GANIY/XERjG5mgFiIwp5Rcuuvel5gnJlozHUBQ0cIARD6MJgASxCRjKqO7IEO1oaKk2Ljrop2R4UAHa7TDECDbcevu03Ja+BZFXZROR9UqBCbEFIgGcVwSQEjmKgxFb37gdqqMeykWAEDzqosIaDRGq1hIRkA0pDoRU1AILIGzI+AS2Z+eBuP6Hc2uJd88gJYIFF3Ysd3MX3GarEbuhmEhJqpZ02EE9szoYKVSYqpwlLF68cs6F592zG0L0am6AoSeePXzCwNAM5xx5gCIlaA1UrSisD4AxoGAQghnMtbaur607NUA7ioAocrnWl6qZKJYgBGFVVQhrTQVKu3dCAqaAqG+gbeDJJw8bu5A9esG8iQNHXnbRZQ3z3/Hvg65OqsGyrVjKlA3ZkKGyN9yXKSTZeQvvnHLmmZfS3Ln946gEVVVpeOMLx0wYLhlxQSo2UECtYq0hPYPBMKpkoYUJGyedcMK60bIZAI+AzNT3HPdCOZ9Zz2oBr1q1tbZlbQkBCq+enFHJD5eod/OGD6hqdk9h8AojHH1016QVt55pPvL+z/bOm/eLnS1tm/rqmnd0NrW8tPmAWStLHzzyU9PuuuGcllOP2zzeChO//9WsXVs6jwE81CoCAGEGa9po9VwjPAkwxITQ3LgORxzRM1qkAbCj1dYXT99Y+dH3nkRn70KOGGUCWNJSgZQRSAFDCL5KIEVl09YPVtqvPiYHPLQ3RjhqhIkTBwDcrqqrcMvy6RgazAxkban+nDM7iaiMG28c36ADEdhabPzeTz6j3T0LJRKFCkdqoSCwEKKgSIzAQmFjpYFspJnZ0x8lZl8cM0fAo4tzVpqnT1utXgEQVY3A6MiQH4OYoaowTKQZI4195catf/rbF1Q1i44OTYMFewkHJQWYiAbprDOeo//1P59oOHfZOiIqj3zU3javtVp/+M575peffXFZQzkwDNR6RSbU5goENQMAQVUjZUqs62k+cOEjUMVYvYFHpWkfkF/0jt/31xW64jiQ86qRCqJE4MEgNTDCUIpAQuQk0aEN6z704lf/6TQi0vZxFO5pMwuiqqTFImuxyMVicWTjexVWFCB0dKiqRuvuWPlF7Ng6Mx85JbEMchBRKKcNEyuCTBCwklasQ9TS8kTzRRc8neLWy7UFjfmqqpr56397/3cnr31hWVMWIhrYBwulCAZA4BhK6cADB6f9NqLN0yetm7/sE59tOeecR9+QMLpvo7ZEzLLmnC+fPfTrP1wzu28gk2UP75QCoTaBFsGrwqAKS6IiTFtcLs6cdOKX97/5uu+P4ser+gJaTF2zmj1kwd1xLjMUVYk8GR12qXMGk/bqRxqVVhNq9NDGbTsP2HzXfdfpzXctpI4OWXH66eZt2zwg3V/7xkfLf1p9+ZT+UrZQw3cF4AnwxBAIAgcMR4CA1VQUaKp/TpZ98D6opgH/eo2R9ppVFl/7xT+X2yb/Pq4yqbASA0oJBJLO8xDVfFWQkSpNKycyacOWw55dfsfV2x58cPbSlSuDvoVzvrWYBzHLmm984707fv3A1VO2dre2SJBIPRGj1hwdWVsAIaQ8L7E05OrELjrgnvnHnNz5eoUVjwWpIsDE8wbsOw/6fne+ruS8pZxnBRRUIy2sKXwGJnjrAS5zNi5Jdv36D3R/88rbtl111RFEJESkb8YQWixyEWDq6BDKZnTr+ed/Wpav+mFhW+esvFFhDhxbjyprOmM0iqIEIkUuJokkosqUyX9ruvCsW9WHvbfHx4y0R48fftL3Z6/b/Dmt9xIQsxULGSmOUBt1q71LAETEWo6rtG1a6/MN7zr8qtlXXLaSGvfrHW2JF4ujmt3rgd2ovkftRKgpx0zQW3+w4KV//9lZ/pk1Z7WVhif4KBJRcA20IESj8GqUECAQA81UHfpMIYlPete583743R+ovn6God1peC9deuWS8h33rMpVd86MTNA6WNIavAVOOYKyAjWtkEVhRBUCGsrmA82Y8R/5Qw++ufmaKx8kor7Xi+mx33rF4pyF3nXvnK677/14de3zZ2e3dc7NcYwQkcbEJMQQUDprqGna45q6oKQYYhUkGa7OnLMi95f7zpxKVN7dbDHtdjLMGP37J886t/zgb66dHpFJNCASIqPpcgOnhhACWAgEC/YWRhIlVEiMoq9xQlxubf2DnTnzganvOOR3+SOP3ojjD+sjw/4Vtb4xUO9zuO++5tIfVy/pf27dh/2Wbe+zXV3zbLUCsSzMEXFQMhRqLDXVEpykPEVJR9Yk6om7Wyatm3r+Z05vPvfcJ3c3HLFHA9RcLPfCMSddP/zSujObDUkWzMYLsj4F+qoN8EbgRBDFDoQ8+jMeiS0rI1YXK5M4lPMTUK4rdFNj/QbTUPcCOfsSmPqcs7F4zar3k5Ph8rywY+esTH//nAne57hahs+yxpGFD6BIMsh6wOgwvEFtBtEASjAEBAiGHbSfhBJXNzjtuOO+0vSj639QFN3jzOBep8T0iSdaf/fFr103c/2mpQ1gCYY45wEbFN4k8CYBIYDFQjVK2ePIUCNISaEiSqIgwwwYhjKNVj0MgCVljeI9fAiw1oixhpSUZES6rI3YgqowUHAwgEZgdog1AMaoBI9N+Uzsj3nXZUf86JZrxtO1ovFo+rtWrJjZfcVVd7Zs7z6a2MlQ5DlwQDZh5JOUMscGiEI6SzCSaNIBx5pEClJVUWhKsAhA0DT0mVmJGWCGAFQbsU6756oYO1uqFGCU0vlAA1gRABktS4wsO8L8hddP+dW9FxFRZTylNe+9fgc3L126adZZZ5yzZdrEP5XjmOuHVa2QliJFf9YgIItMksHIFKyObH7ExOngOBEREzPDMKthZmeInSUwsaiyijCjlidG/Wh0jABOgHycxaDLoDdrABJESuLihDxbKi2e970pd95y6Xg3v1cD1NYvRYAz531lzYyLL/wfu2bPXlmugqb2EjVXIIESMCWIQu2kKKVYJGOngQk2pVSj8E9IEXxEbRphEiICHVOtpfZLM6QHULWCCT5GQzXRQkySKzGXKF/CQYe17/+Ln3+NJk0aHJHk3+ppcSZAdM2a5mfOv6hYeGbdOVMqcSRZSCXDREoEthCRWhqhV6yAFNhbSaSv7QNCVRB8gHEWAoWoR0McJCMRl5TR2VzYhEMOuXzRqjtulTje53sD+3ydrXZZwq371LJPlB79vxe37Rw4sC4CEkeiMMREJCJgNq/ZGO3dyKPuPhoCqqOgQgLNiIe3lroSSjB12i/qTn7fldO/dfmjCOEN3RyhN0JMasiFTddeu3/nj+78Yn5bz2cnxklDhhTWsPgU8WnkxOkNeICO0b2YWRECqYBil8GWfPRcZc6Ua465//47iKj0Zq7NvOE7Q+0AdQBiMhk8/qmzT8w/9uRFrmvrsaZazWStAQnUslVNx+IpLVrpdT9cR5uMBKFUNTFKygC8BlYCygqEulzX4JRpd+ROfN/39m//x3VvxcWpN8XYxsab9r7UuPnCbx65bc36D+R6hj7c0jt8QFMlhs0w+qME1Ug0A8CoKiu9TEspnT1WVVQZJMpUnzjkEgOvBjuyttLTlP0bT2lcNevdSx5qufJfH5c4qY3cQt/s1bm3hLKOPQWKIvQXb1zQ98ffvbvSte3d1R1dh+ZUD8ip1BtfTRsiSojYwIDhIfAqSKDwIIQoLyWiLsnn19ZPmfYXbW37Q8OZS1fXn3x8d2309g1fkHrbDPAq0eLlGaDIYeu9qyY1/u7xBd1PPD1nYGd3ayA0ikqLKtU7NhyHJBEfBnOZTI+1bmfjzFnbJxy44PnKeSetn9i2YABeXiOKvJViy9tyOTkVSOm1izX88nVLIiBOCJHTVKlBem9uDEl6mTWq7u3mx3/Vh1SVFEXWkRvhr6XC0PSC9MjrrMUiK97+m+MA8P8AjkyqKBehUWwAAAAASUVORK5CYII='),'image/png','logo-orbita.png');
+    const mark=imgCell.getChild(0).asParagraph().appendInlineImage(logo);
+    mark.setWidth(51).setHeight(51);
+    const h0=textCell.getChild(0).asParagraph();
+    h0.appendText('PEMERINTAH KOTA BOGOR').setBold(true).setFontFamily('Arial').setFontSize(12).setForegroundColor(INK);
+    h0.setSpacingAfter(1);
+    const h1=textCell.appendParagraph('SEKRETARIAT DAERAH');
+    h1.editAsText().setBold(true).setFontFamily('Arial').setFontSize(11).setForegroundColor(INK);
+    h1.setSpacingAfter(1);
+    const h2=textCell.appendParagraph('BAGIAN PENGADAAN BARANG/JASA');
+    h2.editAsText().setBold(true).setFontFamily('Arial').setFontSize(11).setForegroundColor(RED);
+    const sub=textCell.appendParagraph('ORBITA PBJ  •  Layanan Pemilihan Penyedia');
+    sub.editAsText().setFontFamily('Arial').setFontSize(8).setForegroundColor(MUTED);
+    sub.setSpacingBefore(2);
+    const rule=body.appendParagraph('________________________________________________________________________________');
+    rule.editAsText().setFontFamily('Arial').setFontSize(8).setForegroundColor(RED);
+    rule.setSpacingBefore(0).setSpacingAfter(13);
+    const title=body.appendParagraph('UNDANGAN KAJI ULANG DOKUMEN PERSIAPAN');
+    title.setAlignment(DocumentApp.HorizontalAlignment.CENTER).setSpacingAfter(3);
+    title.editAsText().setBold(true).setFontFamily('Arial').setFontSize(12).setForegroundColor(INK);
+    const ref=body.appendParagraph('Referensi permohonan: '+req.request_id);
+    ref.setAlignment(DocumentApp.HorizontalAlignment.CENTER).setSpacingAfter(16);
+    ref.editAsText().setFontFamily('Arial').setFontSize(9).setForegroundColor(MUTED);
+    const textLine=(str,after)=>{const p=body.appendParagraph(str);p.setSpacingAfter(after==null?7:after);p.editAsText().setFontFamily('Arial').setFontSize(10).setForegroundColor(INK);return p;};
+    const today=Utilities.formatDate(new Date(),'Asia/Jakarta','dd MMMM yyyy');
+    const issued=textLine('Bogor, '+today,15);
+    issued.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
+    textLine('Yth. Bapak/Ibu '+ppk,1);
+    textLine(req.opd,2);
+    textLine('di Tempat',15);
+    textLine('Sehubungan dengan pelaksanaan proses pemilihan penyedia untuk paket tersebut, kami mengundang Bapak/Ibu untuk mengikuti kegiatan Kaji Ulang Dokumen Persiapan dengan rincian sebagai berikut:',13);
+    const entries=[['Nomor Permohonan',req.request_id],['Kode RUP',req.kode_rup],['Nama Paket',req.nama_paket],['Metode Pengadaan',req.metode_pengadaan||'E-Purchasing'],['Waktu',timeLabel],['Tempat / Tautan',place],['Mekanisme',method==='OFFLINE'?'Offline':'Online'],['Dokumen yang Disiapkan',provided],['Peserta yang Hadir',attendees],['Lampiran',attachment||'-']];
+    const details=body.appendTable(entries.map(row=>row.map(x=>String(x==null?'':x))));
+    details.setBorderColor('#D4E0E9').setBorderWidth(0.65);
+    for(let ri=0;ri<entries.length;ri++){
+      const left=details.getCell(ri,0),right=details.getCell(ri,1);
+      left.setWidth(145).setBackgroundColor(PALE);right.setWidth(335);
+      [left,right].forEach(cell=>{cell.setPaddingTop(4).setPaddingBottom(4).setPaddingLeft(8).setPaddingRight(8);const cp=cell.getChild(0).asParagraph();cp.setSpacingBefore(0).setSpacingAfter(0);cp.editAsText().setFontFamily('Arial').setFontSize(9).setForegroundColor(INK);});
+      left.getChild(0).asParagraph().editAsText().setBold(true);
+    }
+    body.appendParagraph(' ').setSpacingAfter(0);
+    textLine('Dimohon hadir sesuai jadwal dan menyiapkan dokumen yang diperlukan untuk kelancaran Kaji Ulang.',12);
+    textLine('Atas perhatian dan kerja sama Bapak/Ibu, kami ucapkan terima kasih.',22);
+    const signed=textLine('Pokja Pemilihan',2);signed.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
+    signed.editAsText().setBold(true);
+    const signedBy=textLine(sender,4);signedBy.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
+    const bottom=body.appendParagraph('Dokumen ini diterbitkan melalui ORBITA PBJ Kota Bogor.');
+    bottom.setAlignment(DocumentApp.HorizontalAlignment.CENTER).setSpacingBefore(18);
+    bottom.editAsText().setFontFamily('Arial').setFontSize(8).setForegroundColor(MUTED);
+    document.saveAndClose();
+    file=DriveApp.getFolderById(req.folder_id).createFile(temp.getAs(MimeType.PDF));
+    file.setName(prettyDocumentFileName_('Surat Undangan Kaji Ulang',requestDocumentTitle_(req),version,'.pdf'));
+    const doc={doc_id:id_('DOC'),request_id:req.request_id,doc_type:'SURAT_UNDANGAN_KAJI_ULANG',doc_label:'Surat Undangan Kaji Ulang',version:version,drive_file_id:file.getId(),drive_url:file.getUrl(),file_name:file.getName(),mime_type:'application/pdf',size_bytes:file.getSize(),uploader_user_id:user.user_id,uploaded_at:new Date(),is_current:true};
+    appendObj_(sh,doc);registered=true;
+    old.forEach(d=>{const hit=findRow_(sh,'doc_id',d.doc_id);if(hit)updateRow_(sh,hit.row,{is_current:false});});
+    audit_(user,'KIRIM_UNDANGAN_KAJI',req.request_id,{docType:doc.doc_type,docId:doc.doc_id,fileName:doc.file_name,version:version,start:payload.start,end:payload.end,method:method,place:place,provided:provided,attendees:attendees,attachment:attachment,round:Number(req.current_round)||1});
+    touchRequest_(req.request_id);
+    const message=['Yth. Bapak/Ibu '+ppk+',','','Pokja Pemilihan mengundang Bapak/Ibu untuk mengikuti Kaji Ulang Dokumen Persiapan.','','Judul Permohonan: '+requestMailTitle_(req),...values.map(row=>row[0]+': '+row[1]),'', 'Surat undangan (PDF): '+file.getUrl(),'', 'Mohon hadir sesuai jadwal dan membawa dokumen yang diperlukan.','', 'Undangan ini dikirim melalui ORBITA PBJ Kota Bogor.'].join('\n');
+    const queued=bestEffortMail_('KAJI_UNDANGAN:'+req.request_id+':'+version,email,subject,message);
+    return {document:doc,email_queued:queued!==false,request:publicRequest_(getRequest_(req.request_id))};
+  }catch(error){if(file&&!registered)try{file.setTrashed(true);}catch(_){}throw error;}
+  finally{if(temp)try{temp.setTrashed(true);}catch(_){}}
+}
+
+function submitKajiUlang_(user,payload){
+  requireRole_(user,['POKJA','ADMIN']);
+  const req=getRequestAuthorized_(user,payload.requestId);
+  if(!isKajiWorkflow_(req)||!['DITUGASKAN_POKJA','REVIU_POKJA','REVIU_ULANG'].includes(req.status))throw new Error('Kaji Ulang belum dapat diproses.');
+  const decision=String(payload.decision||'').toUpperCase(),method=String(payload.selectionProcess||'').toUpperCase(),competitionType=String(payload.competitionType||'').toUpperCase(),date=String(payload.date||'').trim(),note=String(payload.note||'').trim();
+  if(!['PERBAIKAN','LANJUT'].includes(decision))throw new Error('Pilih hasil Kaji Ulang.');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date)))throw new Error('Isi tanggal Kaji Ulang.');
+  if(decision==='PERBAIKAN'&&!note)throw new Error('Isi catatan perbaikan.');
+  if(decision==='LANJUT'&&!['NEGOSIASI','MINI_KOMPETISI'].includes(method))throw new Error('Pilih proses pemilihan.');
+  if(decision==='LANJUT'&&method==='MINI_KOMPETISI'&&['NON_CONSTRUCTION','CONSTRUCTION'].indexOf(competitionType)<0)throw new Error('Pilih jenis Mini Kompetisi.');
+  const doc=currentDocs_(req.request_id).find(d=>d.doc_type==='BA_KAJI_ULANG');
+  if(!doc)throw new Error('Unggah BA Hasil Reviu Kaji Ulang terlebih dahulu.');
+  // BA untuk kaji ulang yang sebelumnya tidak boleh menjadi BA baru pada putaran berikutnya.
+  if(Number(req.current_round||1)>1&&req.review_started_at&&new Date(doc.uploaded_at)<new Date(req.review_started_at))throw new Error('Unggah BA Kaji Ulang untuk putaran ini.');
+  const detailMode=String(payload.miniDetailMode||'LANGSUNG').toUpperCase();
+  if(decision==='LANJUT'&&method==='MINI_KOMPETISI'&&detailMode==='PPK')throw new Error('Menu Minta PPK Lengkapi Detail masih dalam pengembangan. Pilih Langsung ke Penayangan.');
+  if(decision==='LANJUT'&&method==='MINI_KOMPETISI'&&!['PPK','LANGSUNG'].includes(detailMode))throw new Error('Pilih tindak lanjut detail Mini Kompetisi.');
+  const now=new Date(),patch={kaji_ulang_date:date,kaji_ulang_result:decision,kaji_ulang_note:note,review_completed_at:now,updated_at:now};
+  if(decision==='PERBAIKAN'){patch.status=STATUS.PERLU_PERBAIKAN_PPK;}
+  else if(method==='NEGOSIASI'){patch.status=STATUS.SIAP_INAPROC;patch.selection_process=method;patch.method_locked_at=now;patch.details_submitted_at=now;patch.competition_type='';patch.mini_stage='';patch.nego_stage='SIAP_NEGOSIASI';}
+  else{patch.status=detailMode==='LANGSUNG'?STATUS.SIAP_INAPROC:STATUS.PERLU_DETAIL_PPK;patch.selection_process=method;patch.method_locked_at=now;patch.competition_type=competitionType;patch.mini_stage=detailMode==='LANGSUNG'?'SIAP_TAYANG':'';patch.nego_stage='';if(detailMode==='LANGSUNG')patch.details_submitted_at=now;}
+  updateRequest_(req.request_id,patch);
+  const methodLabel=method==='NEGOSIASI'?'Negosiasi':competitionType==='CONSTRUCTION'?'Mini Kompetisi (Pekerjaan Konstruksi)':'Mini Kompetisi (Barang/Jasa Lainnya)';
+  appendNote_(user,req.request_id,'KAJI_ULANG',decision,note||('Dilanjutkan ke '+methodLabel));
+  audit_(user,'KAJI_ULANG_'+decision,req.request_id,{round:Number(req.current_round)||1,date:date,method:decision==='LANJUT'?method:'',competitionType:decision==='LANJUT'?competitionType:'',docId:doc.doc_id,note:note,miniDetailMode:decision==='LANJUT'&&method==='MINI_KOMPETISI'?detailMode:''});
+  if(decision==='PERBAIKAN')notifyPpkStatus_(req,'KAJI_PERBAIKAN',note,Number(req.current_round)||1);
+  else if(method==='MINI_KOMPETISI'&&detailMode==='PPK')notifyPpkStatus_(req,'MINI_DETAIL',note,Number(req.current_round)||1);
+  return requestDetail_(user,req.request_id,true);
+}
+function completeKajiDetails_(user,payload){
+  requireRole_(user,['PPK','ADMIN']);
+  const req=getRequestAuthorized_(user,payload.requestId);
+  if(!isKajiWorkflow_(req)||req.status!==STATUS.PERLU_DETAIL_PPK||!req.method_locked_at)throw new Error('Detail pemilihan belum dapat dikirim.');
+  if(!['NEGOSIASI','MINI_KOMPETISI'].includes(requestSelectionProcess_(req)))throw new Error('Metode belum ditetapkan Pokja.');
+  if(requestSelectionProcess_(req)==='MINI_KOMPETISI')assertCompetitionDetails_(req);
+  if(isNewKaji2817_(req))checkRupAllocation_(req);assertDocsComplete_(req.request_id);
+  const now=new Date(),mini=requestSelectionProcess_(req)==='MINI_KOMPETISI';
+  const ppkNote=String(payload.notes||'').trim();if(ppkNote.length>2000)throw new Error('Catatan maksimal 2.000 karakter.');
+  updateRequest_(req.request_id,{status:STATUS.SIAP_INAPROC,notes:ppkNote||req.notes||'',details_submitted_at:now,updated_at:now,...(mini?{mini_stage:'SIAP_TAYANG',mini_tayang_at:''}:{nego_stage:'SIAP_NEGOSIASI'})});
+  appendNote_(user,req.request_id,'DETAIL_PEMILIHAN','DIKIRIM',mini?'Detail Mini Kompetisi dilengkapi.':'Detail Negosiasi dikonfirmasi.');
+  audit_(user,'SUBMIT_KAJI_DETAILS',req.request_id,{selectionProcess:requestSelectionProcess_(req),competitionType:req.competition_type||''});
+  if(mini)notifyPokjaStatus_(req,'PPK_DETAIL_LENGKAP',ppkNote,Number(req.current_round)||1);
+  return publicRequest_(getRequest_(req.request_id));
+}
+
+function assignPokja_(user,payload) {
+  requireRole_(user,['KEPALA_UKPBJ','ADMIN']);
+  let req=getRequestAuthorized_(user,payload.requestId);
+  if (![STATUS.MENUNGGU_DISPOSISI,STATUS.DIAJUKAN].includes(req.status)) throw new Error('Paket belum siap didisposisikan.');
+  let pokja=findRow_(sheet_(PBJWF.SHEETS.POKJA),'pokja_id',String(payload.pokjaId||''));
+  if(!pokja||!truthy_(pokja.obj.active)) throw new Error('Pokja tidak aktif atau tidak ditemukan.');
+  const file=payload.file||{};
+  if(!/\.(pdf|doc|docx)$/i.test(String(file.name||''))) throw new Error('Surat perintah harus berupa PDF, DOC, atau DOCX.');
+  const prepared=prepareUpload_(file);
+
+  // Seperti upload dokumen biasa, kirim file ke Drive tanpa menahan workflow lock.
+  const tempName=id_('TMP')+'_SURAT_PERINTAH_POKJA_'+prepared.safeName;
+  const driveFile=DriveApp.getFolderById(req.folder_id).createFile(Utilities.newBlob(prepared.bytes,prepared.mimeType,tempName));
+
+  try {
+    const assigned=withWorkflowLock_(()=>{
+      req=getRequestAuthorized_(user,payload.requestId);
+      if (![STATUS.MENUNGGU_DISPOSISI,STATUS.DIAJUKAN].includes(req.status)) throw new Error('Paket belum siap didisposisikan.');
+      pokja=findRow_(sheet_(PBJWF.SHEETS.POKJA),'pokja_id',String(payload.pokjaId||''));
+      if(!pokja||!truthy_(pokja.obj.active)) throw new Error('Pokja tidak aktif atau tidak ditemukan.');
+      ensureRequestSchema_();
+      const docsSh=sheet_(PBJWF.SHEETS.DOCS),docType='SURAT_PERINTAH_POKJA';
+      const previous=rows_(docsSh).filter(d=>d.request_id===req.request_id&&d.doc_type===docType);
+      const version=previous.reduce((n,d)=>Math.max(n,Number(d.version)||0),0)+1;
+      const now=new Date();
+      const displayName=prettyDocumentFileName_('Surat Perintah Pokja',requestDocumentTitle_(req),version,prepared.safeName);if(typeof driveFile.setName==='function')driveFile.setName(displayName);
+      const doc={doc_id:id_('DOC'),request_id:req.request_id,doc_type:docType,doc_label:'Surat Perintah Pokja',version:version,drive_file_id:driveFile.getId(),drive_url:driveFile.getUrl(),file_name:displayName,mime_type:prepared.mimeType,size_bytes:prepared.bytes.length,uploader_user_id:user.user_id,uploaded_at:now,is_current:true};
+      appendObj_(docsSh,doc);
+      previous.filter(d=>truthy_(d.is_current)).forEach(d=>{const hit=findRow_(docsSh,'doc_id',d.doc_id);if(hit)updateRow_(docsSh,hit.row,{is_current:false});});
+      // The SOP clock starts only after the letter is saved, at successful disposition.
+      updateRequest_(req.request_id,{status:STATUS.DITUGASKAN_POKJA,head_user_id:user.user_id,assigned_pokja_id:pokja.obj.pokja_id,assigned_at:now,sop_started_at:now,updated_at:now});
+      appendNote_(user,req.request_id,'DISPOSISI','DITUGASKAN',String(payload.note||('Ditugaskan kepada '+pokja.obj.nama)));
+      audit_(user,'UPLOAD_DOCUMENT',req.request_id,{docType:docType,version:version,fileName:displayName});
+      audit_(user,'ASSIGN_POKJA',req.request_id,{pokjaId:pokja.obj.pokja_id,pokjaName:pokja.obj.nama,orderDocId:doc.doc_id,sopStartedAt:now.toISOString()});
+      return {...publicRequest_(getRequest_(req.request_id)),assignment_document:doc};
+    });
+    notifyPokjaStatus_({...req,...assigned},'DISPOSISI',String(payload.note||''),'initial');
+    return assigned;
+  } catch(err) {
+    try{if(!String(req.assigned_pokja_id||''))driveFile.setTrashed(true);}catch(_){ }
+    throw err;
+  }
+}
+
+function rejectRequest_(user,payload) {
+  requireRole_(user,['KEPALA_UKPBJ','ADMIN']);
+  const req=getRequestAuthorized_(user,payload.requestId);
+  if(![STATUS.MENUNGGU_DISPOSISI,STATUS.DIAJUKAN].includes(req.status)) throw new Error('Penolakan hanya untuk paket yang menunggu disposisi.');
+  const reason=String(payload.reason||'').trim();
+  if(!reason) throw new Error('Keterangan penolakan wajib diisi.');
+  ensureRequestSchema_();
+  const now=new Date();
+  updateRequest_(req.request_id,{status:STATUS.DITOLAK_KEPALA,head_user_id:user.user_id,rejected_reason:reason,rejected_at:now,rejected_by:user.user_id,updated_at:now});
+  appendNote_(user,req.request_id,'DISPOSISI','DITOLAK_KEPALA',reason);
+  audit_(user,'REJECT_REQUEST',req.request_id,{reason:reason});
+  notifyPpkStatus_(req,'DITOLAK_KEPALA',reason);
+  return publicRequest_(getRequest_(req.request_id));
+}
+
+function startReview_(user, requestId) {
+  requireRole_(user,['POKJA','ADMIN']); const req=getRequestAuthorized_(user,requestId);
+  if (![STATUS.DITUGASKAN_POKJA,STATUS.REVIU_ULANG].includes(req.status) && user.role!=='ADMIN') throw new Error('Paket belum dapat direviu.');
+  updateRequest_(req.request_id,{status:STATUS.REVIU_POKJA,review_started_at:req.review_started_at||new Date(),updated_at:new Date()});
+  audit_(user,'START_REVIEW',req.request_id,{round:Number(req.current_round)||1});
+  return publicRequest_(getRequest_(req.request_id));
+}
+
+function saveReview_(user,payload) {
+  requireRole_(user,['POKJA','ADMIN']);
+  throw new Error('Gunakan reviu paket. Muat ulang halaman.');
+}
+
+function packageDocSnapshot_(requestId){
+  return JSON.stringify(currentDocs_(requestId).filter(d=>d.doc_type!=='SURAT_PERINTAH_POKJA'&&!MINI_DOCS[d.doc_type]&&!NEGO_DOCS[d.doc_type]).map(d=>String(d.doc_id)).sort());
+}
+function packageReview_(requestId,round){return currentRoundReviews_(requestId,round).find(r=>r.doc_type==='__PAKET__')||null;}
+function requireActiveReview_(req){if(![STATUS.REVIU_POKJA,STATUS.REVIU_ULANG].includes(req.status))throw new Error('Reviu belum aktif.');}
+function checkedPackageReview_(req){
+  const review=packageReview_(req.request_id,Number(req.current_round)||1);
+  if(!review)throw new Error('Simpan hasil reviu paket terlebih dahulu.');
+  if(review.doc_id!==packageDocSnapshot_(req.request_id))throw new Error('Dokumen berubah. Periksa dan simpan kembali hasil reviu paket.');
+  return review;
+}
+function reviewDecisionKey_(review){return hash_(JSON.stringify([review.review_id,review.status,review.note||'',review.doc_id]));}
+function ensureSubmissionAudit_(user,req,review,action){
+  const sh=sheet_(PBJWF.SHEETS.AUDIT),id='CONFIRM_'+action+'_'+reviewDecisionKey_(review);
+  if(findRow_(sh,'audit_id',id))return false;
+  appendObj_(sh,{audit_id:id,created_at:new Date(),user_id:user.user_id,role:user.role,action:action,request_id:req.request_id,detail_json:JSON.stringify({round:Number(req.current_round)||1,status:review.status,scope:'PAKET'})});return true;
+}
+function submitPackageReview_(user,payload){
+  requireRole_(user,['POKJA','ADMIN']);
+  const req=getRequestAuthorized_(user,payload.requestId),status=String(payload.status||'').toUpperCase(),note=String(payload.note||'').trim();
+  if (!['SESUAI','PERLU_PERBAIKAN'].includes(status))throw new Error('Pilih hasil reviu paket.');
+  if(status==='PERLU_PERBAIKAN'&&!note)throw new Error('Isi catatan perbaikan terlebih dahulu.');
+  if(status==='SESUAI'&&requestSelectionProcess_(req)==='MINI_KOMPETISI')ensureRequestSchema_();
+  if(status==='SESUAI'&&requestSelectionProcess_(req)==='NEGOSIASI')ensureRequestSchema_();
+  const target=status==='SESUAI'?STATUS.SIAP_INAPROC:STATUS.PERLU_PERBAIKAN_PPK;
+  const returnedToPpk=status==='PERLU_PERBAIKAN'&&req.status!==target;
+  let saved=packageReview_(req.request_id,Number(req.current_round)||1);
+  const same=saved&&saved.status===status&&String(saved.note||'')===note&&saved.reviewer_user_id===user.user_id&&saved.doc_id===packageDocSnapshot_(req.request_id);
+  if(req.status!==target||!same)requireActiveReview_(req);
+  if(!same&&payload.expectedUpdatedAt&&new Date(payload.expectedUpdatedAt).getTime()!==new Date(req.updated_at).getTime())throw new Error('Data paket sudah berubah. Perbarui detail sebelum menyimpan reviu.');
+  assertDocsComplete_(req.request_id);
+  if(!same){savePackageReview_(user,payload,false);saved=packageReview_(req.request_id,Number(req.current_round)||1);}
+  // Stable IDs let retries complete interrupted notes/audit without duplication.
+  let changed=ensureSubmissionAudit_(user,req,saved,'SAVE_PACKAGE_REVIEW');
+  const noteId='CONFIRM_NOTE_'+reviewDecisionKey_(saved),notes=sheet_(PBJWF.SHEETS.NOTES);
+  if(!findRow_(notes,'note_id',noteId)){
+    appendObj_(notes,{note_id:noteId,request_id:req.request_id,phase:'REVIU_POKJA',author_user_id:user.user_id,status:status,note:note||'Dokumen persiapan sesuai. Paket siap diproses.',created_at:new Date()});changed=true;
+  }
+  if(req.status!==target){updateRequest_(req.request_id,{status:target,...(status==='SESUAI'?{review_completed_at:new Date()}:{}),...(status==='SESUAI'&&requestSelectionProcess_(req)==='MINI_KOMPETISI'?{mini_stage:'TAYANG',mini_tayang_at:new Date(),mini_last_change_at:'',mini_handover_at:''}:{}),...(status==='SESUAI'&&requestSelectionProcess_(req)==='NEGOSIASI'?{nego_stage:'SIAP_NEGOSIASI',nego_started_at:'',nego_handover_at:''}:{}),updated_at:new Date()});changed=true;}
+  changed=ensureSubmissionAudit_(user,req,saved,status==='SESUAI'?'COMPLETE_REVIEW':'SEND_REVISION')||changed;
+  if(status==='SESUAI'&&requestSelectionProcess_(req)==='MINI_KOMPETISI')changed=ensureSubmissionAudit_(user,req,saved,'MINI_TAYANG')||changed;
+  if(changed)touchRequest_(req.request_id);
+  if(returnedToPpk)notifyPpkStatus_(req,'REVIU_PERBAIKAN',note,Number(req.current_round)||1);
+  return requestDetail_(user,req.request_id,true);
+}
+
+function savePackageReview_(user,payload,includeDetail=true){
+  requireRole_(user,['POKJA','ADMIN']);const req=getRequestAuthorized_(user,payload.requestId);requireActiveReview_(req);
+  const status=String(payload.status||'').toUpperCase(),note=String(payload.note||'').trim();
+  if(!['SESUAI','PERLU_PERBAIKAN'].includes(status))throw new Error('Pilih hasil reviu paket.');
+  if(status==='PERLU_PERBAIKAN'&&!note)throw new Error('Catatan perbaikan wajib diisi.');
+  assertDocsComplete_(req.request_id);
+  const snapshot=packageDocSnapshot_(req.request_id);if(snapshot==='[]')throw new Error('Dokumen persiapan belum tersedia.');
+  const round=Number(req.current_round)||1,sh=sheet_(PBJWF.SHEETS.REVIEWS),old=packageReview_(req.request_id,round),now=new Date();
+  const patch={doc_id:snapshot,reviewer_user_id:user.user_id,status:status,note:note,updated_at:now};
+  if(old){const hit=findRow_(sh,'review_id',old.review_id);updateRow_(sh,hit.row,patch);}
+  else appendObj_(sh,{review_id:id_('RVW'),request_id:req.request_id,round:round,doc_type:'__PAKET__',created_at:now,...patch});
+  touchRequest_(req.request_id);if(includeDetail)audit_(user,'SAVE_PACKAGE_REVIEW',req.request_id,{round:round,status:status});else ensureSubmissionAudit_(user,req,packageReview_(req.request_id,round),'SAVE_PACKAGE_REVIEW');
+  return includeDetail?requestDetail_(user,req.request_id):null;
+}
+function sendRevision_(user,requestId){
+  requireRole_(user,['POKJA','ADMIN']);const req=getRequestAuthorized_(user,requestId);requireActiveReview_(req);
+  const review=checkedPackageReview_(req);if(review.status!=='PERLU_PERBAIKAN'||!String(review.note||'').trim())throw new Error('Isi hasil dan catatan perbaikan paket terlebih dahulu.');
+  updateRequest_(req.request_id,{status:STATUS.PERLU_PERBAIKAN_PPK,updated_at:new Date()});
+  appendNote_(user,req.request_id,'REVIU_POKJA','PERLU_PERBAIKAN',review.note);
+  audit_(user,'SEND_REVISION',req.request_id,{round:Number(req.current_round)||1,scope:'PAKET'});
+  notifyPpkStatus_(req,'REVIU_PERBAIKAN',review.note,Number(req.current_round)||1);
+  return publicRequest_(getRequest_(req.request_id));
+}
+function resubmitRevision_(user,payload){
+  requireRole_(user,['PPK','ADMIN']);
+  const input=typeof payload==='string'?{requestId:payload}:(payload||{});
+  const req=getRequestAuthorized_(user,input.requestId);
+  if(req.status!==STATUS.PERLU_PERBAIKAN_PPK)throw new Error('Paket tidak sedang menunggu perbaikan PPK.');
+  // Dokumen wajib pada pengajuan awal harus tetap tersedia; unggah ulang bukan syarat reviu ulang.
+  assertDocsComplete_(req.request_id);
+  if(isKajiWorkflow_(req)){
+    const note=String(input.note||'').trim(),prev=Number(req.current_round)||1;
+    if(!note)throw new Error('Catatan PPK untuk Pokja wajib diisi sebelum mengirim ulang.');
+    if(characterCount_(note)<5)throw new Error('Catatan PPK minimal 5 karakter.');
+    if(note.length>2000)throw new Error('Catatan maksimal 2.000 karakter.');
+    if(note)appendNote_(user,req.request_id,'PERBAIKAN_PPK','DIKIRIM_KE_POKJA',note);
+    updateRequest_(req.request_id,{status:STATUS.REVIU_ULANG,current_round:prev+1,review_started_at:new Date(),updated_at:new Date()});
+    audit_(user,'RESUBMIT_KAJI_REVISION',req.request_id,{round:prev+1,note:note});
+    notifyPokjaStatus_(req,'PPK_KIRIM_ULANG',note,prev+1);
+    return publicRequest_(getRequest_(req.request_id));
+  }
+  const note=String(input.note||'').trim();
+  if(note.length>2000)throw new Error('Catatan maksimal 2.000 karakter.');
+  const prev=Number(req.current_round)||1,review=packageReview_(req.request_id,prev);
+  let hasRevision=false;
+  if(review){
+    hasRevision=review.doc_id!==packageDocSnapshot_(req.request_id);
+  }else{
+    // Reviu lama dapat menyimpan catatan per dokumen, bukan reviu keseluruhan paket.
+    const requested=currentRoundReviews_(req.request_id,prev).filter(x=>x.status==='PERLU_PERBAIKAN');
+    if(!requested.length&&req.mini_stage!=='GAGAL')throw new Error('Catatan perbaikan belum tersedia.');
+    const docs=currentDocs_(req.request_id);
+    hasRevision=requested.some(rv=>docs.some(d=>d.doc_type===rv.doc_type&&d.doc_id!==rv.doc_id));
+  }
+  if(!hasRevision&&!note&&req.mini_stage!=='GAGAL')throw new Error('Isi catatan PPK atau unggah dokumen revisi sebelum mengirim ke Pokja.');
+  const next=prev+1;
+  if(note)appendNote_(user,req.request_id,'PERBAIKAN_PPK','DIKIRIM_KE_POKJA',note);
+  updateRequest_(req.request_id,{status:STATUS.REVIU_ULANG,current_round:next,...(req.mini_stage==='GAGAL'?{mini_stage:'REVIU_ULANG'}:{}),updated_at:new Date()});
+  audit_(user,'RESUBMIT_REVISION',req.request_id,{round:next,previousRound:prev,hasDocumentRevision:hasRevision,note:note});
+  notifyPokjaStatus_(req,'PPK_KIRIM_ULANG',note,next);
+  return publicRequest_(getRequest_(req.request_id));
+}
+
+function completeReview_(user,requestId){
+  requireRole_(user,['POKJA','ADMIN']);const req=getRequestAuthorized_(user,requestId);requireActiveReview_(req);
+  assertDocsComplete_(req.request_id);const review=checkedPackageReview_(req);
+  if(review.status!=='SESUAI')throw new Error('Paket masih perlu perbaikan.');
+  if(requestSelectionProcess_(req)==='MINI_KOMPETISI')ensureRequestSchema_();
+  if(requestSelectionProcess_(req)==='NEGOSIASI')ensureRequestSchema_();
+  updateRequest_(req.request_id,{status:STATUS.SIAP_INAPROC,review_completed_at:new Date(),...(requestSelectionProcess_(req)==='MINI_KOMPETISI'?{mini_stage:'SIAP_TAYANG',mini_tayang_at:'',mini_handover_at:''}:{}),...(requestSelectionProcess_(req)==='NEGOSIASI'?{nego_stage:'SIAP_NEGOSIASI',nego_started_at:'',nego_handover_at:''}:{}),updated_at:new Date()});
+  appendNote_(user,req.request_id,'REVIU_POKJA','SESUAI',review.note||'Dokumen persiapan sesuai. Paket siap diproses.');
+  audit_(user,'COMPLETE_REVIEW',req.request_id,{round:Number(req.current_round)||1});return publicRequest_(getRequest_(req.request_id));
+}
+
+function startInaproc_(user,payload) {
+  requireRole_(user,['POKJA','ADMIN']);getRequestAuthorized_(user,payload.requestId);
+  throw new Error('Progres INAPROC diperbarui otomatis dari sheet Report. Perbarui halaman untuk melihatnya.');
+}
+
+function completeRequest_(user,payload) {
+  requireRole_(user,['POKJA','ADMIN']);getRequestAuthorized_(user,payload.requestId);
+  throw new Error('Status selesai mengikuti sheet Report secara otomatis.');
+}
+
+function adminSearchRupRequests_(user,payload){
+  requireRole_(user,['ADMIN']);
+  const term=String(payload.term||'').trim().toLowerCase();
+  if(term.length<3||term.length>120)throw new Error('Isi pencarian minimal 3 karakter.');
+  // Dibaca hanya saat admin mencari, bukan ketika membuka halaman admin.
+  const active=rows_(sheet_(PBJWF.SHEETS.REQUESTS)).filter(r=>{
+    if(['DRAFT','DITOLAK_KEPALA','BATAL','SELESAI'].includes(String(r.status||'')))return false;
+    return [r.request_id,r.kode_rup,r.judul_permohonan,r.nama_paket,r.opd].some(x=>String(x||'').toLowerCase().includes(term));
+  }).sort((a,b)=>String(b.updated_at||'').localeCompare(String(a.updated_at||''))).slice(0,25);
+  return active.map(r=>({request_id:String(r.request_id),kode_rup:String(r.kode_rup),judul_permohonan:String(r.judul_permohonan||''),nama_paket:String(r.nama_paket||''),opd:String(r.opd||''),status:String(r.status||'')}));
+}
+function adminUpdateRequestRup_(user,payload){
+  requireRole_(user,['ADMIN']);
+  const id=String(payload.requestId||'').trim(),newCode=String(payload.newCode||'').trim();
+  if(!/^\d{6,20}$/.test(newCode))throw new Error('Kode RUP baru tidak valid.');
+  const hit=findRow_(sheet_(PBJWF.SHEETS.REQUESTS),'request_id',id);
+  if(!hit)throw new Error('Permohonan tidak ditemukan.');
+  const req=hit.obj,oldCode=String(req.kode_rup||'');
+  if(oldCode!==String(payload.oldCode||''))throw new Error('Kode RUP sudah berubah. Perbarui daftar lebih dahulu.');
+  if(oldCode===newCode)throw new Error('Kode RUP baru masih sama.');
+  if(['DRAFT','DITOLAK_KEPALA','BATAL','SELESAI'].includes(String(req.status||'')))throw new Error('Hanya permohonan berjalan yang dapat diperbarui.');
+  const newRup=lookupRup_(newCode);
+  if(norm_(newRup.opd)!==norm_(req.opd))throw new Error('Kode RUP baru harus milik OPD yang sama.');
+  const used=rupAllocationTotal_(newCode,id),needed=Math.max(0,Number(req.hps_alokasi)||0);
+  if(needed+used>Number(newRup.pagu))throw new Error('Sisa pagu pada RUP baru tidak cukup untuk HPS permohonan ini.');
+  // Hanya ganti kode dan sumber pagu. Nomor, judul, dokumen dan tahap tetap utuh.
+  updateRow_(sheet_(PBJWF.SHEETS.REQUESTS),hit.row,{kode_rup:newCode,pagu:Number(newRup.pagu),updated_at:new Date()});
+  audit_(user,'ADMIN_UPDATE_RUP',id,{oldCode:oldCode,newCode:newCode,oldPagu:Number(req.pagu)||0,newPagu:Number(newRup.pagu)||0});
+  return {request_id:id,kode_rup:newCode,previous_kode_rup:oldCode,pagu:Number(newRup.pagu)};
+}
+
+// v28.80 — Koreksi Admin terkontrol. Tidak dijalankan otomatis saat login.
+// Metode RUP dari SiRUP tidak boleh dimanipulasi; proses pemilihan ulang ditetapkan Pokja lewat Kaji Ulang.
+function adminCorrectionSnapshot_(r){return {
+  request_id:String(r.request_id||''),kode_rup:String(r.kode_rup||''),judul_permohonan:String(r.judul_permohonan||r.nama_paket||''),
+  opd:String(r.opd||''),status:String(r.status||''),selection_process:requestSelectionProcess_(r),
+  competition_type:String(r.competition_type||''),mini_stage:String(r.mini_stage||''),nego_stage:String(r.nego_stage||''),
+  assigned_pokja_id:String(r.assigned_pokja_id||''),current_round:Number(r.current_round)||1,
+  updated_at:String(r.updated_at||''),method_locked_at:String(r.method_locked_at||'')
+};}
+function adminSearchCorrections_(user,payload){
+  requireRole_(user,['ADMIN']);
+  const term=String(payload.term||'').trim().toLowerCase();
+  if(term.length<3||term.length>120)throw new Error('Isi pencarian minimal 3 karakter.');
+  // Hanya ketika tombol Cari ditekan; hasil dibatasi agar tetap ringan.
+  return rows_(sheet_(PBJWF.SHEETS.REQUESTS)).filter(r=>
+    [r.request_id,r.kode_rup,r.judul_permohonan,r.nama_paket,r.opd].some(x=>String(x||'').toLowerCase().includes(term))
+  ).slice(-40).map(adminCorrectionSnapshot_);
+}
+function adminCorrectionGuard_(user,payload){
+  requireRole_(user,['ADMIN']);
+  const id=String(payload.requestId||'').trim();
+  if(!/^P-[A-Za-z0-9-]{4,70}$/.test(id))throw new Error('Nomor permohonan tidak valid.');
+  const hit=findRow_(sheet_(PBJWF.SHEETS.REQUESTS),'request_id',id);
+  if(!hit)throw new Error('Permohonan tidak ditemukan.');
+  const req=hit.obj;
+  if(String(req.status||'')!==String(payload.expectedStatus||'') ||
+     String(req.mini_stage||'')!==String(payload.expectedMiniStage||'') ||
+     String(req.competition_type||'')!==String(payload.expectedCompetitionType||'') ||
+     requestSelectionProcess_(req)!==String(payload.expectedSelectionProcess||'') ||
+     String(req.updated_at||'')!==String(payload.expectedUpdatedAt||''))
+    throw new Error('Data permohonan sudah berubah. Cari ulang sebelum menyimpan koreksi.');
+  if(['DRAFT','PERLU_KELENGKAPAN','DITOLAK_KEPALA','BATAL','SELESAI'].includes(String(req.status||'')))
+    throw new Error('Permohonan draft atau yang sudah ditutup tidak dapat dikoreksi lewat menu ini.');
+  const note=String(payload.reason||'').trim();
+  if(note.length<10||note.length>1000)throw new Error('Isi alasan koreksi minimal 10 dan maksimal 1.000 karakter.');
+  return {hit,req,note};
+}
+function adminCorrectCompetition_(user,payload){
+  const {hit,req,note}=adminCorrectionGuard_(user,payload);
+  const newType=String(payload.competitionType||'').toUpperCase().trim();
+  if(requestSelectionProcess_(req)!=='MINI_KOMPETISI')throw new Error('Koreksi jenis hanya untuk proses Mini Kompetisi.');
+  if(!['CONSTRUCTION','NON_CONSTRUCTION'].includes(newType))throw new Error('Jenis Mini Kompetisi tidak dikenali.');
+  if(newType===String(req.competition_type||''))throw new Error('Jenis Mini Kompetisi masih sama.');
+  if(['HANDOVER','GAGAL','BATAL'].includes(String(req.mini_stage||'')))throw new Error('Tahap sudah ditutup. Koordinasikan dulu perbaikannya.');
+  if(String(req.mini_stage||'')==='TAYANG' && payload.externalConfirmed!==true)
+    throw new Error('Pastikan jenis kompetisi sudah sesuai dengan penayangan di INAPROC.');
+  const before=adminCorrectionSnapshot_(req),now=new Date();
+  updateRow_(sheet_(PBJWF.SHEETS.REQUESTS),hit.row,{competition_type:newType,updated_at:now});
+  audit_(user,'ADMIN_CORRECT_COMPETITION',req.request_id,{note,oldType:before.competition_type,newType,selectionProcess:before.selection_process,oldStatus:before.status,round:before.current_round});
+  appendNote_(user,req.request_id,'PERBAIKAN_ADMIN','KOREKSI_JENIS',note);
+  return adminCorrectionSnapshot_(getRequest_(req.request_id));
+}
+function adminReturnToPokja_(user,payload){
+  const {hit,req,note}=adminCorrectionGuard_(user,payload);
+  if(!isKajiWorkflow_(req)||!String(req.assigned_pokja_id||''))throw new Error('Permohonan ini belum mempunyai alur Kaji Ulang dan Pokja tujuan.');
+  if(!['SIAP_PROSES_INAPROC','REVIU_POKJA','REVIU_ULANG','PERLU_DETAIL_PPK'].includes(String(req.status||'')))
+    throw new Error('Tahap paket ini tidak bisa dikembalikan ke Pokja melalui menu koreksi.');
+  if(['TAYANG','EVALUASI','HANDOVER','BATAL','GAGAL'].includes(String(req.mini_stage||'')) ||
+     ['NEGOSIASI','HASIL_NEGOSIASI','HANDOVER'].includes(String(req.nego_stage||'')) || String(req.inaproc_code||''))
+    throw new Error('Proses sudah berjalan di INAPROC. Selesaikan penanganan proses eksternal dahulu; sistem tidak mengembalikan otomatis.');
+  const before=adminCorrectionSnapshot_(req),now=new Date(),nextRound=(Number(req.current_round)||1)+1;
+  // Data dan dokumen lama tidak dihapus. BA putaran sebelumnya tidak otomatis berlaku untuk putaran baru.
+  updateRow_(sheet_(PBJWF.SHEETS.REQUESTS),hit.row,{
+    status:STATUS.REVIU_ULANG,current_round:nextRound,review_started_at:now,review_completed_at:'',
+    kaji_ulang_date:'',kaji_ulang_result:'',kaji_ulang_note:'',method_locked_at:'',details_submitted_at:'',
+    selection_process:'PERSIAPAN',competition_type:'',mini_stage:'',nego_stage:'',
+    mini_tayang_at:'',mini_handover_at:'',mini_failure_at:'',mini_last_change_at:'',nego_started_at:'',nego_handover_at:'',updated_at:now
+  });
+  audit_(user,'ADMIN_RETURN_POKJA',req.request_id,{note,oldStatus:before.status,oldProcess:before.selection_process,oldType:before.competition_type,oldMiniStage:before.mini_stage,oldNegoStage:before.nego_stage,oldRound:before.current_round,newRound:nextRound,newStatus:STATUS.REVIU_ULANG});
+  appendNote_(user,req.request_id,'PERBAIKAN_ADMIN','KEMBALI_KE_POKJA',note);
+  const current=getRequest_(req.request_id);
+  try{notifyPokjaStatus_(current,'ADMIN_RETURN',note,nextRound);}catch(e){Logger.log('Notifikasi pengembalian tertunda: '+String(e));}
+  return adminCorrectionSnapshot_(current);
+}
+
+function adminList_(user) {
+  requireRole_(user,['ADMIN']);ensureUserEmailSchema_();
+  const users=rows_(sheet_(PBJWF.SHEETS.USERS)).filter(u=>String(u.role||'')!=='VERIFIKATOR_UKPBJ'&&!String(u.deleted_at||''));
+  const teams=rows_(sheet_(PBJWF.SHEETS.POKJA)).filter(t=>truthy_(t.active));
+  // Baca keanggotaan Pokja sekali untuk semua akun, bukan satu request Sheet per akun.
+  const memberships=pokjaMembershipIndex_(users,teams);
+  const publicUsers=users.map(u=>({...publicUser_(u),pokja_ids:u.role==='POKJA'?[...(memberships.get(String(u.user_id))||[])]:[],email:u.email||''}));
+  return {users:publicUsers,pokja:listPokjaCapacity_(),docConfig:activeDocConfig_(true),opdMaster:rows_(sheet_(PBJWF.SHEETS.MASTER_OPD)).filter(x=>truthy_(x.active)).sort((a,b)=>Number(a.sort||999)-Number(b.sort||999))};
+}
+
+function adminSaveUser_(user,data) {
+  pastikanDatabaseProduksiORBITA_();
+  requireRole_(user,['ADMIN']);ensureUserEmailSchema_();
+  const username=String(data.username||'').trim().toLowerCase(), role=String(data.role||'').toUpperCase();
+  if(!username||!String(data.nama||'').trim()||!ROLES.includes(role))throw new Error('Username, nama, dan role wajib diisi.');
+  if(role==='PPK'){const opd=String(data.opd||'').trim();if(!opd)throw new Error('Satuan kerja PPK wajib dipilih.');const valid=rows_(sheet_(PBJWF.SHEETS.MASTER_OPD)).some(x=>truthy_(x.active)&&String(x.nama_opd||'')===opd);if(!valid)throw new Error('Satuan kerja tidak ada pada master.');}
+  const email=String(data.email||'').trim().toLowerCase();
+  if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new Error('Alamat email tidak valid.');
+  const selected=role==='POKJA'?[...new Set((Array.isArray(data.pokjaIds)?data.pokjaIds:[data.pokjaId]).map(String).filter(Boolean))]:[];
+  if(selected.length){const allowed=new Set(rows_(sheet_(PBJWF.SHEETS.POKJA)).filter(p=>truthy_(p.active)).map(p=>String(p.pokja_id)));if(selected.some(id=>!allowed.has(id)))throw new Error('Ada Pokja yang tidak tersedia.');}
+  const primary=selected[0]||'';
+  const sh=sheet_(PBJWF.SHEETS.USERS); const byId=data.userId?findRow_(sh,'user_id',data.userId):null; const byName=findRow_(sh,'username',username);
+  if(byName&&(!byId||byName.obj.user_id!==byId.obj.user_id))throw new Error('Username sudah digunakan.');
+  if(byId){updateRow_(sh,byId.row,{username,nama:String(data.nama).trim(),role,opd:String(data.opd||''),pokja_id:primary,email,active:data.active!==false,updated_at:new Date()});savePokjaMemberships_(byId.obj.user_id,selected);revokeUserSessions_(byId.obj.user_id);audit_(user,'ADMIN_UPDATE_USER','',{targetUser:byId.obj.user_id,pokjaIds:selected});return {...publicUser_(findRow_(sh,'user_id',byId.obj.user_id).obj),email};}
+  const password=String(data.password||''); if(password.length<6)throw new Error('Password awal minimal 6 karakter.'); const salt=randomToken_().slice(0,24);
+  const obj={user_id:id_('USR'),username:username,password_hash:hashPassword_(password,salt),salt:salt,nama:String(data.nama).trim(),role:role,opd:String(data.opd||''),pokja_id:primary,email:email,active:data.active!==false,created_at:new Date(),updated_at:new Date(),last_login:''};appendObj_(sh,obj);savePokjaMemberships_(obj.user_id,selected);audit_(user,'ADMIN_CREATE_USER','',{targetUser:obj.user_id,role:role});return {...publicUser_(obj),email:email};
+}
+
+function adminDeleteUser_(user,payload){
+  requireRole_(user,['ADMIN']);const id=String(payload.userId||'').trim();
+  if(!id||id===String(user.user_id))throw new Error('Akun Admin yang sedang digunakan tidak dapat dihapus.');
+  const sh=sheet_(PBJWF.SHEETS.USERS),hit=findRow_(sh,'user_id',id);
+  if(!hit||String(hit.obj.deleted_at||''))throw new Error('Akun tidak ditemukan.');
+  if(hit.obj.role==='ADMIN'&&rows_(sh).filter(u=>u.role==='ADMIN'&&truthy_(u.active)&&!u.deleted_at).length<=1)throw new Error('Admin terakhir tidak bisa dihapus.');
+  ensureSheet_(ss_(),PBJWF.SHEETS.USERS,PBJ_HEADERS.PBJ_USERS);
+  updateRow_(sheet_(PBJWF.SHEETS.USERS),hit.row,{active:false,deleted_at:new Date(),updated_at:new Date()});
+  revokeUserSessions_(id);audit_(user,'ADMIN_DELETE_USER','',{targetUser:id,username:hit.obj.username});
+  return true;
+}
+
+function adminResetPassword_(user,payload) {
+  requireRole_(user,['ADMIN']); const sh=sheet_(PBJWF.SHEETS.USERS); const hit=findRow_(sh,'user_id',String(payload.userId||'')); if(!hit)throw new Error('User tidak ditemukan.');
+  const password=String(payload.password||'');if(password.length<6)throw new Error('Password minimal 6 karakter.');const salt=randomToken_().slice(0,24);updateRow_(sh,hit.row,{salt:salt,password_hash:hashPassword_(password,salt),updated_at:new Date()});revokeUserSessions_(hit.obj.user_id);audit_(user,'ADMIN_RESET_PASSWORD','',{targetUser:hit.obj.user_id});return true;
+}
+
+function adminSavePokja_(user,data) {
+  requireRole_(user,['ADMIN']); const sh=sheet_(PBJWF.SHEETS.POKJA); const id=String(data.pokjaId||'').trim(); const name=String(data.nama||'').trim(); if(!name)throw new Error('Nama Pokja wajib diisi.');
+  let obj;if(id){const hit=findRow_(sh,'pokja_id',id);if(!hit)throw new Error('Pokja tidak ditemukan.');updateRow_(sh,hit.row,{nama:name,capacity_max:Math.max(1,Number(data.capacityMax)||8),active:data.active!==false,updated_at:new Date()});obj=findRow_(sh,'pokja_id',id).obj;}
+  else{obj={pokja_id:id_('PKJ'),nama:name,capacity_max:Math.max(1,Number(data.capacityMax)||8),active:data.active!==false,created_at:new Date(),updated_at:new Date()};appendObj_(sh,obj);}
+  audit_(user,'ADMIN_SAVE_POKJA','',{pokjaId:obj.pokja_id});return obj;
+}
+
+function adminSaveDocConfig_(user,data) {
+  requireRole_(user,['ADMIN']); const sh=sheet_(PBJWF.SHEETS.DOC_CONFIG); const type=String(data.docType||'').trim().toUpperCase().replace(/[^A-Z0-9_]+/g,'_').replace(/^_+|_+$/g,'');
+  const label=String(data.label||'').trim();if(!type)throw new Error('Kode dokumen wajib diisi.');if(!label)throw new Error('Nama dokumen wajib diisi.');if(type==='SURAT_PERINTAH_POKJA')throw new Error('Surat Perintah Pokja diatur oleh alur disposisi.');
+  const hit=findRow_(sh,'doc_type',type); const obj={doc_type:type,label:label,required:data.required!==false,scope:String(data.scope||'ALL'),sort:Number(data.sort)||99,active:data.active!==false};
+  if(hit)updateRow_(sh,hit.row,obj);else appendObj_(sh,obj);clearDocConfigCache_();audit_(user,'ADMIN_SAVE_DOC_CONFIG','',{docType:type,label:label,active:obj.active});return obj;
+}
+
+function adminDeleteDocConfig_(user,payload) {
+  requireRole_(user,['ADMIN']);const sh=sheet_(PBJWF.SHEETS.DOC_CONFIG);const type=String(payload.docType||'').trim().toUpperCase();if(!type)throw new Error('Dokumen belum dipilih.');
+  const hit=findRow_(sh,'doc_type',type);if(!hit)throw new Error('Dokumen tidak ditemukan.');if(type==='SURAT_PERINTAH_POKJA')throw new Error('Surat Perintah Pokja tidak dapat dihapus dari sini.');
+  updateRow_(sh,hit.row,{active:false});clearDocConfigCache_();audit_(user,'ADMIN_DELETE_DOC_CONFIG','',{docType:type,label:hit.obj.label||type});return {...hit.obj,active:false};
+}
+
+function adminAudit_(user,payload) { requireRole_(user,['ADMIN']); const limit=Math.min(500,Math.max(20,Number(payload.limit)||150));return rows_(sheet_(PBJWF.SHEETS.AUDIT)).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,limit); }
+
+// Indeks keanggotaan seluruh akun dibuat sekali per eksekusi.
+// Sumber kebenaran: PBJ_POKJA_MEMBERS + pokja_id lama pada akun (kompatibilitas).
+function pokjaMembershipIndex_(users,teams){
+  const activeIds=new Set((teams||[]).filter(t=>truthy_(t.active)).map(t=>String(t.pokja_id||'')));
+  const byUser=new Map();
+  (users||[]).forEach(u=>{
+    if(String(u.role||'')!=='POKJA')return;
+    const ids=new Set(),primary=String(u.pokja_id||'').trim();
+    if(activeIds.has(primary))ids.add(primary);
+    byUser.set(String(u.user_id||''),ids);
+  });
+  if(byUser.size){
+    rows_(sheet_(PBJWF.SHEETS.MEMBERS)).forEach(m=>{
+      if(!truthy_(m.active))return;
+      const ids=byUser.get(String(m.user_id||'')),id=String(m.pokja_id||'').trim();
+      if(ids&&activeIds.has(id))ids.add(id);
+    });
+  }
+  return byUser;
+}
+function listPokjaCapacity_(requestRows) {
+  const teams=rows_(sheet_(PBJWF.SHEETS.POKJA)).filter(t=>truthy_(t.active));
+  let reqs=requestRows;
+  if(!Array.isArray(reqs)){
+    const stored=rows_(sheet_(PBJWF.SHEETS.REQUESTS));
+    const report=stored.some(reportEligible_)?readInaprocReport_():null;
+    reqs=stored.map(r=>requestWithReport_(r,report));
+  }
+  const users=rows_(sheet_(PBJWF.SHEETS.USERS));
+  const memberships=pokjaMembershipIndex_(users,teams);
+  const activeStatuses=new Set([STATUS.DITUGASKAN_POKJA,STATUS.REVIU_POKJA,STATUS.PERLU_PERBAIKAN_PPK,STATUS.REVIU_ULANG,STATUS.PERLU_DETAIL_PPK,STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC]);
+  const counts=new Map(),members=new Map();
+  teams.forEach(t=>{const id=String(t.pokja_id);counts.set(id,{active:0,done:0});members.set(id,[]);});
+  (reqs||[]).forEach(r=>{
+    const bucket=counts.get(String(r.assigned_pokja_id||''));if(!bucket)return;
+    if(activeStatuses.has(r.status))bucket.active++;
+    if(r.status===STATUS.SELESAI)bucket.done++;
+  });
+  users.forEach(u=>{
+    if(u.role!=='POKJA'||!truthy_(u.active)||u.deleted_at)return;
+    const profile=publicUser_(u);
+    for(const id of memberships.get(String(u.user_id))||[]){const arr=members.get(id);if(arr)arr.push(profile);}
+  });
+  return teams.map(t=>{
+    const id=String(t.pokja_id),count=counts.get(id),max=Math.max(1,Number(t.capacity_max)||8);
+    return {...t,activeCount:count.active,doneCount:count.done,remaining:Math.max(0,max-count.active),loadPct:Math.min(100,count.active/max*100),members:members.get(id)};
+  });
+}
+
+function getRequestHitAuthorized_(user,requestId){const hit=findRow_(sheet_(PBJWF.SHEETS.REQUESTS),'request_id',String(requestId||''));const req=hit&&hit.obj;if(!req)throw new Error('Permohonan tidak ditemukan.');if(user.role==='PPK'&&req.ppk_user_id!==user.user_id)throw new Error('Permohonan bukan milik akun ini.');if(user.role==='KEPALA_UKPBJ'&&['DRAFT','PERLU_KELENGKAPAN'].includes(String(req.status||'')))throw new Error('Permohonan belum dikirim oleh PPK.');if(user.role==='POKJA'&&req.assigned_pokja_id!==user.pokja_id&&!pokjaCanReadLinkedRequest_(user,req))throw new Error('Paket tidak ditugaskan ke Pokja akun ini.');return hit;}
+function getRequestAuthorized_(user,requestId) {return getRequestHitAuthorized_(user,requestId).obj;}
+function getRequest_(id){const hit=findRow_(sheet_(PBJWF.SHEETS.REQUESTS),'request_id',String(id||''));return hit?hit.obj:null;}
+function updateRequest_(id,patch){const hit=findRow_(sheet_(PBJWF.SHEETS.REQUESTS),'request_id',id);if(!hit)throw new Error('Permohonan tidak ditemukan.');updateRow_(sheet_(PBJWF.SHEETS.REQUESTS),hit.row,patch);}
+function touchRequest_(id){updateRequest_(id,{updated_at:new Date()});}
+function setRequestStatus_(user,id,status,detail){updateRequest_(id,{status:status,updated_at:new Date()});audit_(user,'STATUS_'+status,id,detail||{});}
+function currentDocs_(requestId){return rows_(sheet_(PBJWF.SHEETS.DOCS)).filter(x=>x.request_id===requestId&&truthy_(x.is_current));}
+function currentRoundReviews_(requestId,round){return rows_(sheet_(PBJWF.SHEETS.REVIEWS)).filter(x=>x.request_id===requestId&&Number(x.round)===Number(round));}
+function assertDocsComplete_(requestId){const req=getRequest_(requestId),newTypes=['SK_PPK','DPA_ANGGARAN','SCREENSHOT_RUP'];const required=activeDocConfig_().filter(x=>truthy_(x.required)&&(isNewKaji2817_(req)||!newTypes.includes(x.doc_type)));const docs=currentDocs_(requestId);const missing=required.filter(c=>!docs.some(d=>d.doc_type===c.doc_type));if(missing.length)throw new Error('Dokumen belum lengkap: '+missing.map(x=>x.label).join(', '));}
+function assertReviewCoverage_(requestId,round){const required=activeDocConfig_().filter(x=>truthy_(x.required));const docs=currentDocs_(requestId);const rev=currentRoundReviews_(requestId,round);const missing=[];required.forEach(c=>{const d=docs.find(x=>x.doc_type===c.doc_type);if(!d){missing.push(c.label);return;}const r=rev.find(x=>x.doc_id===d.doc_id);if(!r)missing.push(c.label);});if(missing.length)throw new Error('Reviu belum lengkap: '+missing.join(', '));}
+function assertReviewComplete_(requestId,round){assertReviewCoverage_(requestId,round);const bad=currentRoundReviews_(requestId,round).filter(x=>x.status==='PERLU_PERBAIKAN');if(bad.length)throw new Error('Masih ada dokumen yang perlu diperbaiki: '+bad.map(x=>x.doc_type).join(', '));}
+
+/** Notifikasi memakai audit proses yang sudah tersedia, tanpa menambah write pada alur pemilihan. */
+// Daftar ini khusus pemberitahuan tindak lanjut, bukan semua aktivitas paket.
+// Pembagian role di sini juga digunakan untuk validasi baca di readNotification_.
+const PBJ_NOTIFICATION_EVENTS = {
+  SUBMIT_REQUEST:['Permohonan masuk','KEPALA_UKPBJ'],
+  ASSIGN_POKJA:['Pokja telah ditetapkan','POKJA'],
+  REJECT_REQUEST:['Permohonan ditolak','PPK'],
+  KIRIM_UNDANGAN_KAJI:['Undangan Kaji Ulang','PPK'],
+  KAJI_ULANG_LANJUT:['Hasil Kaji Ulang sesuai','PPK'],
+  KAJI_ULANG_PERBAIKAN:['Dokumen perlu diperbaiki','PPK'],
+  KAJI_ULANG_TIDAK_SESUAI:['Dokumen perlu diperbaiki','PPK'],
+  SEND_REVISION:['Perbaikan dokumen diperlukan','PPK'],
+  RESUBMIT_REVISION:['Perbaikan dokumen dikirim','POKJA'],
+  RESUBMIT_KAJI_REVISION:['Tindak lanjut Kaji Ulang','POKJA'],
+  SUBMIT_KAJI_DETAILS:['Detail pemilihan dikirim','POKJA'],
+  MINI_GAGAL:['Mini Kompetisi gagal','PPK'],
+  MINI_BATAL:['Mini Kompetisi dibatalkan','PPK'],
+  MINI_HANDOVER:['Handover Mini Kompetisi','PPK'],
+  NEGO_HANDOVER:['Handover Negosiasi','PPK'],
+  NEGO_BATAL:['Negosiasi dibatalkan','PPK'],
+  STATUS_DITOLAK_KEPALA:['Permohonan ditolak','PPK']
+};
+function notificationSheets_(){
+  const db=ss_();
+  const a=db.getSheetByName(PBJWF.SHEETS.NOTIFICATIONS)||ensureSheet_(db,PBJWF.SHEETS.NOTIFICATIONS,PBJ_HEADERS.PBJ_NOTIFIKASI);
+  const b=db.getSheetByName(PBJWF.SHEETS.NOTIFICATION_READS)||ensureSheet_(db,PBJWF.SHEETS.NOTIFICATION_READS,PBJ_HEADERS.PBJ_NOTIFIKASI_BACA);
+  return {broadcast:a,reads:b};
+}
+// Hanya mengambil ekor log: tidak membaca ulang seluruh riwayat audit tiap membuka lonceng.
+function notificationTailPhysical_(sh,limit){
+  const end=sh.getLastRow(),last=sh.getLastColumn();if(end<2||limit<1)return [];
+  const count=Math.min(end-1,limit),headers=headers_(sh);
+  return sh.getRange(end-count+1,1,count,last).getValues().reverse().map(r=>{
+    const obj={};headers.forEach((k,i)=>obj[k]=normalizeCell_(r[i]));return obj;
+  });
+}
+function notificationTail_(sh,limit){
+  if(sh.getName()!==PBJWF.SHEETS.AUDIT||sh.getParent().getId()!==PBJWF.DB_ID)return notificationTailPhysical_(sh,limit);
+  const out=[],parts=shardSheets_(sh.getName(),sh);
+  for(let i=parts.length-1;i>=0&&out.length<limit;i--)out.push(...notificationTailPhysical_(parts[i],limit-out.length));
+  return out;
+}
+function notificationVisible_(user,req){
+  if(!req)return false;
+  if(user.role==='PPK')return String(req.ppk_user_id||'')===String(user.user_id);
+  if(user.role==='POKJA')return !!user.pokja_id&&String(req.assigned_pokja_id||'')===String(user.pokja_id);
+  if(user.role==='KEPALA_UKPBJ')return !['DRAFT','PERLU_KELENGKAPAN'].includes(String(req.status||''));
+  return ['ADMIN','PIMPINAN','PENGAWAS'].includes(user.role);
+}
+function notificationCandidates_(user,options={}){
+  const sh=notificationSheets_();
+  // Riwayat penuh hanya dibaca bila menu Notifikasi dibuka; lonceng tetap ringan.
+  const archive=options.archive===true;
+  const published=notificationTail_(sh.broadcast,archive?Math.max(0,sh.broadcast.getLastRow()-1):160).filter(n=>String(n.active).toLowerCase()!=='false');
+  const auditSheet=sheet_(PBJWF.SHEETS.AUDIT);
+  const audit=notificationTail_(auditSheet,archive?shardSheets_(PBJWF.SHEETS.AUDIT,auditSheet).reduce((n,t)=>n+Math.max(0,t.getLastRow()-1),0):360);
+  const role=String(user.role||''),userId=String(user.user_id||'');
+  const filteredAudit=audit.filter(a=>a.request_id&&PBJ_NOTIFICATION_EVENTS[a.action]&&String(a.user_id)!==userId&&PBJ_NOTIFICATION_EVENTS[a.action][1].split(',').includes(role));
+  const wantsRequests=filteredAudit.length||published.some(n=>n.request_id);
+  let requests={};if(wantsRequests){rows_(sheet_(PBJWF.SHEETS.REQUESTS)).forEach(r=>requests[String(r.request_id)]=r);}
+  const result=[];
+  published.forEach(n=>{
+    let roles=[];try{roles=JSON.parse(String(n.target_roles||'[]'));}catch(_){roles=[]}
+    if(!Array.isArray(roles)||!roles.includes(role))return;
+    const id=String(n.request_id||'');if(id&&!notificationVisible_(user,requests[id]))return;
+    result.push({id:String(n.notification_id),created_at:n.created_at,type:'broadcast',title:String(n.title||'Pengumuman'),message:String(n.message||''),request_id:id,attachment_name:String(n.attachment_name||''),attachment_url:String(n.attachment_url||''),attachments_json:String(n.attachments_json||'')});
+  });
+  filteredAudit.forEach(a=>{
+    const req=requests[String(a.request_id||'')];if(!notificationVisible_(user,req))return;
+    const conf=PBJ_NOTIFICATION_EVENTS[a.action];
+    result.push({id:String(a.audit_id),created_at:a.created_at,type:'permohonan',title:conf[0],message:String(req.judul_permohonan||req.nama_paket||req.request_id||'').slice(0,180),request_id:String(a.request_id)});
+  });
+  result.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
+  return archive?result:result.slice(0,85);
+}
+function listNotifications_(user,payload={}){
+  const available=notificationCandidates_(user,{archive:payload.archive===true});
+  const sheet=notificationSheets_().reads,row=findRow_(sheet,'user_id',user.user_id);
+  let seen=[];try{seen=JSON.parse(String(row&&row.obj.read_ids_json||'[]'));}catch(_){seen=[]}
+  const marks=new Set(Array.isArray(seen)?seen:[]);
+  const items=available.map(x=>({...x,read:marks.has(x.id)}));
+  return {items:items,unread:items.reduce((n,x)=>n+(x.read?0:1),0)};
+}
+function readNotification_(user,payload){
+  const id=String(payload.id||'').trim();if(!id||id.length>120)throw new Error('Notifikasi tidak valid.');
+  // Pastikan notifikasi milik akun ini sebelum menyimpan status baca.
+  // Cari tepat satu baris berdasarkan ID; tidak perlu memuat ulang seluruh log ketika menandai dibaca.
+  let target=null;
+  if(id.indexOf('BC-')===0){
+    const item=findRow_(notificationSheets_().broadcast,'notification_id',id);
+    if(item&&String(item.obj.active).toLowerCase()!=='false'){
+      let roles=[];try{roles=JSON.parse(String(item.obj.target_roles||'[]'));}catch(_){}
+      if(Array.isArray(roles)&&roles.includes(user.role))target=item.obj;
+    }
+  }else{
+    const item=findRow_(sheet_(PBJWF.SHEETS.AUDIT),'audit_id',id);
+    if(item&&PBJ_NOTIFICATION_EVENTS[item.obj.action]&&String(item.obj.user_id)!==String(user.user_id)&&PBJ_NOTIFICATION_EVENTS[item.obj.action][1].split(',').includes(user.role))target=item.obj;
+  }
+  if(!target)throw new Error('Notifikasi tidak ditemukan atau tidak dapat diakses.');
+  if(target.request_id){
+    const found=findRow_(sheet_(PBJWF.SHEETS.REQUESTS),'request_id',String(target.request_id));
+    if(!found||!notificationVisible_(user,found.obj))throw new Error('Tidak memiliki akses ke permohonan.');
+  }
+  const sh=notificationSheets_().reads,hit=findRow_(sh,'user_id',user.user_id);
+  let ids=[];try{ids=JSON.parse(String(hit&&hit.obj.read_ids_json||'[]'));}catch(_){ids=[]}
+  if(!Array.isArray(ids))ids=[];
+  if(!ids.includes(id)){
+    ids.push(id);const obj={user_id:user.user_id,read_ids_json:JSON.stringify(ids.slice(-450)),updated_at:new Date()};
+    if(hit)updateRow_(sh,hit.row,obj);else appendObj_(sh,obj);
+  }
+  return {id:id,read:true};
+}
+function sendBroadcast_(user,payload){
+  requireRole_(user,['ADMIN']);
+  const title=String(payload.title||'').trim(),message=String(payload.message||'').trim();
+  const targets=payload.roles;
+  if(!title||title.length>120||!message||message.length>1400)throw new Error('Isi judul (maks. 120) dan pesan (maks. 1.400 karakter).');
+  if(!Array.isArray(targets)||!targets.length||targets.some(r=>!ROLES.includes(r))||new Set(targets).size!==targets.length)throw new Error('Pilih role penerima yang sesuai.');
+  const requestId=String(payload.requestId||'').trim();
+  if(requestId&&!getRequest_(requestId))throw new Error('ID permohonan tidak ditemukan.');
+  const sh=notificationSheets_().broadcast;
+  // nonce mencegah broadcast ganda bila pengguna menekan kirim beberapa kali / retry jaringan.
+  const nonce=String(payload.clientId||'').trim();if(!/^[a-zA-Z0-9_-]{8,100}$/.test(nonce))throw new Error('Kunci pengiriman tidak valid.');
+  const notifId='BC-'+nonce;
+  const prior=findRow_(sh,'notification_id',notifId);
+  if(prior)return {notification_id:notifId,duplicate:true};
+  // Mendukung payload lama (1 lampiran) dan baru (maksimal 5 lampiran).
+  const supplied=Array.isArray(payload.attachments)?payload.attachments:(payload.attachment?[payload.attachment]:[]);
+  if(supplied.length>5)throw new Error('Maksimal 5 lampiran per broadcast.');
+  const seenIds=new Set(),attachments=[];
+  supplied.forEach(item=>{
+    const claims=verifyDirectUploadClaims_(user,{ticket:item.ticket,requestId:''},'BROADCAST');
+    if(String(claims.docType)!=='BROADCAST_ATTACHMENT')throw new Error('Lampiran broadcast tidak valid.');
+    const fileId=String(item.driveFileId||'');
+    if(seenIds.has(fileId))throw new Error('File lampiran tidak boleh sama.');seenIds.add(fileId);
+    const driveFile=getVerifiedDirectDriveFile_(claims,fileId),safeName=sanitizeFileName_(claims.fileName||'Lampiran');
+    try{driveFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK,DriveApp.Permission.VIEW);}catch(e){throw new Error('Lampiran belum dapat dibagikan. Periksa izin folder Drive.');}
+    driveFile.setName(safeName);
+    attachments.push({name:safeName,url:driveFile.getUrl(),fileId:driveFile.getId()});
+  });
+  const first=attachments[0]||{};
+  // Kolom lama tetap diisi untuk kompatibilitas, daftar baru tersimpan sebagai JSON.
+  if(attachments.length&&typeof sh.getLastColumn==='function'&&!headers_(sh).includes('attachments_json'))ensureSheet_(ss_(),PBJWF.SHEETS.NOTIFICATIONS,PBJ_HEADERS.PBJ_NOTIFIKASI);
+  const obj={notification_id:notifId,created_at:new Date(),created_by:user.user_id,title:title,message:message,target_roles:JSON.stringify(targets),request_id:requestId,active:true,
+    attachment_name:first.name||'',attachment_url:first.url||'',attachment_file_id:first.fileId||'',attachments_json:JSON.stringify(attachments)};
+  appendObj_(sh,obj);
+  return {notification_id:notifId,duplicate:false,attachment_name:first.name||'',attachment_count:attachments.length};
+}
+
+function publicUser_(u){return{user_id:u.user_id,username:u.username,nama:u.nama,role:u.role,opd:u.opd||'',pokja_id:u.pokja_id||'',pokja_ids:Array.isArray(u.pokja_ids)?u.pokja_ids:(u.pokja_id?[String(u.pokja_id)]:[]),active:truthy_(u.active),last_login:u.last_login||''};}
+function requestDateYmd_(value){
+  if(!value)return '';
+  if(value instanceof Date)return Number.isFinite(value.getTime())?Utilities.formatDate(value,'Asia/Jakarta','yyyy-MM-dd'):'';
+  const raw=String(value).trim();if(/^\d{4}-\d{2}-\d{2}$/.test(raw))return raw;
+  const d=new Date(raw);return isNaN(d.getTime())?'':Utilities.formatDate(d,'Asia/Jakarta','yyyy-MM-dd');
+}
+function requestTimeHHmm_(value){
+  if(!value)return '';
+  if(value instanceof Date)return Number.isFinite(value.getTime())?Utilities.formatDate(value,'Asia/Jakarta','HH:mm'):'';
+  const raw=String(value).trim();if(/^\d{2}:\d{2}/.test(raw))return raw.slice(0,5);
+  const d=new Date(raw);if(isNaN(d.getTime()))return '';
+  if(d.getUTCFullYear()<1902){const m=(d.getUTCHours()*60+d.getUTCMinutes()+420)%1440;return ('0'+Math.floor(m/60)).slice(-2)+':'+('0'+m%60).slice(-2);}
+  return Utilities.formatDate(d,'Asia/Jakarta','HH:mm');
+}
+function publicRequest_(r){return{request_id:r.request_id,year:r.year,kode_rup:r.kode_rup,nama_paket:r.nama_paket,judul_permohonan:r.judul_permohonan||r.nama_paket||'',opd:r.opd,ppk_user_id:r.ppk_user_id,jenis:r.jenis,cara:r.cara,metode_pengadaan:r.metode_pengadaan,metode_epurchasing:r.metode_epurchasing,pagu:Number(r.pagu)||0,sumber_dana:r.sumber_dana,waktu_pemilihan:r.waktu_pemilihan,status:r.status,inaproc_version:r.inaproc_version||'',inaproc_progress:r.inaproc_progress||null,current_round:Number(r.current_round)||1,assigned_pokja_id:r.assigned_pokja_id||'',assigned_at:r.assigned_at||'',sop_started_at:r.sop_started_at||'',rejected_reason:r.rejected_reason||'',rejected_at:r.rejected_at||'',rejected_by:r.rejected_by||'',previous_request_id:r.previous_request_id||'',inaproc_code:r.inaproc_code||'',winner_name:r.winner_name||'',result_value:Number(r.result_value)||0,result_date:r.result_date||'',created_at:r.created_at||'',updated_at:r.updated_at||'',notes:r.notes||'',ppk_nama:r.ppk_nama||'',ppk_email:r.ppk_email||'',hps_alokasi:Number(r.hps_alokasi)||0,program:r.program||'',kegiatan:r.kegiatan||'',sub_kegiatan:r.sub_kegiatan||'',produk_dalam_negeri:r.produk_dalam_negeri||'',selection_process:requestSelectionProcess_(r),workflow_scheme:r.workflow_scheme||'',kaji_ulang_date:requestDateYmd_(r.kaji_ulang_date),kaji_ulang_result:r.kaji_ulang_result||'',kaji_ulang_note:r.kaji_ulang_note||'',method_locked_at:r.method_locked_at||'',details_submitted_at:r.details_submitted_at||'',competition_type:r.competition_type||'',competition_title:r.competition_title||r.nama_paket||'',schedule_start_date:requestDateYmd_(r.schedule_start_date),schedule_end_date:requestDateYmd_(r.schedule_end_date),schedule_start_time:requestTimeHHmm_(r.schedule_start_time),schedule_end_time:requestTimeHHmm_(r.schedule_end_time),qualification_json:r.qualification_json||'',product_category:r.product_category||'',product_details_json:r.product_details_json||'',offer_type:r.offer_type||'',payment_type:r.payment_type||'',payment_terms_count:Number(r.payment_terms_count)||0,payment_terms_note:r.payment_terms_note||'',construction_details_json:r.construction_details_json||'',work_location:r.work_location||'',completion_date:requestDateYmd_(r.completion_date),submitted_at:r.submitted_at||'',mini_stage:r.mini_stage||'',mini_tayang_at:r.mini_tayang_at||'',mini_handover_at:r.mini_handover_at||'',mini_failure_at:r.mini_failure_at||'',mini_last_change_at:r.mini_last_change_at||'',nego_stage:r.nego_stage||'',nego_started_at:r.nego_started_at||'',nego_handover_at:r.nego_handover_at||''};}
+function clearDocConfigCache_(){try{scriptCache_()?.remove('pbj_doc_config_active_v1');}catch(_){}}
+function activeDocConfig_(includeInactive){if(!includeInactive){try{const cached=scriptCache_()?.get('pbj_doc_config_active_v1');if(cached)return JSON.parse(cached);}catch(_){}}let r=rows_(sheet_(PBJWF.SHEETS.DOC_CONFIG));r=r.filter(x=>x.doc_type!=='SURAT_PERINTAH_POKJA');if(!includeInactive)r=r.filter(x=>truthy_(x.active));r=r.sort((a,b)=>Number(a.sort)-Number(b.sort));if(!includeInactive)try{scriptCache_()?.put('pbj_doc_config_active_v1',JSON.stringify(r),60);}catch(_){}return r;}
+function appendNote_(user,requestId,phase,status,note){appendObj_(sheet_(PBJWF.SHEETS.NOTES),{note_id:id_('NTE'),request_id:requestId,phase:phase,author_user_id:user.user_id,status:status,note:String(note||''),created_at:new Date()});}
+function audit_(user,action,requestId,detail){const obj={audit_id:id_('AUD'),created_at:new Date(),user_id:user&&user.user_id||'',role:user&&user.role||'',action:action,request_id:requestId||'',detail_json:JSON.stringify(detail||{})};appendObj_(sheet_(PBJWF.SHEETS.AUDIT),obj);return obj;}
+function requireRole_(user,allowed){if(!allowed.includes(user.role))throw new Error('Akun tidak mempunyai kewenangan untuk aksi ini.');}
+
+function createRequestFolder_(id,rup){const root=getOrCreateWorkflowFolder_();const year=String(rup.tahun||new Date().getFullYear());const yf=getOrCreateChildFolder_(root,year);return yf.createFolder(sanitizeFileName_(id+' - '+String(rup.namaPaket||rup.kodeRup).slice(0,90)));}
+function getOrCreateWorkflowFolder_(){const root=DriveApp.getFolderById(PBJWF.ROOT_DRIVE_ID);const it=root.getFoldersByName(PBJWF.FOLDER_NAME);return it.hasNext()?it.next():root.createFolder(PBJWF.FOLDER_NAME);}
+function getOrCreateChildFolder_(parent,name){const it=parent.getFoldersByName(name);return it.hasNext()?it.next():parent.createFolder(name);}
+function sanitizeFileName_(s){return String(s||'file').replace(/[\\/:*?"<>|#%{}~&]/g,'_').replace(/\s+/g,' ').trim().slice(0,160);}
+
+/** Jalankan satu kali setelah memperbarui backend. Data lama tidak diubah. */
+function setupNotifikasiV2844(){
+  const ss=ss_();
+  ensureSheet_(ss,PBJWF.SHEETS.NOTIFICATIONS,PBJ_HEADERS.PBJ_NOTIFIKASI);
+  ensureSheet_(ss,PBJWF.SHEETS.NOTIFICATION_READS,PBJ_HEADERS.PBJ_NOTIFIKASI_BACA);
+  return 'Notifikasi dan lampiran broadcast siap. Data lama tetap utuh.';
+}
+function setupNotifikasiV2837(){
+  const ss=ss_();
+  ensureSheet_(ss,PBJWF.SHEETS.NOTIFICATIONS,PBJ_HEADERS.PBJ_NOTIFIKASI);
+  ensureSheet_(ss,PBJWF.SHEETS.NOTIFICATION_READS,PBJ_HEADERS.PBJ_NOTIFIKASI_BACA);
+  return 'Notifikasi ORBITA siap.';
+}
+
+function seedDocConfig_(ss){const sh=ensureSheet_(ss,PBJWF.SHEETS.DOC_CONFIG,PBJ_HEADERS.PBJ_DOK_CONFIG);if(sh.getLastRow()>1)return;[
+  ['SURAT_PERMOHONAN','Surat Permohonan E-Purchasing',true,'ALL',10,true],['SK_PPK','SK Pengangkatan PPK',true,'ALL',12,true],['DPA_ANGGARAN','Dokumen DPA Anggaran',true,'ALL',14,true],['SCREENSHOT_RUP','Screenshot RUP',false,'ALL',16,true],['KAK','KAK / Spesifikasi Teknis',true,'ALL',20,true],['HPS','HPS',true,'ALL',30,true],['RANCANGAN_KONTRAK','Rancang Kontrak',true,'ALL',40,true]
+ ].forEach(r=>sh.appendRow(r));}
+function setSetting_(key,value){const sh=sheet_(PBJWF.SHEETS.SETTINGS);const hit=findRow_(sh,'key',key);const obj={key:key,value:String(value),updated_at:new Date()};if(hit)updateRow_(sh,hit.row,obj);else appendObj_(sh,obj);}
+
+let PBJWF_SS_CACHE=null;
+function ss_(){return PBJ_DB_TEST_CONTEXT?PBJ_DB_TEST_CONTEXT.root:ssProduction_();}
+function ssProduction_(){pastikanDatabaseProduksiORBITA_();return PBJWF_SS_CACHE||(PBJWF_SS_CACHE=SpreadsheetApp.openById(PBJWF.DB_ID));}
+let PBJWF_MAIL_SS_CACHE=null;
+function mailSs_(){pastikanDatabaseProduksiORBITA_();return PBJWF_MAIL_SS_CACHE||(PBJWF_MAIL_SS_CACHE=SpreadsheetApp.openById(PBJWF.MAIL_DB_ID));}
+function ensureEmailQueueStorage_(){return emailEnsureProduksiStore_();}
+function emailQueueSheet_(){return emailActiveQueueProduksi_(false);}
+function sheet_(name){
+  if(name===PBJWF.SHEETS.MAIL_QUEUE)return emailQueueSheet_();
+  const sh=ss_().getSheetByName(name);
+  if(!sh)throw new Error('Sheet '+name+' belum ada. Jalankan setupPemilihanPBJ().');
+  return sh;
+}
+function ensureSheet_(ss,name,headers){
+  let sh=ss.getSheetByName(name);if(!sh)sh=ss.insertSheet(name);
+  const existing=sh.getLastRow()?sh.getRange(1,1,1,Math.max(1,sh.getLastColumn())).getDisplayValues()[0].map(String):[];
+  const missing=headers.filter(h=>!existing.includes(h));
+  const start=existing.length+1, needed=existing.length+missing.length;
+  if(sh.getMaxColumns()<needed)sh.insertColumnsAfter(sh.getMaxColumns(),needed-sh.getMaxColumns());
+  if(missing.length)sh.getRange(1,start,1,missing.length).setValues([missing]);
+  delete PBJ_HEADER_CACHE[pbjPhysicalKey_(sh)];invalidateShardTable_(sh);sh.setFrozenRows(1);return sh;
+}
+// ===== v28.57 - ROTASI OTOMATIS DATABASE TRANSAKSI =====
+// Database induk TIDAK dipindahkan. Login, sesi, master OPD/Pokja, kategori,
+// pengaturan, Report, antrean email dan Drive tetap pada lokasi semula.
+// Spreadsheet baru hanya menampung lima tab transaksi di bawah ini.
+// Semua transaksi lama tetap dapat dibaca/diubah dari lokasi aslinya.
+var PBJ_DB_LOCKED=false;
+var PBJ_READ_CACHE={},PBJ_HEADER_CACHE={},PBJ_HIT_CACHE={},PBJ_SHARD_SS_CACHE={};
+var PBJ_DB_SHARD_LIST_CACHE=null,PBJ_DB_WRITE_CHECKED=false;
+// Pengujian menggunakan konteks sementara per-eksekusi. Jangan menyimpan
+// ID/properti pengujian di Script Properties database produksi.
+var PBJ_DB_TEST_CONTEXT=null;
+function pbjRootDbId_(){return PBJ_DB_TEST_CONTEXT?PBJ_DB_TEST_CONTEXT.root.getId():PBJWF.DB_ID;}
+function pbjRotationProperties_(){return PBJ_DB_TEST_CONTEXT?PBJ_DB_TEST_CONTEXT.properties:PropertiesService.getScriptProperties();}
+function pbjRotationCreateSpreadsheet_(name){
+  if(PBJ_DB_TEST_CONTEXT&&PBJ_DB_TEST_CONTEXT.failCreate)throw new Error('SIMULASI: pembuatan spreadsheet baru gagal.');
+  const ss=SpreadsheetApp.create(name);
+  if(PBJ_DB_TEST_CONTEXT)PBJ_DB_TEST_CONTEXT.createdIds.push(ss.getId());
+  return ss;
+}
+
+const PBJ_DB_TABLES=[PBJWF.SHEETS.REQUESTS,PBJWF.SHEETS.DOCS,PBJWF.SHEETS.REVIEWS,PBJWF.SHEETS.NOTES,PBJWF.SHEETS.AUDIT];
+const PBJ_DB_REGISTRY='PBJ_DB_SHARDS';
+const PBJ_DB_LOCATOR='PBJ_DB_REQUEST_LOCATOR';
+const PBJ_DB_REGISTRY_HEADERS=['spreadsheet_id','status','created_at','remarks'];
+const PBJ_DB_ACTIVE_PROP='ORBITA_DB_ACTIVE_V1';
+const PBJ_DB_EVER_PROP='ORBITA_DB_EVER_ROTATED_V1';
+const PBJ_DB_MANIFEST_CACHE='ORBITA_DB_SHARD_IDS_V1';
+// Batas operasional sengaja jauh di bawah batas Google Sheets.
+// Baris kosong yang dialokasikan dan semua tab dalam satu file turut dihitung.
+const PBJ_DB_LIMIT={PBJ_PERMOHONAN:3000,PBJ_DOKUMEN:12000,PBJ_REVIU:14000,PBJ_CATATAN:14000,PBJ_AUDIT_LOG:30000};
+const PBJ_DB_MAX_ALLOCATED_CELLS=2500000;
+function isShardTable_(name){return PBJ_DB_TABLES.indexOf(name)>=0;}
+function pbjPhysicalKey_(sh){return 'PHYSICAL:'+sh.getParent().getId()+':'+sh.getName();}
+function invalidateShardTable_(sh){
+  const name=sh.getName();delete PBJ_READ_CACHE[name];delete PBJ_READ_CACHE[pbjPhysicalKey_(sh)];
+  // Hasil cari row hanya berlaku selama satu eksekusi; buang setelah perubahan struktur.
+  PBJ_HIT_CACHE={};
+  // Ubah versi sinkronisasi juga saat paket lama diedit di shard arsip.
+  // Hanya satu operasi cache, tanpa tambahan baca spreadsheet.
+  if(isShardTable_(name)&&!PBJ_DB_TEST_CONTEXT)try{CacheService.getScriptCache().put('orbita_prod_sync_version_v1',String(Date.now()),1800);}catch(_){}
+}
+function shardRegistryIds_(){
+  if(PBJ_DB_SHARD_LIST_CACHE)return PBJ_DB_SHARD_LIST_CACHE.slice();
+  const props=pbjRotationProperties_(),active=props.getProperty(PBJ_DB_ACTIVE_PROP);
+  if(!active){if(props.getProperty(PBJ_DB_EVER_PROP)==='1')throw new Error('Lokasi database ORBITA hilang. Hubungi administrator; data tidak dihapus.');return PBJ_DB_SHARD_LIST_CACHE=[];}
+  try{
+    const cache=PBJ_DB_TEST_CONTEXT?null:CacheService.getScriptCache(),cached=cache&&cache.get(PBJ_DB_MANIFEST_CACHE);
+    if(cached){const list=JSON.parse(cached);if(Array.isArray(list)&&list.includes(active))return PBJ_DB_SHARD_LIST_CACHE=list.slice();}
+  }catch(_){}
+  // Registry di induk adalah sumber informasi shard yang sudah diaktifkan.
+  // Jika gagal dibaca: fail CLOSED, jangan tampilkan hasil yang seolah lengkap.
+  const registry=ss_().getSheetByName(PBJ_DB_REGISTRY);
+  if(!registry)throw new Error('Daftar database ORBITA tidak ditemukan. Hubungi administrator.');
+  const end=registry.getLastRow();
+  const list=end<2?[]:registry.getRange(2,1,end-1,2).getValues().filter(r=>r[0]&&String(r[1])==='READY').map(r=>String(r[0]));
+  if(!list.includes(active))throw new Error('Database ORBITA belum sinkron. Penyimpanan dihentikan agar data tidak salah lokasi.');
+  PBJ_DB_SHARD_LIST_CACHE=list;
+  if(!PBJ_DB_TEST_CONTEXT)try{CacheService.getScriptCache().put(PBJ_DB_MANIFEST_CACHE,JSON.stringify(list),240);}catch(_){}
+  return list.slice();
+}
+function shardSpreadsheet_(id){
+  if(String(id)===String(pbjRootDbId_()))return ss_();
+  return PBJ_SHARD_SS_CACHE[id]||(PBJ_SHARD_SS_CACHE[id]=SpreadsheetApp.openById(id));
+}
+function shardSheets_(name,base){
+  if(!isShardTable_(name))return [base||sheet_(name)];
+  const out=[base||sheet_(name)];
+  shardRegistryIds_().forEach(id=>{
+    const sh=shardSpreadsheet_(id).getSheetByName(name);
+    if(!sh)throw new Error('Struktur database ORBITA tidak lengkap: '+name+'.');
+    out.push(sh);
+  });
+  return out;
+}
+function rowsPhysical_(sh){
+  const key=pbjPhysicalKey_(sh);
+  if(PBJ_READ_CACHE[key])return PBJ_READ_CACHE[key];
+  const lr=sh.getLastRow(),lc=sh.getLastColumn();if(lr<2||lc<1)return PBJ_READ_CACHE[key]=[];
+  const vals=sh.getRange(1,1,lr,lc).getValues(),h=vals.shift().map(String);
+  const data=[];const name=sh.getName(),pk={PBJ_PERMOHONAN:'request_id',PBJ_DOKUMEN:'doc_id',PBJ_REVIU:'review_id'}[name];
+  const ix=pk?h.indexOf(pk):-1,id=sh.getParent().getId();
+  vals.forEach((row,n)=>{
+    if(!row.some(v=>v!==''&&v!=null))return;
+    const o={};h.forEach((k,i)=>o[k]=normalizeCell_(row[i]));data.push(o);
+    if(ix>=0&&row[ix])PBJ_HIT_CACHE[name+'|'+pk+'|'+String(row[ix])]={id:id,row:n+2};
+  });
+  return PBJ_READ_CACHE[key]=data;
+}
+function rows_(sh){
+  const name=sh.getName();
+  // Semua pemanggil lama cukup memakai rows_(sheet_(...)).
+  // Di belakang layar lima tab transaksi dibaca sebagai satu tabel logis.
+  if(isShardTable_(name)&&sh.getParent().getId()===pbjRootDbId_()){
+    if(PBJ_READ_CACHE[name])return PBJ_READ_CACHE[name];
+    const out=[];shardSheets_(name,sh).forEach(part=>rowsPhysical_(part).forEach(row=>out.push(row)));
+    return PBJ_READ_CACHE[name]=out;
+  }
+  return rowsPhysical_(sh);
+}
+function normalizeCell_(v){if(v instanceof Date)return Number.isFinite(v.getTime())?v.toISOString():'';return v;}
+function headers_(sh){
+  const key=pbjPhysicalKey_(sh);
+  if(PBJ_HEADER_CACHE[key])return PBJ_HEADER_CACHE[key];
+  return PBJ_HEADER_CACHE[key]=sh.getRange(1,1,1,sh.getLastColumn()).getDisplayValues()[0].map(String);
+}
+function pbjFindPhysical_(sh,key,value){
+  const h=headers_(sh),idx=h.indexOf(key);if(idx<0)return null;
+  const lr=sh.getLastRow();if(lr<2)return null;
+  const finder=sh.getRange(2,idx+1,lr-1,1).createTextFinder(String(value)).matchEntireCell(true).findNext();
+  if(!finder)return null;
+  const row=finder.getRow(),vals=sh.getRange(row,1,1,h.length).getValues()[0],obj={};
+  h.forEach((k,i)=>obj[k]=normalizeCell_(vals[i]));return {row:row,obj:obj};
+}
+// Token row virtual hanya di dalam memori Apps Script, tidak disimpan ke spreadsheet.
+// updateRow_ menulis pada spreadsheet tempat record tersebut benar-benar ditemukan.
+function pbjEncodeRow_(id,row){return '__ORBITA_ROW__'+id+'#'+row;}
+function pbjResolveRow_(sh,row){
+  if(typeof row==='string'&&row.indexOf('__ORBITA_ROW__')===0){
+    const m=/^__ORBITA_ROW__([^#]+)#(\d+)$/.exec(row);
+    if(!m)throw new Error('Referensi baris database tidak valid.');
+    const id=m[1];if(!shardRegistryIds_().includes(id))throw new Error('Lokasi data tidak lagi terdaftar.');
+    const part=shardSpreadsheet_(id).getSheetByName(sh.getName());
+    if(!part)throw new Error('Tab database tidak ditemukan.');
+    return {sheet:part,row:Number(m[2])};
+  }
+  return {sheet:sh,row:row};
+}
+function findRow_(sh,key,value){
+  const name=sh.getName(),root=isShardTable_(name)&&sh.getParent().getId()===pbjRootDbId_();
+  if(!root)return pbjFindPhysical_(sh,key,value);
+  const cacheKey=name+'|'+key+'|'+String(value),hint=PBJ_HIT_CACHE[cacheKey];
+  if(hint){const physical=hint.id===pbjRootDbId_()?sh:shardSpreadsheet_(hint.id).getSheetByName(name);
+    const h=headers_(physical),vals=physical.getRange(hint.row,1,1,h.length).getValues()[0],obj={};
+    h.forEach((k,i)=>obj[k]=normalizeCell_(vals[i]));
+    if(String(obj[key])===String(value))return {row:hint.id===pbjRootDbId_()?hint.row:pbjEncodeRow_(hint.id,hint.row),obj:obj};
+  }
+  // Locator mempercepat akses permohonan baru tanpa membuka semua shard.
+  // Indeks hanya petunjuk, bukan sumber data: kalau hilang, pencarian lengkap tetap berjalan.
+  if(name===PBJWF.SHEETS.REQUESTS&&key==='request_id'){
+    const locator=ss_().getSheetByName(PBJ_DB_LOCATOR);
+    if(locator){try{
+      const loc=pbjFindPhysical_(locator,'request_id',value);
+      const targetId=loc&&String(loc.obj.spreadsheet_id||'');
+      if(targetId&&shardRegistryIds_().includes(targetId)){
+        const target=shardSpreadsheet_(targetId).getSheetByName(name);
+        const found=target&&pbjFindPhysical_(target,key,value);
+        if(found){PBJ_HIT_CACHE[cacheKey]={id:targetId,row:found.row};return {row:pbjEncodeRow_(targetId,found.row),obj:found.obj};}
+      }
+    }catch(error){Logger.log('Locator permohonan tidak tersedia: '+String(error));}}
+  }
+  for(const part of shardSheets_(name,sh)){
+    const hit=pbjFindPhysical_(part,key,value);if(!hit)continue;
+    const id=part.getParent().getId();PBJ_HIT_CACHE[cacheKey]={id:id,row:hit.row};
+    return {row:id===pbjRootDbId_()?hit.row:pbjEncodeRow_(id,hit.row),obj:hit.obj};
+  }
+  return null;
+}
+function pbjAllocatedCells_(ss){
+  return ss.getSheets().reduce((sum,sh)=>sum+sh.getMaxRows()*sh.getMaxColumns(),0);
+}
+function pbjSourceNearLimit_(ss){
+  const base=ss.getId()===pbjRootDbId_();
+  // Induk mempunyai master statis besar: hanya tab transaksi yang memicu rotasi.
+  // Tetap periksa total keseluruhan file agar tidak menabrak limit Google Sheets.
+  if(pbjAllocatedCells_(ss)>= (PBJ_DB_TEST_CONTEXT?900000:(base?14000000:PBJ_DB_MAX_ALLOCATED_CELLS)))return true;
+  const limits=PBJ_DB_TEST_CONTEXT?PBJ_DB_TEST_CONTEXT.limits:PBJ_DB_LIMIT;
+  return PBJ_DB_TABLES.some(name=>{const sh=ss.getSheetByName(name);return sh&&sh.getLastRow()>=limits[name];});
+}
+function pbjCreateReadyShard_(){
+  const props=pbjRotationProperties_(),oldId=props.getProperty(PBJ_DB_ACTIVE_PROP)||pbjRootDbId_();
+  const old=shardSpreadsheet_(oldId);
+  if(!pbjSourceNearLimit_(old))return oldId;
+  // Tulis di bawah ScriptLock yang sama dengan alur pengajuan/reviu;
+  // tidak mengunci transfer upload ke Google Drive.
+  const name='ORBITA_PRODUKSI_TRANSAKSI_'+Utilities.formatDate(new Date(),'Asia/Jakarta','yyyyMMdd_HHmmss');
+  const created=pbjRotationCreateSpreadsheet_(name);
+  try{
+    // File milik akun deployer Apps Script. Upayakan tempatkan pada folder induk.
+    // Bila DriveApp.moveTo tidak diizinkan, file tetap aman pada My Drive.
+    PBJ_DB_TABLES.forEach((tab,i)=>{
+      const sh=i===0?created.getSheets()[0].setName(tab):created.insertSheet(tab);
+      const h=PBJ_HEADERS[tab];
+      if(sh.getMaxColumns()<h.length)sh.insertColumnsAfter(sh.getMaxColumns(),h.length-sh.getMaxColumns());
+      sh.getRange(1,1,1,h.length).setValues([h]);sh.setFrozenRows(1);
+    });
+    SpreadsheetApp.flush();
+    // Validasi semua tab dan header sebelum shard pernah dipakai menulis.
+    PBJ_DB_TABLES.forEach(tab=>{const sh=created.getSheetByName(tab),h=headers_(sh);
+      if(!sh||PBJ_HEADERS[tab].some(c=>!h.includes(c)))throw new Error('Validasi tab gagal: '+tab);
+    });
+    // Indeks tidak menyimpan data bisnis dan boleh dibangun ulang saat diperlukan.
+    ensureSheet_(ss_(),PBJ_DB_LOCATOR,['request_id','spreadsheet_id','created_at']);
+    const registry=ensureSheet_(ss_(),PBJ_DB_REGISTRY,PBJ_DB_REGISTRY_HEADERS);
+    registry.appendRow([created.getId(),'READY',new Date(),'Dibuat otomatis; transaksi lama tetap tersedia']);
+    SpreadsheetApp.flush();
+    // COMMIT paling akhir: shard telah terdaftar dan siap menampung data.
+    props.setProperty(PBJ_DB_EVER_PROP,'1');
+    props.setProperty(PBJ_DB_ACTIVE_PROP,created.getId());
+    PBJ_DB_SHARD_LIST_CACHE=null;PBJ_DB_WRITE_CHECKED=true;
+    if(!PBJ_DB_TEST_CONTEXT)try{CacheService.getScriptCache().remove(PBJ_DB_MANIFEST_CACHE);}catch(_){}
+    PBJ_SHARD_SS_CACHE[created.getId()]=created;
+    return created.getId();
+  }catch(error){
+    // Jika gagal sebelum commit, ID aktif tetap mengarah ke file lama.
+    // File baru bisa dipakai sebagai arsip diagnostik, tapi tidak pernah dianggap aktif.
+    throw new Error('Pergantian database dibatalkan; tidak ada data yang dipindahkan. '+String(error.message||error));
+  }
+}
+function pbjActiveWriteSheet_(name){
+  // Cek kuota maksimal sekali per eksekusi, dan hanya saat sedang memegang
+  // workflow lock. Pengecekan dicache agar tidak menambah waktu upload.
+  const props=pbjRotationProperties_();
+  if(PBJ_DB_LOCKED&&!PBJ_DB_WRITE_CHECKED){
+    PBJ_DB_WRITE_CHECKED=true;
+    const cache=PBJ_DB_TEST_CONTEXT?null:CacheService.getScriptCache(),key='ORBITA_DB_QUOTA_OK_V1';
+    if(!cache||!cache.get(key)){
+      const activeId=props.getProperty(PBJ_DB_ACTIVE_PROP)||pbjRootDbId_();
+      if(pbjSourceNearLimit_(shardSpreadsheet_(activeId)))pbjCreateReadyShard_();
+      else if(cache)try{cache.put(key,'1',180);}catch(_){}
+    }
+  }
+  const id=props.getProperty(PBJ_DB_ACTIVE_PROP);
+  if(!id)return sheet_(name);
+  // Validasi manifest menghindari silent-write ke file yang belum di-commit.
+  if(!shardRegistryIds_().includes(id))throw new Error('Database baru belum terdaftar. Penyimpanan dihentikan agar data aman.');
+  const sh=shardSpreadsheet_(id).getSheetByName(name);
+  if(!sh)throw new Error('Tab penyimpanan '+name+' tidak ditemukan.');
+  return sh;
+}
+function appendObj_(sh,obj){
+  const target=isShardTable_(sh.getName())&&sh.getParent().getId()===pbjRootDbId_()?pbjActiveWriteSheet_(sh.getName()):sh;
+  // Bila di versi berikutnya ada kolom tambahan, shard diperbarui otomatis,
+  // tanpa menyentuh atau menyalin data yang sudah ada.
+  let h=headers_(target);
+  if(isShardTable_(target.getName())&&PBJ_HEADERS[target.getName()].some(k=>!h.includes(k))){
+    ensureSheet_(target.getParent(),target.getName(),PBJ_HEADERS[target.getName()]);
+    h=headers_(target);
+  }
+  target.appendRow(h.map(k=>obj[k]==null?'':obj[k]));
+  invalidateShardTable_(target);
+  if(target.getName()===PBJWF.SHEETS.REQUESTS&&target.getParent().getId()!==pbjRootDbId_()&&obj.request_id){
+    // Append indeks hanya saat paket baru dibuat, bukan saat setiap upload.
+    // Kegagalan indeks tidak boleh membatalkan paket yang sudah tersimpan.
+    try{
+      const loc=ss_().getSheetByName(PBJ_DB_LOCATOR);if(!loc)throw new Error('Tab indeks belum tersedia.');
+      loc.appendRow([String(obj.request_id),target.getParent().getId(),new Date()]);
+    }catch(error){Logger.log('Indeks permohonan perlu diperiksa: '+String(error));}
+  }
+}
+function updateRow_(sh,row,patch){
+  const dest=pbjResolveRow_(sh,row),target=dest.sheet;
+  let h=headers_(target);
+  if(isShardTable_(target.getName())&&Object.keys(patch).some(k=>PBJ_HEADERS[target.getName()].includes(k)&&!h.includes(k))){
+    ensureSheet_(target.getParent(),target.getName(),PBJ_HEADERS[target.getName()]);h=headers_(target);
+  }
+  const vals=target.getRange(dest.row,1,1,h.length).getValues()[0];
+  h.forEach((k,i)=>{if(Object.prototype.hasOwnProperty.call(patch,k))vals[i]=patch[k]});
+  target.getRange(dest.row,1,1,h.length).setValues([vals]);invalidateShardTable_(target);
+}
+function adminDatabaseHealth_(user){
+  requireRole_(user,['ADMIN']);
+  const ids=[pbjRootDbId_()].concat(shardRegistryIds_());
+  const active=pbjRotationProperties_().getProperty(PBJ_DB_ACTIVE_PROP)||pbjRootDbId_();
+  return {automatic:true,active,limitRows:PBJ_DB_LIMIT.PBJ_PERMOHONAN,
+    jumlahDatabase:ids.length,
+    databases:ids.map(id=>{const ss=shardSpreadsheet_(id);return {id,title:ss.getName(),aktif:id===active,
+      kind:id===pbjRootDbId_()?'INDUK':'TRANSAKSI',cells:pbjAllocatedCells_(ss),
+      tables:PBJ_DB_TABLES.map(name=>({name,rows:Math.max(0,(ss.getSheetByName(name)?.getLastRow()||1)-1)}))};})};
+}
+// v28.64: Monitoring admin bersifat on-demand, tidak di-fetch pada login.
+function adminDbFindRequest_(user,payload){
+  requireRole_(user,['ADMIN']);
+  const requestId=String(payload.requestId||'').trim();
+  if(!requestId||requestId.length>120)throw new Error('Isi nomor permohonan yang valid.');
+  const root=ss_(),known=shardRegistryIds_();let targetId=root.getId();
+  const loc=root.getSheetByName(PBJ_DB_LOCATOR);
+  if(loc&&loc.getLastRow()>1){
+    const hit=loc.getRange(2,1,loc.getLastRow()-1,1).createTextFinder(requestId).matchEntireCell(true).findNext();
+    if(hit){const found=String(loc.getRange(hit.getRow(),2).getValue()||'');
+      if(found!==targetId&&!known.includes(found))throw new Error('Lokasi paket tercatat di luar registry. Tidak membuka file tak dikenal.');
+      targetId=found;
+    }
+  }
+  const sheet=shardSpreadsheet_(targetId).getSheetByName(PBJWF.SHEETS.REQUESTS);
+  let found=sheet?pbjFindPhysical_(sheet,'request_id',requestId):null;
+  // Paket lama tanpa locator atau indeks yang belum sempat tercatat.
+  if(!found){
+    const rootSh=root.getSheetByName(PBJWF.SHEETS.REQUESTS);
+    const result=findRow_(rootSh,'request_id',requestId);
+    if(result){
+      const row=String(result.row||'');
+      const match=/^__ORBITA_ROW__([^#]+)#(\d+)$/.exec(row);
+      targetId=match?match[1]:root.getId();
+      found={row:match?Number(match[2]):result.row,obj:result.obj};
+    }
+  }
+  if(!found)return {ditemukan:false,requestId};
+  return {ditemukan:true,requestId,spreadsheetId:targetId,
+    spreadsheetUrl:'https://docs.google.com/spreadsheets/d/'+encodeURIComponent(targetId)+'/edit',
+    baris:found.row,namaPaket:found.obj.nama_paket||found.obj.judul_permohonan||'',
+    status:found.obj.status||'',diDatabaseAktif:targetId===(pbjRotationProperties_().getProperty(PBJ_DB_ACTIVE_PROP)||root.getId())};
+}
+// ===== v28.58 - UJI ROTASI MANDIRI TANPA DATABASE PRODUKSI =====
+// Jalankan ujiRotasiDatabaseORBITA() dari editor Apps Script. Tidak dibuat
+// sebagai API publik, tidak mengubah DB_ID, Script Properties, ataupun Drive
+// folder/dokumen ORBITA. File tes dibuang ke Sampah secara otomatis.
+function ujiRotasiDatabaseORBITA(){
+  if(PBJ_DB_TEST_CONTEXT)throw new Error('Pengujian rotasi sedang berjalan.');
+  const tests=[],temporaryIds=[],started=Date.now(),pengukuranMs={};
+  let testContext=null,successful=false,errorText='';
+  const check=(name,ok,detail)=>{
+    const item={uji:name,hasil:ok?'LULUS':'GAGAL',keterangan:String(detail||'')};
+    tests.push(item);if(!ok)throw new Error('GAGAL: '+name+' — '+item.keterangan);
+  };
+  const before={readCache:PBJ_READ_CACHE,headerCache:PBJ_HEADER_CACHE,hitCache:PBJ_HIT_CACHE,
+    shardCache:PBJ_SHARD_SS_CACHE,listCache:PBJ_DB_SHARD_LIST_CACHE,
+    writeChecked:PBJ_DB_WRITE_CHECKED,dbLocked:PBJ_DB_LOCKED};
+  const resetTestInvocation=()=>{PBJ_READ_CACHE={};PBJ_HEADER_CACHE={};PBJ_HIT_CACHE={};
+    PBJ_SHARD_SS_CACHE={};PBJ_DB_SHARD_LIST_CACHE=null;PBJ_DB_WRITE_CHECKED=false;};
+  const writeRequest=id=>{resetTestInvocation();PBJ_DB_LOCKED=true;
+    try{appendObj_(sheet_(PBJWF.SHEETS.REQUESTS),{request_id:id,status:'DRAFT',nama_paket:'Paket Uji '+id,created_at:new Date()});}
+    finally{PBJ_DB_LOCKED=false;}};
+  try{
+    // Hanya membuat file contoh; TIDAK membuka database utama ORBITA.
+    const root=SpreadsheetApp.create('ORBITA_UJI_ROTASI_SEMENTARA_'+Utilities.getUuid().slice(0,8));
+    temporaryIds.push(root.getId());
+    const propertyMap={};
+    const testProperties={getProperty:k=>Object.prototype.hasOwnProperty.call(propertyMap,k)?propertyMap[k]:null,
+      setProperty:(k,v)=>{propertyMap[k]=String(v);return testProperties;}};
+    testContext={root:root,properties:testProperties,createdIds:temporaryIds,failCreate:false,
+      limits:{PBJ_PERMOHONAN:3,PBJ_DOKUMEN:100,PBJ_REVIU:100,PBJ_CATATAN:100,PBJ_AUDIT_LOG:100}};
+    PBJ_DB_TEST_CONTEXT=testContext;
+    resetTestInvocation();
+    PBJ_DB_TABLES.forEach((name,i)=>{
+      const sh=i===0?root.getSheets()[0].setName(name):root.insertSheet(name);
+      const header=PBJ_HEADERS[name];
+      if(sh.getMaxColumns()<header.length)sh.insertColumnsAfter(sh.getMaxColumns(),header.length-sh.getMaxColumns());
+      sh.getRange(1,1,1,header.length).setValues([header]);
+    });
+    SpreadsheetApp.flush();
+    check('Terisolasi dari database produksi',root.getId()!==PBJWF.DB_ID&&!testProperties.getProperty('ORBITA_DB_ACTIVE_V1'),'Database sementara dan properti lokal');
+    writeRequest('TEST-A');writeRequest('TEST-B');
+    check('Data awal masih di database pertama',!testProperties.getProperty(PBJ_DB_ACTIVE_PROP)&&root.getSheetByName(PBJWF.SHEETS.REQUESTS).getLastRow()===3,'Dua paket lama tersimpan');
+    const rotasiMulai=Date.now();writeRequest('TEST-C');pengukuranMs.rotasiPertama=Date.now()-rotasiMulai;
+    writeRequest('TEST-D');
+    const firstId=testProperties.getProperty(PBJ_DB_ACTIVE_PROP);
+    check('Rotasi pertama otomatis',Boolean(firstId)&&firstId!==root.getId()&&temporaryIds.length===2,'Paket C dan D di database baru');
+    const bacaMulai=Date.now();const daftarUji=rows_(sheet_(PBJWF.SHEETS.REQUESTS));pengukuranMs.bacaGabunganEmpatPaket=Date.now()-bacaMulai;
+    check('Semua data terbaca lintas database',daftarUji.map(r=>r.request_id).join(',')==='TEST-A,TEST-B,TEST-C,TEST-D','Urutan keempat paket lengkap');
+    const legacy=findRow_(sheet_(PBJWF.SHEETS.REQUESTS),'request_id','TEST-A');
+    const moved=findRow_(sheet_(PBJWF.SHEETS.REQUESTS),'request_id','TEST-C');
+    updateRow_(sheet_(PBJWF.SHEETS.REQUESTS),legacy.row,{status:'SELESAI'});
+    updateRow_(sheet_(PBJWF.SHEETS.REQUESTS),moved.row,{status:'REVIU_POKJA'});
+    check('Edit paket lama dan paket baru',findRow_(sheet_(PBJWF.SHEETS.REQUESTS),'request_id','TEST-A').obj.status==='SELESAI'&&
+      findRow_(sheet_(PBJWF.SHEETS.REQUESTS),'request_id','TEST-C').obj.status==='REVIU_POKJA','Edit diarahkan ke lokasi asal');
+    testContext.failCreate=true;resetTestInvocation();
+    let failureCaptured=false;
+    try{writeRequest('TEST-E');}catch(err){failureCaptured=String(err).indexOf('SIMULASI')>=0;}
+    check('Gagal rotasi tidak memindah DB aktif',failureCaptured&&testProperties.getProperty(PBJ_DB_ACTIVE_PROP)===firstId&&
+      !findRow_(sheet_(PBJWF.SHEETS.REQUESTS),'request_id','TEST-E'),'Permohonan E tidak tersimpan ganda');
+    testContext.failCreate=false;const ulangMulai=Date.now();writeRequest('TEST-E');pengukuranMs.rotasiSetelahGagal=Date.now()-ulangMulai;
+    const secondId=testProperties.getProperty(PBJ_DB_ACTIVE_PROP);
+    check('Rotasi kedua dan pemulihan otomatis',Boolean(secondId)&&secondId!==firstId&&temporaryIds.length===3,
+      'DB ketiga tersedia setelah kegagalan simulasi dihentikan');
+    appendObj_(sheet_(PBJWF.SHEETS.DOCS),{doc_id:'DOC-TEST',request_id:'TEST-A',doc_type:'KAK',file_name:'uji.txt',is_current:true});
+    const doc=findRow_(sheet_(PBJWF.SHEETS.DOCS),'doc_id','DOC-TEST');
+    check('Dokumen paket lama masuk DB baru',Boolean(doc)&&String(doc.row).indexOf(secondId)>=0,'Relasi request_id tetap sama');
+    updateRow_(sheet_(PBJWF.SHEETS.DOCS),doc.row,{is_current:false});
+    check('Pembaruan dokumen lintas DB',findRow_(sheet_(PBJWF.SHEETS.DOCS),'doc_id','DOC-TEST').obj.is_current===false,
+      'Status dokumen diperbarui di DB asalnya');
+    resetTestInvocation();
+    const all=rows_(sheet_(PBJWF.SHEETS.REQUESTS));
+    check('Pembacaan ulang tanpa cache dan tanpa duplikat',all.length===5&&new Set(all.map(r=>r.request_id)).size===5,
+      'Lima permohonan unik tetap terbaca');
+    check('File root dan shard tercatat',shardRegistryIds_().length===2&&temporaryIds.length===3,
+      'Registry lokal menyimpan dua database tambahan');
+    successful=true;
+  }catch(error){errorText=String(error&&error.message||error);Logger.log('Uji rotasi ORBITA gagal: '+errorText);}
+  finally{
+    PBJ_DB_TEST_CONTEXT=null;
+    PBJ_READ_CACHE=before.readCache;PBJ_HEADER_CACHE=before.headerCache;
+    PBJ_HIT_CACHE=before.hitCache;PBJ_SHARD_SS_CACHE=before.shardCache;
+    PBJ_DB_SHARD_LIST_CACHE=before.listCache;PBJ_DB_WRITE_CHECKED=before.writeChecked;
+    PBJ_DB_LOCKED=before.dbLocked;
+  }
+  // Cleanup dilakukan setelah konteks test dilepas. Tidak menghapus file lain.
+  let cleaned=0;const leftovers=[];
+  temporaryIds.slice().reverse().forEach(id=>{
+    try{DriveApp.getFileById(id).setTrashed(true);cleaned++;}
+    catch(error){leftovers.push({spreadsheetId:id,error:String(error&&error.message||error)});}
+  });
+  const report={status:successful&&leftovers.length===0?'LULUS':'PERLU_DIPERIKSA',
+    dijalankanPada:new Date().toISOString(),durasiDetik:Math.round((Date.now()-started)/1000),
+    pengujianLulus:tests.filter(t=>t.hasil==='LULUS').length,pengujian:tests,
+    pengukuranMs:pengukuranMs,catatanKecepatan:'Pengukuran memakai data uji kecil; bukan benchmark data produksi.',
+    databaseProduksiDiubah:false,spreadsheetSementaraDibuat:temporaryIds.length,
+    spreadsheetSementaraDibuang:cleaned,sisaSpreadsheetSementara:leftovers};
+  if(errorText)report.kesalahan=errorText;
+  Logger.log('HASIL UJI ROTASI ORBITA\n'+JSON.stringify(report,null,2));
+  return report;
+}
+
+// Pemeriksaan baca-saja: tidak membuat shard, tidak mengubah DB aktif.
+function cekStatusDatabaseORBITA(){
+  const ids=[PBJWF.DB_ID].concat(shardRegistryIds_());
+  const active=pbjRotationProperties_().getProperty(PBJ_DB_ACTIVE_PROP)||PBJWF.DB_ID;
+  const result={status:'TERBACA',databaseAktif:active,jumlahDatabase:ids.length,
+    database:ids.map(id=>{
+      const ss=shardSpreadsheet_(id);
+      return {id:id,tipe:id===PBJWF.DB_ID?'INDUK':'TRANSAKSI',selDialokasikan:pbjAllocatedCells_(ss),
+        hampirBatasOperasional:pbjSourceNearLimit_(ss),
+        baris:Object.fromEntries(PBJ_DB_TABLES.map(name=>[name,Math.max(0,(ss.getSheetByName(name)?.getLastRow()||1)-1)]))};
+    })};
+  Logger.log('STATUS DATABASE ORBITA PRODUKSI\n'+JSON.stringify(result,null,2));
+  return result;
+}
+
+function id_(prefix){return prefix+'-'+Utilities.getUuid().split('-')[0].toUpperCase()+'-'+Utilities.formatDate(new Date(),'Asia/Jakarta','yyMMddHHmmss');}
+function migrateLegacyRequestIds_(){
+  const reqSh=sheet_(PBJWF.SHEETS.REQUESTS);
+  const reqs=rows_(reqSh).filter(r=>r.request_id && !/^P-\d+-\d{2}$/.test(String(r.request_id)));
+  reqs.forEach(req=>{
+    const oldId=String(req.request_id);
+    const newId=requestIdForRup_(req.kode_rup);
+    const hit=findRow_(reqSh,'request_id',oldId);
+    if(!hit)return;
+    updateRow_(reqSh,hit.row,{request_id:newId,updated_at:new Date()});
+    [PBJWF.SHEETS.DOCS,PBJWF.SHEETS.REVIEWS,PBJWF.SHEETS.NOTES,PBJWF.SHEETS.AUDIT].forEach(name=>replaceRequestIdInSheet_(name,oldId,newId));
+    if(req.folder_id){
+      try{if(true)DriveApp.getFolderById(req.folder_id).setName(sanitizeFileName_(newId+' - '+String(req.nama_paket||req.kode_rup).slice(0,90)));}catch(_){ }
+    }
+  });
+}
+function replaceRequestIdInSheet_(sheetName,oldId,newId){
+  const sh=sheet_(sheetName), h=headers_(sh), idx=h.indexOf('request_id'), lr=sh.getLastRow();
+  if(idx<0||lr<2)return;
+  sh.getRange(2,idx+1,lr-1,1).createTextFinder(String(oldId)).matchEntireCell(true).findAll().forEach(cell=>cell.setValue(newId));
+}
+function requestIdForRup_(kodeRup){
+  const code=String(kodeRup||'').replace(/\D/g,'');
+  const base='P-'+code;
+  const existing=rows_(sheet_(PBJWF.SHEETS.REQUESTS)).filter(r=>String(r.request_id||'').indexOf(base+'-')===0);
+  const next=existing.reduce((m,r)=>{const x=Number(String(r.request_id||'').split('-').pop())||0;return Math.max(m,x);},0)+1;
+  return base+'-'+String(next).padStart(2,'0');
+}
+function randomToken_(){return Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');}
+function hashPassword_(password,salt){return hash_(String(salt)+'|'+String(password));}
+function hash_(s){return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(s),Utilities.Charset.UTF_8));}
+function norm_(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'');}
+function truthy_(v){return v===true||String(v).toLowerCase()==='true'||String(v)==='1';}
+function money_(v){if(typeof v==='number')return v;let s=String(v||'').replace(/[^0-9,.-]/g,'');if(!s)return 0;if(s.indexOf(',')>=0&&s.indexOf('.')>=0)s=s.replace(/\./g,'').replace(',','.');else if((s.match(/\./g)||[]).length>1)s=s.replace(/\./g,'');else if(s.indexOf(',')>=0)s=s.replace(',','.');const n=Number(s);return isFinite(n)?n:0;}
+function json_(obj){return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);}
+
+function upgradePemilihanV2816(){return withWorkflowLock_(()=>{ensureRequestSchema_();setSetting_('workflow_version','28.16');SpreadsheetApp.flush();return {ok:true,message:'Alur Kaji Ulang aktif untuk pengajuan baru. Paket lama tetap mengikuti alur sebelumnya.'};});}
+
+
+// Auto Rotation email: root di DATA ORBITA, izin antar akun divalidasi sebelum shard baru aktif.
+const ORBITA_EMAIL_ROTATION={
+  rootId:PBJWF.MAIL_DB_ID,registry:'PBJ_EMAIL_SHARDS',control:'PBJ_EMAIL_CONTROL',
+  keys:'PBJ_EMAIL_KEYS',limitRows:4000,limitCells:14000000,
+  tag:''
+};
+function emailRootProduksi_(){
+  pastikanDatabaseProduksiORBITA_();
+  const root=mailSs_(),q=root.getSheetByName(PBJWF.SHEETS.MAIL_QUEUE);
+  if(root.getId()!==PBJWF.MAIL_DB_ID||!q)throw new Error('Database email produksi belum siap.');
+  const h=q.getRange(1,1,1,PBJ_HEADERS.PBJ_EMAIL_QUEUE.length).getDisplayValues()[0];
+  if(h.join('|')!==PBJ_HEADERS.PBJ_EMAIL_QUEUE.join('|'))throw new Error('Header antrean email produksi tidak cocok.');
+  return root;
+}
+var PBJ_EMAIL_BOOTSTRAP_CACHE=null,PBJ_EMAIL_REGISTRY_CACHE=null,PBJ_EMAIL_ACTIVE_CACHE=null;
+function emailEnsureProduksiStore_(){
+  if(PBJ_EMAIL_BOOTSTRAP_CACHE)return PBJ_EMAIL_BOOTSTRAP_CACHE;
+  const ss=emailRootProduksi_();
+  let q=ss.getSheetByName(PBJWF.SHEETS.MAIL_QUEUE);
+  if(!q)q=ensureSheet_(ss,PBJWF.SHEETS.MAIL_QUEUE,PBJ_HEADERS.PBJ_EMAIL_QUEUE);
+  const registry=ss.getSheetByName(ORBITA_EMAIL_ROTATION.registry)
+    ||ensureSheet_(ss,ORBITA_EMAIL_ROTATION.registry,['spreadsheet_id','created_at','state']);
+  const control=ss.getSheetByName(ORBITA_EMAIL_ROTATION.control)
+    ||ensureSheet_(ss,ORBITA_EMAIL_ROTATION.control,['key','value','updated_at']);
+  const keys=ss.getSheetByName(ORBITA_EMAIL_ROTATION.keys)
+    ||ensureSheet_(ss,ORBITA_EMAIL_ROTATION.keys,['event_key','status','spreadsheet_id','created_at']);
+  if(control.getLastRow()<2)control.getRange(2,1,1,3).setValues([['active_id',ORBITA_EMAIL_ROTATION.rootId,new Date()]]);
+  if(String(control.getRange(2,1).getValue())!=='active_id')throw new Error('Kontrol email produksi tidak valid.');
+  PBJ_EMAIL_BOOTSTRAP_CACHE=q;return q;
+}
+function emailRegistryProduksi_(){
+  if(PBJ_EMAIL_REGISTRY_CACHE)return PBJ_EMAIL_REGISTRY_CACHE.slice();
+  const root=emailRootProduksi_(),sh=root.getSheetByName(ORBITA_EMAIL_ROTATION.registry);
+  if(!sh)return [];
+  const end=sh.getLastRow();
+  PBJ_EMAIL_REGISTRY_CACHE=end<2?[]:sh.getRange(2,1,end-1,3).getValues().filter(r=>r[0]&&String(r[2])==='READY').map(r=>String(r[0]));
+  return PBJ_EMAIL_REGISTRY_CACHE.slice();
+}
+function emailActiveIdProduksi_(){
+  if(PBJ_EMAIL_ACTIVE_CACHE)return PBJ_EMAIL_ACTIVE_CACHE;
+  const control=emailRootProduksi_().getSheetByName(ORBITA_EMAIL_ROTATION.control);
+  if(!control||control.getLastRow()<2)return ORBITA_EMAIL_ROTATION.rootId;
+  const id=String(control.getRange(2,2).getValue()||ORBITA_EMAIL_ROTATION.rootId);
+  if(id!==ORBITA_EMAIL_ROTATION.rootId&&!emailRegistryProduksi_().includes(id))
+    throw new Error('Pointer email belum memiliki shard READY. Penyimpanan dihentikan.');
+  PBJ_EMAIL_ACTIVE_CACHE=id;return id;
+}
+function emailOpenProduksi_(id){
+  if(id!==ORBITA_EMAIL_ROTATION.rootId&&!emailRegistryProduksi_().includes(id))
+    throw new Error('Spreadsheet email di luar registry produksi ditolak.');
+  return id===ORBITA_EMAIL_ROTATION.rootId?emailRootProduksi_():SpreadsheetApp.openById(id);
+}
+function emailActiveQueueProduksi_(createIfMissing){
+  if(createIfMissing)emailEnsureProduksiStore_();
+  const ss=emailOpenProduksi_(emailActiveIdProduksi_());
+  const sh=ss.getSheetByName(PBJWF.SHEETS.MAIL_QUEUE);
+  if(!sh)throw new Error('Antrean email pada database aktif tidak ditemukan.');
+  return sh;
+}
+function emailLimitProduksi_(){return ORBITA_EMAIL_ROTATION.limitRows;}
+function emailNearLimitProduksi_(ss){
+  const sh=ss.getSheetByName(PBJWF.SHEETS.MAIL_QUEUE);
+  return !!sh&&(sh.getLastRow()>=emailLimitProduksi_()||
+    ss.getSheets().reduce((sum,x)=>sum+x.getMaxRows()*x.getMaxColumns(),0)>=ORBITA_EMAIL_ROTATION.limitCells);
+}
+// ===== v28.62: AKSES OTOMATIS ANTAR-GMAIL (BACKEND A / PENGIRIM B) =====
+// Spreadsheet email induk harus dibagikan sebagai Editor kepada akun backend A SATU KALI.
+// Owner induk adalah akun pengirim B, ditentukan otomatis via DriveApp.
+// Backend A membuat shard, lalu memberikan Editor ke owner B SEBELUM shard READY.
+function alamatPemilikEmailProduksi_(){
+  const root=emailRootProduksi_();
+  const file=DriveApp.getFileById(root.getId());
+  const owner=file.getOwner();
+  const email=owner&&String(owner.getEmail()||'').trim().toLowerCase();
+  if(!email||email.indexOf('@')<1)throw new Error('Email pemilik DATA ORBITA tidak dapat diketahui. Periksa apakah file ada di My Drive (bukan Shared Drive) dan izin Drive.');
+  return email;
+}
+function beriAksesShardKePengirimProduksi_(spreadsheetId,alamatPengirim){
+  if(spreadsheetId===ORBITA_EMAIL_ROTATION.rootId)return {id:spreadsheetId,status:'ROOT'};
+  // Jangan pernah membagi file lain dari ID yang dimasukkan sembarangan.
+  const ss=SpreadsheetApp.openById(spreadsheetId);
+  if(!/^ORBITA_PRODUKSI_EMAIL_/.test(ss.getName())||!ss.getSheetByName(PBJWF.SHEETS.MAIL_QUEUE))
+    throw new Error('Bukan shard email UJI yang sah; tidak membagikan akses: '+spreadsheetId);
+  const email=alamatPengirim||alamatPemilikEmailProduksi_();
+  const file=DriveApp.getFileById(spreadsheetId),owner=file.getOwner();
+  if(owner&&String(owner.getEmail()||'').trim().toLowerCase()===email)
+    return {id:spreadsheetId,status:'SUDAH_PEMILIK',akunPengirim:email};
+  const editors=file.getEditors().map(u=>String(u.getEmail()||'').trim().toLowerCase());
+  if(!editors.includes(email))file.addEditor(email);
+  const check=file.getEditors().some(u=>String(u.getEmail()||'').trim().toLowerCase()===email);
+  if(!check)throw new Error('Google Drive belum mengonfirmasi izin Editor untuk akun pengirim pada shard '+spreadsheetId);
+  return {id:spreadsheetId,status:'AKSES_EDITOR_SIAP',akunPengirim:email};
+}
+// Jalankan SEKALI dari Apps Script backend Pemilihan pada akun A setelah update.
+// Mengamankan shard-shard yang terlanjur dibuat sebelum v28.62; tidak mengubah isi email.
+function pulihkanAksesShardEmailProduksiORBITA(){
+  emailEnsureProduksiStore_();
+  const owner=alamatPemilikEmailProduksi_(),ids=emailRegistryProduksi_();
+  const berhasil=[],gagal=[];
+  for(const id of ids){
+    try{berhasil.push(beriAksesShardKePengirimProduksi_(id,owner));}
+    catch(e){gagal.push({spreadsheetId:id,kesalahan:String(e&&e.message||e)});}
+  }
+  const result={status:gagal.length?'PERLU_DIPERIKSA':'LULUS',mode:'PRODUKSI_DUA_GMAIL',
+    akunPengirim:owner,jumlahShard:ids.length,aksesSiap:berhasil.length,aksesGagal:gagal.length,
+    berhasil,gagal,pengirimanNyata:false};
+  Logger.log('PERBAIKAN IZIN SHARD EMAIL UJI\\n'+JSON.stringify(result,null,2));
+  return result;
+}
+function cekAksesDuaAkunEmailProduksiORBITA(){
+  const root=emailRootProduksi_(),owner=alamatPemilikEmailProduksi_();
+  const out={status:'ROOT_EMAIL_TERBUKA',akunPengirim:owner,rootEmail:root.getId(),
+    databasePemilihan:PBJWF.DB_ID,pengirimanNyata:false,
+    petunjuk:'Jalankan pulihkanAksesShardEmailProduksiORBITA() pada akun BACKEND A sebelum tes cekPengirimEmailProduksiORBITA() dari akun pengirim B.'};
+  Logger.log(JSON.stringify(out,null,2));return out;
+}
+
+function emailRotateProduksi_(){
+  emailEnsureProduksiStore_();
+  const previous=emailActiveIdProduksi_(),source=emailOpenProduksi_(previous);
+  if(!emailNearLimitProduksi_(source))return previous;
+  // Tahap pertama: buat spreadsheet, uji struktur, daftarkan sebagai READY.
+  // Tahap kedua: update SATU SEL pointer. Kegagalan sebelum tahap kedua
+  // meninggalkan database aktif sebelumnya tanpa perubahan.
+  let created;
+  try{
+    created=SpreadsheetApp.create('ORBITA_PRODUKSI_EMAIL_'+Utilities.formatDate(new Date(),'Asia/Jakarta','yyyyMMdd_HHmmss')+'_'+Utilities.getUuid().slice(0,6));
+    let q=created.getSheetByName(PBJWF.SHEETS.MAIL_QUEUE);
+    if(!q)q=created.insertSheet(PBJWF.SHEETS.MAIL_QUEUE);
+    q.getRange(1,1,1,PBJ_HEADERS.PBJ_EMAIL_QUEUE.length).setValues([PBJ_HEADERS.PBJ_EMAIL_QUEUE]);q.setFrozenRows(1);
+    if(created.getSheetByName('Sheet1')&&created.getSheets().length>1)created.deleteSheet(created.getSheetByName('Sheet1'));
+    const confirm=q.getRange(1,1,1,PBJ_HEADERS.PBJ_EMAIL_QUEUE.length).getDisplayValues()[0];
+    if(confirm.join('|')!==PBJ_HEADERS.PBJ_EMAIL_QUEUE.join('|'))throw new Error('Header shard email tidak lengkap.');
+    // IZIN WAJIB: shard harus dapat dibaca/diubah Gmail pemilik email (akun B).
+    // Jangan daftarkan READY atau pindahkan pointer bila pembagian akses gagal.
+    beriAksesShardKePengirimProduksi_(created.getId());
+    // Shard email tersimpan pada My Drive pembuatnya; akses Gmail pengirim sudah diverifikasi,
+    // kalau gagal, data tetap aman dan shard masih dapat dibaca dengan ID.
+    emailRootProduksi_().getSheetByName(ORBITA_EMAIL_ROTATION.registry)
+      .appendRow([created.getId(),new Date(),'READY']);
+    SpreadsheetApp.flush();
+    // Perbarui cache manifest SEBELUM pointer baru dipakai oleh panggilan berikutnya.
+    PBJ_EMAIL_REGISTRY_CACHE=null;
+    emailRootProduksi_().getSheetByName(ORBITA_EMAIL_ROTATION.control)
+      .getRange(2,1,1,3).setValues([['active_id',created.getId(),new Date()]]);
+    PBJ_EMAIL_ACTIVE_CACHE=created.getId();return created.getId();
+  }catch(error){
+    throw new Error('Rotasi email dibatalkan (pointer lama tetap berlaku): '+String(error.message||error));
+  }
+}
+function emailPhysicalKeyProduksi_(sheet,key){
+  const lr=sheet.getLastRow();if(lr<2)return null;
+  const cell=sheet.getRange(2,3,lr-1,1).createTextFinder(String(key)).matchEntireCell(true).findNext();
+  return cell?cell.getRow():null;
+}
+function emailFindExistingProduksi_(key){
+  const root=emailRootProduksi_();
+  const ledger=root.getSheetByName(ORBITA_EMAIL_ROTATION.keys);
+  const n=ledger&&ledger.getLastRow();
+  if(n>1){const hit=ledger.getRange(2,1,n-1,1).createTextFinder(String(key)).matchEntireCell(true).findNext();
+    if(hit){const vals=ledger.getRange(hit.getRow(),1,1,4).getValues()[0];
+      if(['QUEUED','SENDING','SENT','FAILED'].includes(String(vals[1])))return {exists:true,id:String(vals[2]||'')};
+      // RESERVED: fungsi sebelumnya mungkin terputus sebelum/tepat sesudah append.
+      // Hanya dalam kasus ini telusuri seluruh shard untuk pemulihan.
+      for(const id of [ORBITA_EMAIL_ROTATION.rootId,...emailRegistryProduksi_()]){
+        const sh=emailOpenProduksi_(id).getSheetByName(PBJWF.SHEETS.MAIL_QUEUE);
+        if(sh&&emailPhysicalKeyProduksi_(sh,key)){
+          ledger.getRange(hit.getRow(),2,1,2).setValues([['QUEUED',id]]);
+          return {exists:true,id};
+        }
+      }
+      return {exists:false,reservedRow:hit.getRow()};
+    }
+  }
+  // Kompatibilitas antrean sebelum indeks v28.61: selalu periksa akar lama.
+  const old=root.getSheetByName(PBJWF.SHEETS.MAIL_QUEUE);
+  if(old&&emailPhysicalKeyProduksi_(old,key))return {exists:true,id:root.getId()};
+  return {exists:false};
+}
+function emailEnqueueProduksi_(key,recipient,subject,body){
+  const root=emailRootProduksi_();emailEnsureProduksiStore_();
+  const known=emailFindExistingProduksi_(key);if(known.exists)return false;
+  // Rotasi dijalankan hanya ketika hendak menulis, tidak pada login/halaman.
+  emailRotateProduksi_();
+  const sh=emailActiveQueueProduksi_(false),ledger=root.getSheetByName(ORBITA_EMAIL_ROTATION.keys);
+  if(!known.reservedRow)ledger.appendRow([key,'RESERVED',sh.getParent().getId(),new Date()]);
+  const row=known.reservedRow||ledger.getLastRow();
+  sh.appendRow([id_('EML'),new Date(),key,recipient,subject,body,'PENDING',0,'','']);
+  // Jika komit indeks gagal, retry mencari pesan dari semua shard berdasar RESERVED,
+  // bukan membuat email ganda.
+  ledger.getRange(row,2,1,2).setValues([['QUEUED',sh.getParent().getId()]]);
+  return true;
+}
+function cekStatusRotasiEmailProduksiORBITA(){
+  emailEnsureProduksiStore_();
+  const ids=[ORBITA_EMAIL_ROTATION.rootId,...emailRegistryProduksi_()],active=emailActiveIdProduksi_();
+  const result={mode:'PRODUKSI_EMAIL_TERPISAH',pengirimanEmailAktif:false,root:ORBITA_EMAIL_ROTATION.rootId,
+    databaseAktif:active,jumlahDatabase:ids.length,antrean:ids.map(id=>{
+      const sh=emailOpenProduksi_(id).getSheetByName(PBJWF.SHEETS.MAIL_QUEUE);
+      return {spreadsheetId:id,baris:sh?Math.max(0,sh.getLastRow()-1):0,aktif:id===active};
+    })};
+  Logger.log('STATUS AUTO ROTASI EMAIL PRODUKSI\n'+JSON.stringify(result,null,2));return result;
+}
+
+
+// Pemeriksaan sebelum deployment. Tidak membuat akun, sheet, email, atau file.
+function cekKonfigurasiProduksiORBITA(){
+  pastikanDatabaseProduksiORBITA_();
+  const r=SpreadsheetApp.openById(PBJWF.DB_ID),m=SpreadsheetApp.openById(PBJWF.MAIL_DB_ID);
+  const must=[PBJWF.SHEETS.USERS,PBJWF.SHEETS.REQUESTS,PBJWF.SHEETS.POKJA];
+  const missing=must.filter(x=>!r.getSheetByName(x));
+  if(!m.getSheetByName(PBJWF.SHEETS.MAIL_QUEUE))missing.push('DATA ORBITA/PBJ_EMAIL_QUEUE');
+  const out={status:missing.length?'BELUM_SIAP':'SIAP',pemilihan:r.getName(),email:m.getName(),
+    rootDrive:DriveApp.getFolderById(PBJWF.ROOT_DRIVE_ID).getName(),missing};
+  Logger.log(JSON.stringify(out));return out;
+}
