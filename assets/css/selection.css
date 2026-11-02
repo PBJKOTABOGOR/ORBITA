@@ -1503,3 +1503,20 @@ html.sel-process-lock,html.sel-process-lock body{overflow:hidden!important}
 .sel-hps-review[hidden],#adminCorrectionDataFields[hidden],#adminCorrectionTypeFields[hidden],#adminCorrectionReturnFields[hidden]{display:none!important}
 @media(max-width:940px){.sel-toolbar.sel-toolbar-opd{grid-template-columns:minmax(150px,1fr) minmax(130px,1fr)}.sel-toolbar.sel-toolbar-opd [data-sel-apply]{grid-column:auto}}
 @media(max-width:520px){.sel-toolbar.sel-toolbar-opd{grid-template-columns:1fr}.sel-hps-review label{font-size:10px}}
+
+/* v28.86 — searchable OPD dropdown, tetap ringan dan selaras dengan filter lama. */
+.sel-toolbar.sel-toolbar-opd{position:relative;z-index:12}
+.sel-app .sel-opd-combo{position:relative;min-width:0}
+.sel-app .sel-opd-combo #selOpd{width:100%;padding-right:38px;text-overflow:ellipsis}
+.sel-app .sel-opd-toggle{position:absolute;right:3px;top:3px;height:32px;width:32px;display:flex;align-items:center;justify-content:center;border:0;border-radius:8px;background:transparent;color:#335f78;cursor:pointer;font-size:15px}
+.sel-app .sel-opd-toggle:hover,.sel-app .sel-opd-toggle[aria-expanded="true"]{background:#edf5f9}
+.sel-app .sel-opd-toggle:focus-visible{outline:2px solid #1684b6;outline-offset:1px}
+.sel-app .sel-opd-toggle[aria-expanded="true"] span{transform:rotate(180deg)}
+.sel-app .sel-opd-menu{position:absolute;top:calc(100% + 5px);left:0;right:0;max-height:min(310px,50vh);overflow-y:auto;overscroll-behavior:contain;z-index:50;border:1px solid #cbdfea;border-radius:11px;padding:5px;background:#fff;box-shadow:0 14px 30px rgba(13,52,78,.16)}
+.sel-app .sel-opd-menu[hidden]{display:none!important}
+.sel-app .sel-opd-option{display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;width:100%;min-height:36px;padding:8px 10px;border:none;border-radius:7px;background:transparent;color:#24445b;font-family:inherit;font-weight:700;font-size:10px;line-height:1.35;cursor:pointer;white-space:normal;overflow-wrap:anywhere}
+.sel-app .sel-opd-option:hover,.sel-app .sel-opd-option.is-active{background:#eaf4fb;color:#086da1}
+.sel-app .sel-opd-option.is-selected{color:#0879a9;font-weight:900}
+.sel-app .sel-opd-check{font-size:12px;color:#0c8cba;flex:none}
+.sel-app .sel-opd-empty{margin:6px 8px 9px;color:#728a99;font-size:10px;line-height:1.4}
+@media(max-width:520px){.sel-app .sel-opd-menu{max-height:240px}}
