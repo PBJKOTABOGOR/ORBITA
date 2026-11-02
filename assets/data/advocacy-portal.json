@@ -1,0 +1,91 @@
+{
+  "events": [
+    {
+      "id": "evt-001",
+      "type": "Sosialisasi",
+      "title": "Sosialisasi Pemanfaatan Katalog Elektronik",
+      "date": "2026-09-18",
+      "time": "09.00 WIB",
+      "place": "Kota Bogor",
+      "summary": "Pembahasan pemanfaatan Katalog Elektronik dan pelaksanaan e-Purchasing untuk perangkat daerah.",
+      "status": "upcoming",
+      "materialUrl": ""
+    },
+    {
+      "id": "evt-002",
+      "type": "Bimbingan Teknis",
+      "title": "Bimbingan Teknis Penginputan SiRUP",
+      "date": "2026-09-08",
+      "time": "09.00 WIB",
+      "place": "Kota Bogor",
+      "summary": "Pendampingan teknis penginputan dan penyesuaian RUP bagi perangkat daerah.",
+      "status": "done",
+      "materialUrl": ""
+    },
+    {
+      "id": "evt-003",
+      "type": "Pendampingan",
+      "title": "Pendampingan Konsolidasi e-Purchasing",
+      "date": "2026-08-05",
+      "time": "09.00 WIB",
+      "place": "Bagian Pengadaan Barang/Jasa",
+      "summary": "Pendampingan pelaksanaan konsolidasi belanja melalui Katalog Elektronik.",
+      "status": "done",
+      "materialUrl": ""
+    }
+  ],
+  "knowledge": [
+    {
+      "id": "doc-001",
+      "category": "Panduan",
+      "title": "Panduan Konsultasi Pengadaan Barang/Jasa",
+      "year": "2026",
+      "summary": "Alur penyampaian konsultasi dan pendampingan kepada UKPBJ Kota Bogor.",
+      "url": ""
+    },
+    {
+      "id": "doc-002",
+      "category": "Template",
+      "title": "Template Dokumen Persiapan Pengadaan",
+      "year": "2026",
+      "summary": "Kumpulan format kerja yang dapat digunakan pada tahap persiapan pengadaan.",
+      "url": ""
+    },
+    {
+      "id": "doc-003",
+      "category": "Regulasi",
+      "title": "Referensi Regulasi Pengadaan Barang/Jasa",
+      "year": "2026",
+      "summary": "Daftar regulasi dan ketentuan yang menjadi rujukan pelaksanaan PBJ.",
+      "url": ""
+    }
+  ],
+  "forum": [
+    {
+      "id": "KON-260901",
+      "createdAt": "2026-09-01T09:00:00+07:00",
+      "opd": "Perangkat Daerah",
+      "name": "",
+      "contact": "",
+      "category": "Kontrak",
+      "title": "Pergantian PPK dalam pelaksanaan kontrak",
+      "question": "Apabila terjadi pergantian PPK pada saat kontrak masih berjalan, apa yang perlu disesuaikan?",
+      "answer": "Pergantian pejabat perlu ditindaklanjuti pada administrasi pelaksanaan kontrak sesuai kondisi dokumen dan kewenangan yang berlaku. Dokumen kontrak dan data pada sistem perlu diperiksa terlebih dahulu sebelum menentukan bentuk penyesuaiannya.",
+      "status": "Selesai",
+      "published": true
+    },
+    {
+      "id": "KON-260902",
+      "createdAt": "2026-09-02T10:30:00+07:00",
+      "opd": "Perangkat Daerah",
+      "name": "",
+      "contact": "",
+      "category": "e-Purchasing",
+      "title": "Tahapan transaksi e-Purchasing dalam satu hari",
+      "question": "Apakah negosiasi, surat pesanan dan penyelesaian administrasi transaksi dapat dilakukan pada hari yang sama?",
+      "answer": "Waktu proses mengikuti kondisi transaksi dan pemenuhan tahapan pada sistem. Pastikan setiap tahapan benar-benar telah dilaksanakan dan didukung dokumen sesuai kondisi transaksi.",
+      "status": "Selesai",
+      "published": true
+    }
+  ]
+}

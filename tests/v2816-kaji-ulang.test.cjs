@@ -1,0 +1,33 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const root=path.resolve(__dirname,'..');
+const src=fs.readFileSync(path.join(root,'backend/Code-TRAXPBJ-Pemilihan.gs'),'utf8');
+const ui=fs.readFileSync(path.join(root,'assets/js/selection.js'),'utf8');
+const ppk={role:'PPK',user_id:'ppk',opd:'OPD A'},head={role:'KEPALA_UKPBJ',user_id:'head'},pokja={role:'POKJA',user_id:'pokja',pokja_id:'team'};
+function setup(){
+  const tables={PBJ_PERMOHONAN:[],PBJ_POKJA:[{pokja_id:'team',nama:'Pokja A',active:true,capacity_max:10}],PBJ_USERS:[],PBJ_DOKUMEN:[],PBJ_DOK_CONFIG:[{doc_type:'SURAT_PERMOHONAN',label:'Surat Permohonan',required:true,active:true}],PBJ_REVIU:[],PBJ_AUDIT_LOG:[],PBJ_CATATAN:[]};
+  const c=vm.createContext({console,Date,Math,JSON,Utilities:{formatDate:date=>{const d=new Date(date);return d.toISOString().slice(0,10)}}});
+  vm.runInContext(src,c);let id=0;
+  c.ensureRequestSchema_=()=>{};c.sheet_=name=>name;
+  c.rows_=name=>tables[name]||[];
+  c.findRow_=(name,k,val)=>{const a=tables[name]||[],i=a.findIndex(x=>String(x[k])===String(val));return i<0?null:{obj:a[i],row:i+2}};
+  c.updateRow_=(name,row,patch)=>Object.assign(tables[name][row-2],patch);
+  c.appendObj_=(name,obj)=>{(tables[name]??=[]).push({...obj})};
+  c.id_=prefix=>prefix+'-'+(++id);
+  c.lookupRup_=()=>({kodeRup:'123',namaPaket:'Paket A',opd:'OPD A',jenis:'Barang',cara:'Penyedia',metode:'E-Purchasing',pagu:350000000,tahun:2026});
+  c.requestIdForRup_=()=> 'P-123-01';c.createRequestFolder_=()=>({getId:()=> 'folder'});
+  c.audit_=()=>{};c.activeDocConfig_=()=>tables.PBJ_DOK_CONFIG;
+  c.requestDetail_=(u,key)=>({request:c.publicRequest_(c.getRequest_(key)),docs:tables.PBJ_DOKUMEN.filter(x=>x.request_id===key),notes:tables.PBJ_CATATAN,pokja:tables.PBJ_POKJA});
+  c.appendNote_=(_user,_key,phase,status,note)=>tables.PBJ_CATATAN.push({phase,status,note});
+  return {tables,c,create(){return c.createRequest_(ppk,{kodeRup:'123',initialPreparation:true,selectionProcess:'PERSIAPAN'})},ba(){tables.PBJ_DOKUMEN.push({doc_id:'BA-'+(++id),doc_type:'BA_KAJI_ULANG',request_id:'P-123-01',is_current:true,uploaded_at:new Date(),drive_url:'https://example.com/ba.pdf'})},docs(){tables.PBJ_DOKUMEN.push({doc_type:'SURAT_PERMOHONAN',request_id:'P-123-01',is_current:true})}};
+}
+test('new requests start in Dokumen Persiapan, old requests keep their workflow',()=>{const f=setup(),r=f.create();assert.equal(r.selection_process,'PERSIAPAN');assert.equal(r.workflow_scheme,'KAJI_ULANG_2026');assert.equal(r.status,'DRAFT');assert.equal(f.c.requestSelectionProcess_({competition_type:'CONSTRUCTION'}),'MINI_KOMPETISI');assert.equal(f.c.requestSelectionProcess_({selection_process:'NEGOSIASI'}),'NEGOSIASI');});
+test('Kepala UKPBJ cannot list, open, or count drafts',()=>{const f=setup(),r=f.create();assert.equal(f.c.visibleRequests_(head).length,0);assert.throws(()=>f.c.getRequestAuthorized_(head,r.request_id),/belum dikirim/i);f.docs();f.c.submitRequest_(ppk,r.request_id);assert.equal(f.c.visibleRequests_(head).length,1);assert.equal(f.c.getRequestAuthorized_(head,r.request_id).status,'MENUNGGU_DISPOSISI');});
+test('PPK sends only preparation documents; without preparation document submit is blocked',()=>{const f=setup(),r=f.create();assert.throws(()=>f.c.submitRequest_(ppk,r.request_id),/dokumen/i);f.docs();const sent=f.c.submitRequest_(ppk,r.request_id);assert.equal(sent.status,'MENUNGGU_DISPOSISI');assert.equal(sent.selection_process,'PERSIAPAN');});
+test('Pokja must upload BA Kaji Ulang, choose date and process; after Lanjut method is locked',()=>{const f=setup(),r=f.create(),obj=f.tables.PBJ_PERMOHONAN[0];obj.status='DITUGASKAN_POKJA';obj.assigned_pokja_id='team';assert.throws(()=>f.c.submitKajiUlang_(pokja,{requestId:r.request_id,decision:'LANJUT',date:'2026-10-19',selectionProcess:'MINI_KOMPETISI'}),/Pilih jenis Mini Kompetisi|Unggah/i);f.ba();assert.throws(()=>f.c.submitKajiUlang_(pokja,{requestId:r.request_id,decision:'LANJUT',date:'2026-10-19'}),/pilih/i);f.c.submitKajiUlang_(pokja,{requestId:r.request_id,decision:'LANJUT',date:'2026-10-19',competitionType:'NON_CONSTRUCTION',selectionProcess:'MINI_KOMPETISI'});assert.equal(obj.status,'PERLU_DETAIL_PPK');assert.equal(obj.selection_process,'MINI_KOMPETISI');assert.ok(obj.method_locked_at);assert.throws(()=>f.c.submitKajiUlang_(pokja,{requestId:r.request_id,decision:'LANJUT',date:'2026-10-19',selectionProcess:'NEGOSIASI'}),/belum dapat/i);});
+test('Perlu Perbaikan returns documents to PPK; PPK can send notes without replacing files',()=>{const f=setup(),r=f.create(),obj=f.tables.PBJ_PERMOHONAN[0];obj.status='DITUGASKAN_POKJA';obj.assigned_pokja_id='team';f.docs();f.ba();assert.throws(()=>f.c.submitKajiUlang_(pokja,{requestId:r.request_id,decision:'PERBAIKAN',date:'2026-10-19'}),/catatan/i);f.c.submitKajiUlang_(pokja,{requestId:r.request_id,decision:'PERBAIKAN',date:'2026-10-19',note:'Perjelas ruang lingkup'});assert.equal(obj.status,'PERLU_PERBAIKAN_PPK');f.c.resubmitRevision_(ppk,{requestId:r.request_id,note:'KAK sudah memuat ruang lingkup'});assert.equal(obj.status,'REVIU_ULANG');assert.equal(obj.current_round,2);assert.equal(obj.selection_process,'PERSIAPAN');});
+test('PPK cannot complete Mini Kompetisi without required form; cannot change Kaji method or RUP',()=>{const f=setup(),r=f.create(),obj=f.tables.PBJ_PERMOHONAN[0];obj.status='PERLU_DETAIL_PPK';obj.selection_process='MINI_KOMPETISI';obj.method_locked_at=new Date();f.docs();assert.throws(()=>f.c.completeKajiDetails_(ppk,{requestId:r.request_id}),/jadwal/i);assert.throws(()=>f.c.saveDraftRequest_(ppk,{requestId:r.request_id,data:{kodeRup:'222'}}),/dikunci/);});
+test('after Kaji Ulang selects Negosiasi, PPK confirmation proceeds to existing Negosiasi stage',()=>{const f=setup(),r=f.create(),obj=f.tables.PBJ_PERMOHONAN[0];obj.status='PERLU_DETAIL_PPK';obj.selection_process='NEGOSIASI';obj.method_locked_at=new Date();f.docs();assert.equal(f.c.completeKajiDetails_(ppk,{requestId:r.request_id,notes:'Dokumen sesuai'}).nego_stage,'SIAP_NEGOSIASI');assert.equal(obj.status,'SIAP_PROSES_INAPROC');});
+test('frontend exposes Kaji Ulang + post-method flow without replacing existing Mini and Negosiasi modules',()=>{assert.match(ui,/function kajiPanelHtml\(/);assert.match(ui,/data-kaji-choice="LANJUT"/);assert.match(ui,/data-kaji-choice="PERBAIKAN"/);assert.match(ui,/function startPostKajiMini\(/);assert.match(ui,/function finishPostKajiNego\(/);assert.match(ui,/function miniHtml\(/);assert.match(ui,/function negoHtml\(/);});

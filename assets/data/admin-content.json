@@ -1,0 +1,20 @@
+{
+  "leaders": {
+    "kabag": {
+      "name": "",
+      "photo": ""
+    },
+    "lpse": {
+      "name": "Ketua Kelompok LPSE",
+      "photo": ""
+    },
+    "advokasi": {
+      "name": "Ketua Kelompok Pembinaan dan Advokasi",
+      "photo": ""
+    },
+    "pengelolaan": {
+      "name": "Ketua Kelompok Pengelolaan PBJ",
+      "photo": ""
+    }
+  }
+}

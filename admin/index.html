@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <script>if(!sessionStorage.getItem("traxpbj_admin_token"))location.replace("../profil-pbj/?login=1&next=admin");</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#071f33">
+  <title>Admin ORBITA PBJ</title>
+  <link rel="icon" href="../assets/img/favicon.png">
+  <link rel="preconnect" href="https://script.google.com">
+  <link rel="preconnect" href="https://drive.google.com">
+  <link rel="stylesheet" href="../assets/css/admin.css?v=26.2">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="admin-process" id="adminProcess" hidden aria-live="polite"><div class="admin-process-card"><div class="admin-process-logo"><img src="../assets/img/LOGOPBJ.png" alt=""></div><small>ORBITA PBJ CMS</small><strong id="adminProcessTitle">Memproses</strong><span id="adminProcessDetail">Mohon tunggu</span><div class="admin-process-track"><i id="adminProcessBar"></i></div></div></div>
+  <header class="admin-topbar">
+    <a class="admin-brand" href="../profil-pbj/"><img src="../assets/img/traxpbj-logo.png" alt=""><span><b>ORBITA PBJ</b><small>Admin</small></span></a>
+    <a class="back-site" href="../profil-pbj/">Kembali ke Profil PBJ ↗</a>
+  </header>
+
+  <main>
+    <section class="login-scene" id="loginScene">
+      <div class="login-orbit" aria-hidden="true"><i></i><i></i><i></i></div>
+      <form class="login-card" id="loginForm" autocomplete="off">
+        <div class="login-logo"><img src="../assets/img/traxpbj-logo.png" alt=""></div>
+        <small>ADMIN ORBITA PBJ</small>
+        <h1>Masuk</h1>
+        <label><span>Password</span><input id="adminPassword" type="password" required autocomplete="current-password" placeholder="Masukkan password"></label>
+        <button type="submit">Masuk</button>
+        <p class="login-error" id="loginError" role="alert"></p>
+      </form>
+    </section>
+
+    <section class="admin-dashboard" id="adminDashboard" hidden>
+      <div class="admin-shell">
+        <div class="admin-heading">
+          <div><small>ORBITA PBJ · KOTA BOGOR</small><h1>Kelola Konten</h1></div>
+          <div class="backend-pill" id="backendPill"><i></i><span>Google Backend</span></div><button id="logoutButton" type="button">Keluar</button>
+        </div>
+
+        <nav class="admin-tabs" aria-label="Menu admin">
+          <button class="active" type="button" data-admin-tab="evaluation"><span>01</span>Evaluasi Pengguna Layanan</button>
+          <button type="button" data-admin-tab="leaders"><span>02</span>Foto Pimpinan PBJ</button>
+          <button type="button" data-admin-tab="events"><span>03</span>Edukasi &amp; Kegiatan PBJ</button>
+          <button type="button" data-admin-tab="knowledge"><span>04</span>Pusat Pengetahuan PBJ</button>
+          <button type="button" data-admin-tab="forum"><span>05</span>Forum Konsultasi</button>
+          <button type="button" data-admin-tab="documentation"><span>06</span>Dokumentasi</button>
+          <button type="button" data-admin-tab="team"><span>07</span>Pegawai PBJ</button>
+          <button type="button" data-admin-tab="opd-access"><span>08</span>Akses OPD</button>
+        </nav>
+
+        <section class="admin-section active" data-admin-panel="evaluation">
+          <div class="panel-head"><div><small>01 · EVALUASI PENGGUNA LAYANAN</small><h2>Import XLSX · 2026</h2></div><a href="../sample/EvaluasiPenggunaanPelayanan-2026-09-09sd2026-09-09.xlsx" download>Unduh contoh XLSX</a></div>
+          <div class="import-drop" id="evaluationDrop">
+            <input id="evaluationFile" type="file" accept=".xlsx,.xls" hidden>
+            <button id="chooseEvaluationFile" type="button"><span>＋</span><b>Pilih file XLSX</b><small>Evaluasi Layanan tahun 2026</small></button>
+            <div class="import-file" id="evaluationFileName">Belum ada file dipilih</div>
+          </div>
+
+          <div class="evaluation-preview" id="evaluationPreview" hidden>
+            <div class="preview-kpis">
+              <div class="accent"><small>IKM UNIT PELAYANAN</small><strong id="adminEvalIkm">—</strong></div>
+              <div><small>RESPONDEN</small><strong id="adminEvalRespondents">—</strong></div>
+              <div><small>PARAMETER</small><strong id="adminEvalParameters">14</strong></div>
+              <div><small>PERIODE</small><strong id="adminEvalPeriod">—</strong></div>
+            </div>
+            <div class="preview-table-wrap"><table><thead><tr><th>Parameter</th><th>Tidak Memuaskan</th><th>Kurang Memuaskan</th><th>Memuaskan</th><th>Sangat Memuaskan</th><th>Persentase</th></tr></thead><tbody id="adminEvalRows"></tbody></table></div>
+            <div class="admin-actions"><button class="primary" id="saveEvaluation" type="button">Simpan Evaluasi 2026</button><button id="exportEvaluation" type="button">Unduh Data Evaluasi 2026</button></div>
+          </div>
+        </section>
+
+        <section class="admin-section" data-admin-panel="leaders">
+          <div class="panel-head"><div><small>02 · PIMPINAN PBJ</small><h2>Foto Profil</h2></div></div>
+          <div class="leader-admin-grid">
+            <article class="leader-admin-card" data-leader-key="kabag">
+              <div class="leader-admin-photo" id="leaderPreview_kabag"><span>KABAG</span></div>
+              <div class="leader-admin-info"><small>KEPALA BAGIAN PBJ</small><input id="leaderName_kabag" type="text" placeholder="Nama Kepala Bagian"><label class="photo-button">Pilih Foto<input id="leaderPhoto_kabag" type="file" accept="image/*" hidden></label></div>
+            </article>
+            <article class="leader-admin-card" data-leader-key="lpse">
+              <div class="leader-admin-photo" id="leaderPreview_lpse"><span>LPSE</span></div>
+              <div class="leader-admin-info"><small>LPSE</small><input id="leaderName_lpse" type="text" value="Ketua Kelompok LPSE"><label class="photo-button">Pilih Foto<input id="leaderPhoto_lpse" type="file" accept="image/*" hidden></label></div>
+            </article>
+            <article class="leader-admin-card" data-leader-key="advokasi">
+              <div class="leader-admin-photo" id="leaderPreview_advokasi"><span>P&amp;A</span></div>
+              <div class="leader-admin-info"><small>PEMBINAAN &amp; ADVOKASI</small><input id="leaderName_advokasi" type="text" value="Ketua Kelompok Pembinaan dan Advokasi"><label class="photo-button">Pilih Foto<input id="leaderPhoto_advokasi" type="file" accept="image/*" hidden></label></div>
+            </article>
+            <article class="leader-admin-card" data-leader-key="pengelolaan">
+              <div class="leader-admin-photo" id="leaderPreview_pengelolaan"><span>PBJ</span></div>
+              <div class="leader-admin-info"><small>PENGELOLAAN PBJ</small><input id="leaderName_pengelolaan" type="text" value="Ketua Kelompok Pengelolaan PBJ"><label class="photo-button">Pilih Foto<input id="leaderPhoto_pengelolaan" type="file" accept="image/*" hidden></label></div>
+            </article>
+          </div>
+          <div class="admin-actions"><button class="primary" id="saveLeaders" type="button">Simpan Foto</button><button id="exportLeaders" type="button">Unduh Data Foto</button></div>
+        </section>
+
+        <section class="admin-section" data-admin-panel="events">
+          <div class="panel-head"><div><small>03 · EDUKASI &amp; KEGIATAN PBJ</small><h2>Kelola Kegiatan</h2></div><button class="panel-export" id="exportEvents" type="button">Unduh Data</button></div>
+          <form class="portal-admin-form" id="eventForm">
+            <input type="hidden" id="eventId">
+            <div class="portal-form-grid">
+              <label><span>Jenis Kegiatan</span><select id="eventType"><option>Sosialisasi</option><option>Bimbingan Teknis</option><option>Pendampingan</option><option>Workshop</option><option>Rapat Teknis</option></select></label>
+              <label><span>Tanggal</span><input id="eventDate" type="date" required></label>
+              <label><span>Waktu</span><input id="eventTime" type="text" placeholder="09.00 WIB"></label>
+              <label><span>Status</span><select id="eventStatus"><option value="upcoming">Akan datang</option><option value="done">Sudah dilaksanakan</option></select></label>
+              <label class="span-2"><span>Judul Kegiatan</span><input id="eventTitle" type="text" required placeholder="Judul kegiatan"></label>
+              <label class="span-2"><span>Tempat</span><input id="eventPlace" type="text" placeholder="Lokasi kegiatan"></label>
+              <label class="span-2"><span>Ringkasan</span><textarea id="eventSummary" rows="4" placeholder="Ringkasan kegiatan"></textarea></label>
+              <label class="span-2"><span>Tautan Materi</span><input id="eventMaterialUrl" type="url" placeholder="https://..."></label>
+              <label class="span-2"><span>Dokumen Kegiatan</span><input id="eventDocumentFile" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png"><small class="field-note">Opsional. Dokumen disimpan ke folder Edukasi &amp; Kegiatan PBJ di Google Drive.</small></label>
+            </div>
+            <div class="admin-file-note" id="eventDocumentNote">Belum ada dokumen kegiatan.</div>
+            <div class="admin-actions"><button type="button" id="eventReset">Batal / Kosongkan</button><button class="primary" type="submit">Simpan Kegiatan</button></div>
+          </form>
+          <div class="portal-admin-list" id="eventAdminList"></div>
+        </section>
+
+        <section class="admin-section" data-admin-panel="knowledge">
+          <div class="panel-head"><div><small>04 · PUSAT PENGETAHUAN PBJ</small><h2>Kelola Dokumen</h2></div><button class="panel-export" id="exportKnowledge" type="button">Unduh Data</button></div>
+          <form class="portal-admin-form" id="knowledgeForm">
+            <input type="hidden" id="knowledgeId">
+            <div class="portal-form-grid">
+              <label><span>Kategori</span><select id="knowledgeType"><option>Regulasi</option><option>Panduan</option><option>Template</option><option>Materi</option><option>FAQ</option></select></label>
+              <label><span>Tahun</span><input id="knowledgeYear" type="text" inputmode="numeric" maxlength="4" value="2026"></label>
+              <label class="span-2"><span>Judul Dokumen</span><input id="knowledgeTitle" type="text" required placeholder="Judul dokumen"></label>
+              <label class="span-2"><span>Keterangan</span><textarea id="knowledgeSummary" rows="4" placeholder="Keterangan singkat dokumen"></textarea></label>
+              <label class="span-2"><span>File Dokumen · bisa pilih beberapa</span><input id="knowledgeFile" type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png"></label>
+            </div>
+            <div class="admin-file-note" id="knowledgeFileNote">File disimpan ke Pusat Pengetahuan PBJ di Google Drive.</div>
+            <div class="admin-actions"><button type="button" id="knowledgeReset">Batal / Kosongkan</button><button class="primary" type="submit">Simpan Dokumen</button></div>
+          </form>
+          <div class="portal-admin-list" id="knowledgeAdminList"></div>
+        </section>
+
+
+        <section class="admin-section" data-admin-panel="documentation">
+          <div class="panel-head"><div><small>06 · DOKUMENTASI</small><h2>Arsip Kegiatan</h2></div><button class="panel-export" id="exportSiteContentDocs" type="button">Unduh Data</button></div>
+          <form class="portal-admin-form" id="documentationForm">
+            <input type="hidden" id="documentationId">
+            <div class="portal-form-grid">
+              <label><span>Tanggal</span><input id="documentationDate" type="date"></label>
+              <label><span>Jenis Dokumentasi</span><select id="documentationCategory"><option value="Briefing Internal">Briefing Internal</option><option value="Pendampingan &amp; Konsultasi" selected>Pendampingan &amp; Konsultasi</option><option value="Rapat Lainnya">Rapat Lainnya</option></select><small class="field-help">Pilih jenis dokumentasi yang akan ditampilkan pada linimasa.</small></label>
+              <label class="span-2"><span>Judul Kegiatan</span><input id="documentationTitle" type="text" required placeholder="Judul kegiatan"></label>
+              <label class="span-2"><span>Lokasi</span><input id="documentationLocation" type="text" placeholder="Lokasi kegiatan"></label>
+              <label class="span-2"><span>Keterangan</span><textarea id="documentationDescription" rows="4" placeholder="Keterangan singkat kegiatan"></textarea></label>
+              <label class="span-2"><span>Konten Instagram (opsional)</span><textarea id="documentationInstagram" rows="3" placeholder="Satu URL post/Reel per baris, contoh: https://www.instagram.com/p/.../"></textarea><small class="field-help">Post/Reel harus dapat dibuka publik agar bisa tampil di halaman dokumentasi.</small></label>
+              <label class="span-2"><span>Foto / Video Kegiatan</span><input id="documentationPhoto" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple><small class="field-note">Bisa pilih banyak file. Foto dikompres otomatis; video maksimal 20 MB per file.</small></label>
+            </div>
+            <div class="site-admin-photo-preview" id="documentationPhotoPreview"><span>Belum ada foto</span></div>
+            <div class="admin-actions"><button type="button" id="documentationReset">Batal / Kosongkan</button><button class="primary" type="submit">Simpan Dokumentasi</button></div>
+          </form>
+          <div class="portal-admin-list" id="documentationAdminList"></div>
+        </section>
+
+        <section class="admin-section" data-admin-panel="team">
+          <div class="panel-head"><div><small>07 · PEGAWAI PBJ</small><h2>Profil Pegawai</h2></div><button class="panel-export" id="exportSiteContentTeam" type="button">Unduh Data</button></div>
+          <form class="portal-admin-form" id="teamForm">
+            <input type="hidden" id="teamId">
+            <div class="portal-form-grid">
+              <label class="span-2"><span>Nama</span><input id="teamName" type="text" required placeholder="Nama pegawai"></label>
+              <label><span>Jabatan</span><input id="teamRole" type="text" placeholder="Jabatan"></label>
+              <label><span>Kelompok / Unit</span><input id="teamGroup" type="text" placeholder="LPSE / Pembinaan / Pengelolaan"></label>
+              <label class="span-2"><span>Foto · bisa pilih beberapa</span><input id="teamPhoto" type="file" accept="image/*" multiple></label>
+            </div>
+            <div class="site-admin-photo-preview team" id="teamPhotoPreview"><span>Belum ada foto</span></div>
+            <div class="admin-actions"><button type="button" id="teamReset">Batal / Kosongkan</button><button class="primary" type="submit">Simpan Pegawai</button></div>
+          </form>
+          <div class="portal-admin-list" id="teamAdminList"></div>
+        </section>
+
+        <section class="admin-section" data-admin-panel="opd-access">
+          <div class="panel-head opd-access-head">
+            <div><small>08 · KOMITMEN PERENCANAAN</small><h2>Akses Perangkat Daerah</h2></div>
+            <button class="panel-export" id="refreshOpdAccess" type="button">Perbarui Data</button>
+          </div>
+          <div class="opd-access-note">Kode ini dipakai OPD untuk masuk ke Komitmen Perencanaan. Reset hanya dilakukan jika kode perlu diganti.</div>
+          <div class="opd-access-toolbar">
+            <input id="opdAccessSearch" type="search" placeholder="Cari perangkat daerah..." autocomplete="off">
+            <div class="opd-access-count"><small>OPD</small><strong id="opdAccessCount">0</strong></div>
+          </div>
+          <div class="opd-access-table-wrap">
+            <table class="opd-access-table">
+              <thead><tr><th>Perangkat Daerah</th><th>Kode Akses</th><th>Status</th><th>Diperbarui</th><th></th></tr></thead>
+              <tbody id="opdAccessRows"><tr><td colspan="5" class="opd-access-empty">Buka menu ini untuk memuat kode akses.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="admin-section" data-admin-panel="forum">
+          <div class="panel-head"><div><small>05 · FORUM KONSULTASI &amp; PENDAMPINGAN</small><h2>Kelola Ruang Diskusi</h2></div></div>
+          <div class="forum-admin-connect">
+            <div class="forum-admin-connect-copy"><small>BACKEND GOOGLE</small><h3>Google Sheet + Google Drive</h3><p>Data topik dan tanggapan disimpan di Google Sheet. Lampiran masuk ke folder Google Drive. Isi URL Web App Apps Script setelah backend di-deploy.</p></div>
+            <div class="forum-admin-fields">
+              <label><span>URL Web App Apps Script</span><input id="forumEndpoint" type="url" placeholder="https://script.google.com/macros/s/.../exec"></label>
+              <label><span>Kunci Admin</span><input id="forumAdminKey" type="password" placeholder="Kunci dari setupForum()"></label>
+              <div class="forum-admin-connect-actions"><button class="primary" id="saveForumConnection" type="button">Simpan koneksi</button><button id="refreshForumAdmin" type="button">Muat data</button></div>
+              <div class="forum-admin-status" id="forumAdminStatus"><i></i><span>Belum diperiksa</span></div>
+            </div>
+          </div>
+
+          <div class="forum-admin-kpis">
+            <div><small>TOTAL TOPIK</small><strong id="forumAdminTotal">0</strong></div>
+            <div><small>MENUNGGU PUBLIKASI</small><strong id="forumAdminPending">0</strong></div>
+            <div><small>PENDAMPINGAN</small><strong id="forumAdminMentoring">0</strong></div>
+            <div><small>SELESAI</small><strong id="forumAdminDone">0</strong></div>
+          </div>
+          <div class="forum-admin-toolbar"><input id="forumAdminSearch" type="search" placeholder="Cari judul, OPD, topik..."><select id="forumAdminFilter"><option value="all">Semua status</option><option value="pending">Belum dipublikasi</option><option value="Dibuka">Dibuka</option><option value="Dijawab">Dijawab</option><option value="Pendampingan">Pendampingan</option><option value="Selesai">Selesai</option></select></div>
+          <div class="forum-admin-list" id="forumAdminList"><div class="forum-admin-empty">Muat data forum untuk mulai mengelola pembahasan.</div></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div class="admin-toast" id="adminToast" aria-live="polite"></div>
+  <script src="../assets/js/trax-api.js?v=27.56"></script>
+  <script src="../assets/js/admin.js?v=27.56"></script>
+  <script src="../assets/js/forum-admin.js"></script>
+  <script src="../assets/js/site-content-admin.js?v=27.53"></script>
+  <script src="../assets/js/site-surat-admin.js?v=27.51"></script>
+</body>
+</html>

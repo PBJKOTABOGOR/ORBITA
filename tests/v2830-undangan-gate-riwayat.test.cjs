@@ -1,0 +1,56 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const js=fs.readFileSync(path.join(root,'assets/js/selection.js'),'utf8');
+const css=fs.readFileSync(path.join(root,'assets/css/selection.css'),'utf8');
+const code=fs.readFileSync(path.join(root,'backend/Code-TRAXPBJ-Pemilihan.gs'),'utf8');
+const html=fs.readFileSync(path.join(root,'profil-pbj/index.html'),'utf8');
+const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
+test('Pokja tidak dapat mengirim undangan berulang, validasi backend',()=>{
+ const env=vm.createContext({Date,Number,Math,JSON,String,console});vm.runInContext(code,env);
+ const req={request_id:'P-1',status:'DITUGASKAN_POKJA',assigned_pokja_id:'P1',ppk_email:'ppk@example.com',workflow_scheme:'KAJI_ULANG_2026'};
+ const docs=[{request_id:'P-1',doc_type:'SURAT_UNDANGAN_KAJI_ULANG',is_current:true,uploaded_at:'2026-10-21T10:00:00Z'}];
+ const audit=[{request_id:'P-1',action:'KIRIM_UNDANGAN_KAJI',created_at:'2026-10-21T10:00:01Z'}];
+ env.getRequestAuthorized_=()=>req;env.requireRole_=()=>{};env.sheet_=name=>name;
+ env.currentDocs_=()=>docs.filter(d=>d.is_current);
+ env.rows_=name=>name==='PBJ_AUDIT_LOG'?audit:docs;
+ const args=[{role:'POKJA'}, {requestId:'P-1'}];
+ assert.throws(()=>env.sendKajiInvitation_(...args),/sudah dikirim/i);
+ req.status='REVIU_ULANG';
+ audit.push({request_id:'P-1',action:'RESUBMIT_KAJI_REVISION',created_at:'2026-10-21T11:00:00Z'});
+ assert.equal(env.canSendKajiInvitation_(req),true);
+ // Setelah diundang pada putaran kedua, tidak boleh mengirim ulang lagi.
+ docs[0].uploaded_at='2026-10-21T12:00:00Z';
+ audit.push({request_id:'P-1',action:'KIRIM_UNDANGAN_KAJI',created_at:'2026-10-21T12:00:01Z'});
+ assert.equal(env.canSendKajiInvitation_(req),false);
+});
+test('Tombol Kirim Undangan hanya aktif setelah perbaikan PPK dikirim ulang',()=>{
+ const m=js.match(/function canResendKajiInvitation\(d\)\{([\s\S]*?)\n  \}\n  function kajiInvitationHtml/);
+ assert.ok(m,'Fungsi pengunci undangan frontend tersedia');
+ const c=vm.createContext({Date,Math,String});c.currentDoc=d=>d.docs?.[0]||null;
+ vm.runInContext('function test(d){'+m[1]+'}\n'+ 'function isAllowed(d){const currentDoc=this.currentDoc;'+m[1]+'}',c);
+ const fn=new Function('d','currentDoc',m[1]);
+ const d={docs:[{uploaded_at:'2026-10-21T10:00:00Z'}],audit:[{action:'KIRIM_UNDANGAN_KAJI',created_at:'2026-10-21T10:00:01Z'}]};
+ assert.equal(fn(d,()=>d.docs[0]),false);
+ d.audit.push({action:'RESUBMIT_KAJI_REVISION',created_at:'2026-10-21T11:00:00Z'});
+ assert.equal(fn(d,()=>d.docs[0]),true);
+ d.audit.push({action:'KIRIM_UNDANGAN_KAJI',created_at:'2026-10-21T11:00:01Z'});
+ assert.equal(fn(d,()=>d.docs[0]),false);
+ assert.match(js,/const form=canSend\?/);
+ assert.match(js,/if\(!canResendKajiInvitation\(state\.detail\)\)/);
+});
+test('Riwayat Paket mempertahankan timeline dan surat terkait di panel ringkas',()=>{
+ assert.match(js,/const docHistory=specialDocs\.length\?`<details class="sel-history-documents"/);
+ assert.match(js,/sel-history-doc-row/);
+ assert.match(js,/\$\{auditTimelineHtml\(\{audit:current,docs:d\.docs\|\|\[\]\},\{reapplication\}\)\}/);
+ assert.match(css,/\.sel-app \.sel-history \.sel-timeline article\{display:grid!important/);
+ assert.match(css,/\.sel-app \.sel-history-documents>summary/);
+ assert.match(css,/@media\(max-width:680px\)/);
+ assert.match(html,/selection\.js\?v=28\.(?:30|31|32|33|36|37)/);
+ assert.match(html,/selection\.css\?v=28\.(?:30|31|32|33|36)/);
+ assert.match(sw,/orbita-pbj-shell-v28-(?:30|31|32|33|36|37)/);
+});

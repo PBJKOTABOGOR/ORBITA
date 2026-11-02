@@ -1,0 +1,83 @@
+/* Central account entry; header stays in the scrolling document. */
+.topbar{position:relative!important;top:auto!important;left:auto!important;transform:none!important;margin:18px auto;z-index:620!important;overflow:visible!important}
+button.admin-entry{font-family:inherit;cursor:pointer}.admin-entry [data-portal-label]{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.portal-scope{width:min(calc(100% - 36px),1540px);margin:-5px auto 9px;min-height:31px;display:flex;justify-content:flex-end;align-items:center;font-size:13px;color:#24495f;font-weight:900;letter-spacing:.01em}.portal-scope[hidden]{display:none!important}.portal-scope:not([hidden]){animation:portalScopeIn .28s cubic-bezier(.16,1,.3,1)}.portal-scope:not([hidden])::before{content:"";width:7px;height:7px;border-radius:50%;background:#20a36e;box-shadow:0 0 0 5px rgba(32,163,110,.08);margin-right:9px}.portal-scope:not([hidden]){padding:0 12px;border-radius:12px;transition:transform .18s ease,color .18s ease}.portal-scope:not([hidden]):hover{transform:translateY(-1px);color:#0b5f7d}@keyframes portalScopeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.portal-login[hidden],.portal-login [hidden]{display:none!important}.portal-login{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:18px}
+.portal-login-backdrop{position:absolute;inset:0;background:rgba(8,35,55,.38)}.portal-login-card{position:relative;width:min(390px,100%);max-height:90vh;overflow:auto;border:1px solid #d8e5ee;background:#fff;border-radius:22px;padding:28px;color:#0a3049;box-shadow:0 24px 90px #082c4933}
+.portal-login-card>small{font-size:9px;letter-spacing:.12em;color:#1881ad}.portal-login-card h2{font-size:23px;margin:5px 0 20px;line-height:1.2}.portal-login-card form{display:grid;gap:12px}.portal-login-card label{display:grid;gap:5px;font-size:11px;font-weight:700}.portal-login-card input,.portal-login-card select{width:100%;box-sizing:border-box;border:1px solid #d2e0ea;background:#f8fbfd;border-radius:9px;padding:10px;font:inherit;font-size:13px;color:#173e55}
+.portal-login-card button:not(.portal-login-close),#portalContentManager{border:0;border-radius:10px;padding:11px 14px;background:#087cb1;color:white;font-family:inherit;font-weight:700;font-size:12px;line-height:1.4;cursor:pointer;text-align:center;text-decoration:none}.portal-login-close{position:absolute;right:14px;top:14px;border:0;background:#eef5f8;color:#31586c;width:30px;height:30px;border-radius:50%;font-size:19px;cursor:pointer}
+#portalError,#portalConnection{font-size:11px;margin:0;color:#af4545;line-height:1.5}#portalAccount{display:grid;gap:12px;font-size:13px}#portalAccountOffice{margin:0;color:#637e8e;font-size:11px}#portalLogout{background:#edf4f7!important;color:#315c74!important}
+.proc-room>.topbar{margin:16px auto 0;z-index:620!important}.proc-room-shell{padding-top:18px!important}.proc-room.selection-mode .proc-room-shell{height:auto;min-height:calc(100svh - 100px)}
+.proc-room.selection-mode .proc-room-content{min-height:0;overflow:visible}.proc-room.selection-mode #procSelection{position:relative;overflow:visible!important}.proc-room.selection-mode .sel-app{height:auto}.proc-room.selection-mode .sel-main{overflow:visible}.proc-room.selection-mode .sel-shell{min-height:420px}.proc-room.selection-mode .sel-modal{position:fixed;z-index:130;inset:0}.proc-room.selection-mode .sel-flash{position:fixed;z-index:140}
+@media(max-width:760px){.topbar{margin:10px auto}.portal-login-card{padding:23px}.portal-login-card input{font-size:16px}.proc-room.selection-mode .sel-shell{min-height:300px}}
+
+.portal-login-card form.authenticating>label,.portal-login-card form.authenticating>#portalSubmit{display:none}
+.portal-auth-progress{display:flex;align-items:center;flex-direction:column;gap:10px;padding:25px 0 22px;min-height:210px;justify-content:center}.portal-auth-progress>b{font-size:17px}.portal-auth-progress>span{font-size:12px;color:#688293}
+.portal-auth-orbit{position:relative;width:86px;height:86px;display:grid;place-items:center;margin-bottom:12px;border:1px solid #e1eff5;border-radius:50%;background:radial-gradient(circle,#fff 45%,#eff9ff)}.portal-auth-orbit img{width:42px;height:42px;object-fit:contain}.portal-auth-orbit i{position:absolute;inset:-5px;border:2px solid transparent;border-top-color:#0087bb;border-right-color:#5dbcae;border-radius:50%;animation:portal-orbit 1.25s linear infinite}.portal-auth-orbit:after{content:"";position:absolute;inset:-13px;border:1px dashed #c6e3ec;border-radius:50%;animation:portal-orbit 10s linear infinite reverse}
+.portal-auth-track{width:150px;height:3px;border-radius:9px;background:#e7f2f7;overflow:hidden;margin-top:9px}.portal-auth-track i{display:block;height:100%;width:45%;border-radius:9px;background:linear-gradient(90deg,#0081bb,#50b6a8);animation:portal-track 1.5s ease-in-out infinite}
+@keyframes portal-orbit{to{transform:rotate(360deg)}}@keyframes portal-track{0%{transform:translateX(-110%)}100%{transform:translateX(330%)}}
+@media(prefers-reduced-motion:reduce){.portal-auth-orbit i,.portal-auth-orbit:after,.portal-auth-track i{animation:none}.portal-auth-track i{width:100%}}
+
+/* === ORBITA v27.61 · interactive account loading === */
+.portal-login-backdrop{backdrop-filter:blur(10px) saturate(.88);-webkit-backdrop-filter:blur(10px) saturate(.88);background:rgba(8,24,36,.34)}
+.portal-login-card{overflow:hidden;isolation:isolate}
+.portal-login-card:before{content:"";position:absolute;inset:-35%;z-index:-1;pointer-events:none;background:conic-gradient(from 120deg,rgba(57,120,255,.08),transparent 17%,rgba(39,184,120,.07) 35%,transparent 51%,rgba(238,79,134,.07) 69%,transparent 84%,rgba(255,138,61,.06));filter:blur(28px);animation:portal-card-ambient 18s linear infinite}
+@keyframes portal-card-ambient{to{transform:rotate(360deg)}}
+.portal-auth-progress{position:relative;gap:12px;padding:18px 0 16px;min-height:286px;overflow:hidden}
+.portal-auth-stage{position:relative;width:210px;height:154px;display:grid;place-items:center;margin-bottom:0}
+.portal-auth-stage:before,.portal-auth-stage:after{content:"";position:absolute;border-radius:50%;pointer-events:none}
+.portal-auth-stage:before{width:150px;height:150px;border:1px dotted rgba(16,126,176,.16);animation:portal-orbit 20s linear infinite}
+.portal-auth-stage:after{width:116px;height:116px;border:1px solid rgba(238,79,134,.10);animation:portal-orbit 13s linear infinite reverse}
+.portal-auth-orbit{position:relative;width:88px;height:88px;display:grid;place-items:center;margin:0;border:0;background:transparent;border-radius:50%}
+.portal-auth-orbit img{position:relative;z-index:5;width:43px;height:43px;object-fit:contain;filter:drop-shadow(0 10px 20px rgba(239,38,51,.16));animation:portal-core-float 2.8s ease-in-out infinite}
+.auth-ring{position:absolute!important;left:50%;top:50%;inset:auto!important;border-radius:50%;background:transparent!important;pointer-events:none}
+.auth-ring.ring-a{width:108px;height:34px;border:1px solid rgba(57,120,255,.42);transform:translate(-50%,-50%) rotate(18deg);animation:portal-ring-a 6.8s linear infinite}
+.auth-ring.ring-b{width:106px;height:34px;border:1px solid rgba(255,138,61,.38);transform:translate(-50%,-50%) rotate(138deg);animation:portal-ring-b 8.6s linear infinite reverse}
+.auth-ring.ring-c{width:102px;height:32px;border:1px solid rgba(39,184,120,.38);transform:translate(-50%,-50%) rotate(76deg);animation:portal-ring-c 10.5s linear infinite}
+@keyframes portal-ring-a{to{transform:translate(-50%,-50%) rotate(378deg)}}
+@keyframes portal-ring-b{to{transform:translate(-50%,-50%) rotate(-222deg)}}
+@keyframes portal-ring-c{to{transform:translate(-50%,-50%) rotate(436deg)}}
+@keyframes portal-core-float{50%{transform:translateY(-4px) scale(1.035)}}
+.auth-particle{position:absolute;z-index:6;width:5px;height:5px;border-radius:50%;box-shadow:0 0 0 4px rgba(255,255,255,.65);animation:portal-particle-drift 2.9s ease-in-out infinite alternate}
+.auth-particle.p1{left:-13px;top:40px;background:#3978ff}.auth-particle.p2{right:-12px;top:31px;background:#ff8a3d;animation-delay:-.4s}.auth-particle.p3{left:12px;bottom:-8px;background:#27b878;animation-delay:-.8s}.auth-particle.p4{right:10px;bottom:-8px;background:#ee4f86;animation-delay:-1.2s}.auth-particle.p5{left:35px;top:-14px;background:#12aee6;animation-delay:-1.6s}.auth-particle.p6{right:31px;top:-13px;background:#7a5cff;animation-delay:-2s}.auth-particle.p7{left:-2px;bottom:16px;background:#d9a115;animation-delay:-2.4s}.auth-particle.p8{right:-1px;bottom:20px;background:#12aee6;animation-delay:-2.8s}
+@keyframes portal-particle-drift{to{transform:translate3d(5px,-6px,0) scale(1.24)}}
+.portal-auth-field{position:absolute;inset:0;pointer-events:none}
+.portal-auth-field i{position:absolute;width:2px;height:2px;border-radius:50%;background:#5b727f;opacity:.22;animation:portal-field-pulse 2.4s ease-in-out infinite}
+.portal-auth-field i:nth-child(1){left:3%;top:20%}.portal-auth-field i:nth-child(2){left:14%;top:66%;animation-delay:-.2s}.portal-auth-field i:nth-child(3){left:28%;top:8%;animation-delay:-.4s}.portal-auth-field i:nth-child(4){left:34%;top:88%;animation-delay:-.6s}.portal-auth-field i:nth-child(5){left:49%;top:17%;animation-delay:-.8s}.portal-auth-field i:nth-child(6){left:57%;top:83%;animation-delay:-1s}.portal-auth-field i:nth-child(7){left:72%;top:10%;animation-delay:-1.2s}.portal-auth-field i:nth-child(8){left:84%;top:74%;animation-delay:-1.4s}.portal-auth-field i:nth-child(9){left:94%;top:29%;animation-delay:-1.6s}.portal-auth-field i:nth-child(10){left:21%;top:42%;animation-delay:-1.8s}.portal-auth-field i:nth-child(11){left:77%;top:49%;animation-delay:-2s}.portal-auth-field i:nth-child(12){left:50%;top:97%;animation-delay:-2.2s}
+@keyframes portal-field-pulse{50%{opacity:.75;transform:scale(2)}}
+.portal-auth-copy{text-align:center;display:grid;gap:5px}.portal-auth-copy>b{font-size:17px;letter-spacing:-.02em}.portal-auth-copy>span{font-size:11px;color:#728894;min-height:16px;transition:opacity .2s ease}
+.portal-auth-track{width:172px;height:2px;background:#edf3f5;margin-top:4px;position:relative}.portal-auth-track i{width:36%;background:linear-gradient(90deg,#3978ff,#12aee6,#27b878,#ff8a3d,#ee4f86);animation:portal-track 1.35s cubic-bezier(.16,1,.3,1) infinite}
+.portal-auth-dots{display:flex;gap:6px;margin-top:2px}.portal-auth-dots i{width:18px;height:2px;border-radius:99px;background:#dce7eb;transition:width .35s cubic-bezier(.16,1,.3,1),background .3s}.portal-auth-dots i.active{width:30px;background:#157eae}
+.portal-auth-progress.is-success .portal-auth-orbit img{animation:none;transform:scale(1.08)}
+.portal-auth-progress.is-success .auth-ring{animation-duration:1.9s!important}
+.portal-auth-progress.is-success .portal-auth-track i{width:100%;transform:none;animation:none;background:linear-gradient(90deg,#27b878,#12aee6)}
+.portal-auth-progress.is-success .portal-auth-copy>b{color:#177a59}
+@media(prefers-reduced-motion:reduce){.portal-login-card:before,.auth-ring,.portal-auth-orbit img,.auth-particle,.portal-auth-field i{animation:none!important}}
+
+/* v28.43: tombol lihat password di popup login, mengikuti ukuran input yang sudah ada. */
+.portal-login-card .portal-password-field{display:grid;gap:5px}
+.portal-login-card .portal-password-input{position:relative;min-width:0}
+.portal-login-card .portal-password-input #portalPassword{padding-right:49px}
+.portal-login-card #portalPasswordToggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:36px;height:36px;min-height:0;margin:0;padding:0;border:0;border-radius:8px;background:transparent;color:#5c798e;line-height:1;box-shadow:none;cursor:pointer}
+.portal-login-card #portalPasswordToggle:hover{background:#e9f2f7;color:#1c5878}
+.portal-login-card #portalPasswordToggle:focus-visible{outline:2px solid #2582ad;outline-offset:1px}
+.portal-login-card #portalPasswordToggle:disabled{opacity:.5;cursor:default}
+.portal-login-card #portalPasswordToggle .portal-eye-slash{display:none}
+.portal-login-card #portalPasswordToggle[aria-pressed="true"] .portal-eye-slash{display:block}
+.portal-login-card form.authenticating>.portal-password-field{display:none}
+
+/* v28.54 - akun dan pilihan Pokja */
+#portalAccount .portal-pokja-chooser{display:grid;gap:8px;padding:11px;background:#f4f9fb;border:1px solid #dce9ef;border-radius:12px}
+.portal-pokja-chooser label{font-size:11px;font-weight:800}.portal-pokja-chooser small,#portalPasswordMessage{font-size:11px;color:#5f7c8d}
+#portalAccount #portalChangePassword{background:#eaf4f8;color:#235774}
+#portalPasswordEditor{display:grid;gap:9px;border:1px solid #dce9ef;border-radius:12px;padding:12px}
+#portalPasswordEditor label{display:grid;gap:5px;font-size:11px;font-weight:800}
+#portalPasswordEditor .portal-password-actions{display:flex;gap:8px}
+#portalPasswordEditor #portalPasswordCancel{background:#ecf4f8;color:#325e76}
+
+/* v28.65: proses ganti Pokja terlihat jelas tanpa mengubah ukuran komponen. */
+.portal-pokja-wait{display:inline-flex;align-items:center;gap:8px}
+.portal-pokja-wait i{display:inline-block;width:12px;height:12px;border:2px solid #cbdfe9;border-top-color:#287fa9;border-radius:50%;animation:portalPokjaWait .65s linear infinite}
+#portalSwitchPokja.is-switching{opacity:.83;cursor:wait}
+@keyframes portalPokjaWait{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.portal-pokja-wait i{animation:none}}

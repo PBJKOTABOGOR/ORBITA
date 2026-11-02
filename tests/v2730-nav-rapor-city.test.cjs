@@ -1,0 +1,11 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const root=path.join(__dirname,'..');
+const html=fs.readFileSync(path.join(root,'profil-pbj/index.html'),'utf8');
+const css=fs.readFileSync(path.join(root,'assets/css/profile.css'),'utf8');
+const js=fs.readFileSync(path.join(root,'assets/js/profile.js'),'utf8');
+const rapor=fs.readFileSync(path.join(root,'assets/js/rapor-kota.js'),'utf8');
+const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
+test('all center navigation items use the same SPSE-sized typography',()=>{assert.match(css,/--nav-font:12\.75px/);assert.match(css,/font-size:var\(--nav-font\)!important/);assert.match(css,/font-weight:500!important/);});
+test('LPSE dropdown contains all services shown in Ruang PBJ',()=>{for(const label of ['SPSE','Helpdesk LPSE','SIPPBJ','Dashboard Monitoring','Evaluasi Pengguna Layanan','Chat Konsultasi PBJ'])assert.match(html,new RegExp(label));assert.match(js,/action==='evaluation'/);});
+test('topbar is hidden after opening a destination or full module',()=>{assert.match(js,/topnav-destination-active/);assert.match(css,/body\.topnav-destination-active \.topbar/);assert.match(css,/body\.proc-room-open \.topbar/);assert.match(css,/body\.docs-experience-open \.topbar/);});
+test('rapor requests only KOTA BOGOR rows and uses the previous month',()=>{assert.match(rapor,/CITY_QUERY=.*KOTA BOGOR/);assert.match(rapor,/month===1\?\{year:year-1,month:12\}:\{year,month:month-1\}/);assert.match(rapor,/normText\(x\.name\)==='kota bogor'/);assert.doesNotMatch(rapor,/TRAXPBJ_SESSION\?\.matches\(x\.name\)/);assert.match(sw,/orbita-pbj-shell-v27-(?:34-back-team-selection|38-hard-home-back|49-docs-hub-surat|50-docs-unified-five-lines|54-docs-hover-surat-preview|55-surat-action-only|56-edukasi-doc|57-constellation-bg|58-constellation-interactive|59-atomic-room)/);});
