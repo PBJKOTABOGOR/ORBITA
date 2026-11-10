@@ -200,6 +200,49 @@
   function selectionPath(){const loc=browserLocation();const h=String(loc?.hash||'');if(!h.startsWith(selectionBase))return'';return h.slice(selectionBase.length).replace(/^\/+|\/+$/g,'');}
   function selectionHash(path=''){return selectionBase+(path?'/'+String(path).replace(/^\/+/, ''):'');}
   function setSelectionHash(path='',replace=false){const loc=browserLocation(),hist=browserHistory();if(!loc||!hist)return;const next=selectionHash(path);if(loc.hash===next)return;hist[replace?'replaceState':'pushState']({traxPanel:'procurement',module:'selection'},'',loc.pathname+loc.search+next);}
+  // HPS yang valid dari pembacaan langsung sel database. Tidak menggunakan pagu sebagai pengganti.
+  const verifiedHps=new Map(),hpsProbeAt=new Map();
+  let hpsProbeRunning=false,hpsProbeWarned=false;
+  function displayHps(r){
+    const current=Number(r?.hps_alokasi);
+    if(Number.isFinite(current)&&current>0)return current;
+    const check=verifiedHps.get(String(r?.request_id||''));
+    if(check&&check.value>0&&(!check.updated_at||!r?.updated_at||check.updated_at===String(r.updated_at)))return check.value;
+    return 0;
+  }
+  async function verifyMissingHps_(){
+    if(!state.me||!API()?.hasSession()||hpsProbeRunning||writing()||state.requestsLoading||state.busy)return;
+    const candidates=[...(state.view==='detail'&&state.detail?.request?[state.detail.request]:[]),...state.requests];
+    const now=Date.now(),ids=[],seen=new Set();
+    for(const r of candidates){
+      const id=String(r?.request_id||'');
+      if(!id||seen.has(id)||displayHps(r)>0||now-(hpsProbeAt.get(id)||0)<120000)continue;
+      seen.add(id);ids.push(id);if(ids.length===12)break;
+    }
+    if(!ids.length)return;
+    ids.forEach(id=>hpsProbeAt.set(id,now));hpsProbeRunning=true;
+    try{
+      const result=await API().call('verifyRequestHps',{requestIds:ids},{timeoutMs:20000});
+      let changed=false;
+      (result?.data?.items||[]).forEach(item=>{
+        const id=String(item?.request_id||''),amount=Number(item?.hps_alokasi);
+        if(!id||!Number.isSafeInteger(amount)||amount<=0)return;
+        const prev=verifiedHps.get(id);
+        if(!prev||prev.value!==amount||prev.updated_at!==String(item.updated_at||''))changed=true;
+        verifiedHps.set(id,{value:amount,updated_at:String(item.updated_at||'')});
+      });
+      if(changed&&['requests','detail'].includes(state.view)){if(state.detail?.request)state.detail=withPokja(state.detail);renderPreservingPosition();}
+    }catch(e){
+      if(!hpsProbeWarned&&state.me?.role==='ADMIN'&&/Aksi tidak dikenal|verifyRequestHps/i.test(String(e?.message||''))){
+        hpsProbeWarned=true;flash('Pembaruan HPS butuh versi Apps Script Pemilihan terbaru. Perbarui deployment backend terlebih dahulu.','error');
+      }
+    }finally{hpsProbeRunning=false;}
+  }
+  function scheduleMissingHps_(){
+    if(!['requests','detail'].includes(state.view)||!state.me)return;
+    clearTimeout(scheduleMissingHps_._timer);
+    scheduleMissingHps_._timer=setTimeout(()=>verifyMissingHps_().catch(()=>{}),260);
+  }
   function requestSummary(id){return state.requests.find(x=>String(x.request_id)===String(id));}
   function isKajiRequest(r){return String(r?.workflow_scheme||'')==='KAJI_ULANG_2026'}
   function requestSelectionProcess(r){
@@ -309,7 +352,7 @@
     if(!memory)detailCache.set(key,stored);
     return stored;
   }
-  function withPokja(d){return {...d,pokja:state.dashboard?.pokja||d.pokja||[],loading:false}}
+  function withPokja(d){const amount=displayHps(d?.request),request=amount>0&&Number(d?.request?.hps_alokasi)<=0?{...d.request,hps_alokasi:amount}:d.request;return {...d,request,pokja:state.dashboard?.pokja||d.pokja||[],loading:false}}
   function perbaruiStatusDaftarDariDetail(detail){
     const r=detail?.request;
     if(!r)return;
@@ -448,7 +491,7 @@
   function requestTitle(r){return String(r?.judul_permohonan||r?.nama_paket||'Tanpa judul permohonan').trim()}
   const titleKey=s=>String(s||'').normalize('NFKC').replace(/\s+/g,' ').trim().toLocaleLowerCase('id-ID');
   function titleUsedByMe(title){const key=titleKey(title);return !!key&&state.me?.role==='PPK'&&state.requests.some(r=>titleKey(r.judul_permohonan||r.nama_paket)===key); }
-  function requestRow(r,ctx={}){const label=requestCodeLabel(r,ctx),canDeleteDraft=state.me?.role==='PPK'&&['DRAFT','PERLU_KELENGKAPAN'].includes(String(r.status||''));return `<article class="sel-request-card" data-status="${esc(r.status)}"><button type="button" class="sel-request" data-request-id="${esc(r.request_id)}"><div class="sel-request-code"><small>${esc(label)}</small><code>${esc(r.request_id)}</code></div><div class="sel-request-copy"><b>${esc(requestTitle(r))}</b><span class="sel-process-label ${requestSelectionProcess(r)==='NEGOSIASI'?'negotiation':requestSelectionProcess(r)==='PERSIAPAN'?'preparation':'competition'}">${esc(requestProcessLabel(r))}</span><span>RUP ${esc(r.kode_rup)} · ${esc(r.metode_epurchasing||r.metode_pengadaan||'')}</span></div><div class="sel-request-opd"><b>${esc(r.opd||'—')}</b><span>${esc(requestSubmissionLabel(r))}</span></div><div class="sel-money"><b>${fmtRp(r.pagu)}</b><span class="sel-money-hps">HPS: ${Number(r.hps_alokasi)>0?fmtRp(r.hps_alokasi):'—'}</span><span>${esc(r.jenis||'')}</span></div>${paketSelesaiTerbukti(r)?badge('SELESAI'):requestBadge(r)}</button>${canDeleteDraft?`<div class="sel-request-draft-actions"><button type="button" class="sel-request-delete-draft" data-delete-draft-request="${esc(r.request_id)}" aria-label="Hapus draft ${esc(r.request_id)}">Hapus Draft</button></div>`:''}${requestPipeline(r)}</article>`}
+  function requestRow(r,ctx={}){const label=requestCodeLabel(r,ctx),canDeleteDraft=state.me?.role==='PPK'&&['DRAFT','PERLU_KELENGKAPAN'].includes(String(r.status||''));return `<article class="sel-request-card" data-status="${esc(r.status)}"><button type="button" class="sel-request" data-request-id="${esc(r.request_id)}"><div class="sel-request-code"><small>${esc(label)}</small><code>${esc(r.request_id)}</code></div><div class="sel-request-copy"><b>${esc(requestTitle(r))}</b><span class="sel-process-label ${requestSelectionProcess(r)==='NEGOSIASI'?'negotiation':requestSelectionProcess(r)==='PERSIAPAN'?'preparation':'competition'}">${esc(requestProcessLabel(r))}</span><span>RUP ${esc(r.kode_rup)} · ${esc(r.metode_epurchasing||r.metode_pengadaan||'')}</span></div><div class="sel-request-opd"><b>${esc(r.opd||'—')}</b><span>${esc(requestSubmissionLabel(r))}</span></div><div class="sel-money"><b>${fmtRp(r.pagu)}</b><span class="sel-money-hps">HPS: ${displayHps(r)>0?fmtRp(displayHps(r)):'—'}</span><span>${esc(r.jenis||'')}</span></div>${paketSelesaiTerbukti(r)?badge('SELESAI'):requestBadge(r)}</button>${canDeleteDraft?`<div class="sel-request-draft-actions"><button type="button" class="sel-request-delete-draft" data-delete-draft-request="${esc(r.request_id)}" aria-label="Hapus draft ${esc(r.request_id)}">Hapus Draft</button></div>`:''}${requestPipeline(r)}</article>`}
   function requestGroupHtml(group){const latest=group[0]||{},multi=group.length>1,key=String(latest.kode_rup||latest.request_id||'group').replace(/[^A-Za-z0-9_-]/g,'_');if(!multi)return `<section class="sel-request-group">${requestRow(latest,{groupSize:1,index:0,isLatestInGroup:true})}</section>`;const previous=group.slice(1).map((r,index)=>requestRow(r,{groupSize:group.length,index:index+1,isLatestInGroup:false})).join('');return `<section class="sel-request-group grouped"><div class="sel-request-group-head"><div><b>${esc(requestTitle(latest))}</b><span>RUP ${esc(latest.kode_rup||'—')} · ${nf.format(group.length)} pengajuan</span></div></div>${requestRow(latest,{groupSize:group.length,index:0,isLatestInGroup:true})}<div class="sel-request-group-footer"><button type="button" class="sel-ghost sel-request-history-toggle" data-toggle-request-history="${esc(key)}" aria-expanded="false">Lihat pengajuan sebelumnya (${group.length-1})</button></div><div class="sel-request-previous collapsed" data-request-history="${esc(key)}">${previous}</div></section>`}
   function rememberRequestOpds(rows){if(!['ADMIN','POKJA','KEPALA_UKPBJ'].includes(state.me?.role))return;const names=new Set([...(state.opdOptions||[]),...(rows||[]).map(r=>String(r.opd||'').trim()).filter(Boolean)]);state.opdOptions=[...names].sort((a,b)=>a.localeCompare(b,'id'));}
   // v28.86: dropdown OPD yang benar-benar terbuka saat diklik, tanpa API tambahan.
@@ -1031,7 +1074,7 @@
     const h=host();if(!h)return;backgroundRenderPending=false;
     if(!state.me){h.innerHTML=loginHtml();bindLogin();return}
     let content=state.view==='create-process'?createProcessHtml():state.view==='create-kind'?createKindHtml():state.view==='create-form'?createFormHtml():state.view==='skp'&&state.me.role==='POKJA'?skpHtml():state.view==='requests'?requestsHtml():state.view==='detail'&&state.detail?detailHtml(state.detail):state.view==='admin'&&state.me.role==='ADMIN'?adminHtml():dashboardHtml();
-    h.innerHTML=appShell(layout(content));bindApp();if(state.view==='create-process')bindCreateProcess();if(state.view==='create-kind')bindCreateKind();if(state.view==='create-form')bindCreateForm();
+    h.innerHTML=appShell(layout(content));bindApp();scheduleMissingHps_();if(state.view==='create-process')bindCreateProcess();if(state.view==='create-kind')bindCreateKind();if(state.view==='create-form')bindCreateForm();
   }
 
   function bindLogin(){$('[data-open-portal]')?.addEventListener('click',()=>window.TRAXPBJ_SESSION?.open())}
@@ -2586,7 +2629,7 @@
   function stopPolling(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
   function useSession(user,bootstrap){
     navigationVersion++;clearRupOptions();docUploadStates.clear();skpFetchVersion++;skpLoading=false;state.skp=null;state.skpError='';state.skpExport=false;assignmentOpen=false;pendingDetail=null;detailCache.clear();detailCacheAt.clear();detailPrefetchLoads.clear();state.detail=null;state.admin=null;state.adminPanel='manage';state.adminAuditLoaded=false;state.create=null;state.search='';state.filterStatus='';state.view='dashboard';
-    state.me=user&&user.role!=='ADMIN_CONTENT'?user:null;state.dashboard=bootstrap?.dashboard||null;state.requests=bootstrap?.requests||[];state.opdOptions=[];state.filterOpd='';rememberRequestOpds(state.requests);state.requestsLoading=!!(state.me&&!bootstrap);
+    verifiedHps.clear();hpsProbeAt.clear();hpsProbeRunning=false;hpsProbeWarned=false;state.me=user&&user.role!=='ADMIN_CONTENT'?user:null;state.dashboard=bootstrap?.dashboard||null;state.requests=bootstrap?.requests||[];state.opdOptions=[];state.filterOpd='';rememberRequestOpds(state.requests);state.requestsLoading=!!(state.me&&!bootstrap);
     try{state.sidebarCollapsed=localStorage.getItem('orbit_pbj_selection_side_collapsed')==='1'}catch(_){}
     state.lastSync=bootstrap?Date.now():0;state.syncVersion=String(bootstrap?.syncVersion||'');if(bootstrap)saveBootCache(bootstrap);else clearBootCache();
     if(host()?.closest('.proc-module.active')){Promise.resolve(applySelectionRoute()).then(handled=>{if(!handled)render();if(state.me){startPolling();if(bootstrap){setTimeout(()=>{if(canBackgroundRender())prefetchRupOptions();},700);scheduleDetailPrefetch();}else{setTimeout(async()=>{if(!state.me||!host()?.closest('.proc-module.active')||state.syncing)return;try{const fast=await loadFastBootstrap();if(!fast){await sync(true);if(!await applySelectionRoute())renderPreservingPosition();}setTimeout(()=>{if(canBackgroundRender())prefetchRupOptions();},180);scheduleDetailPrefetch();}catch(e){flash(apiErr(e),'error')}},30);}}else stopPolling();});}
