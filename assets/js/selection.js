@@ -283,12 +283,13 @@
   const detailStorageKey=id=>DETAIL_CACHE_PREFIX+detailKey(id);
   function storedDetail(id){try{const raw=sessionStorage.getItem(detailStorageKey(id));if(!raw)return null;const box=JSON.parse(raw);if(!box?.data||Date.now()-Number(box.at||0)>30*60*1000){sessionStorage.removeItem(detailStorageKey(id));return null}detailCacheAt.set(detailKey(id),Number(box.at)||0);return box.data}catch(_){return null}}
   function rememberDetail(d){if(!d?.request||d.loading)return;const key=detailKey(d.request.request_id),at=Date.now();detailCache.set(key,d);detailCacheAt.set(key,at);if(detailCache.size>20){const first=detailCache.keys().next().value;detailCache.delete(first);detailCacheAt.delete(first)}try{sessionStorage.setItem(detailStorageKey(d.request.request_id),JSON.stringify({at,data:d}))}catch(_){}}
-  // Saat jenis Mini Kompetisi diperbaiki langsung di Sheet, updated_at kadang tidak ikut berubah.
-  // Cocokkan juga status/jenis/tahap dari daftar terbaru agar detail lama tidak tersangkut di sessionStorage.
+  // Koreksi Admin (HPS, judul, PPK) harus ikut membatalkan cache detail,
+  // termasuk bila updated_at belum ikut tersinkron dari bootstrap sebelumnya.
   function detailMatchesSummary(detail,summary){
     if(!detail?.request||!summary)return false;
     const req=detail.request;
-    return ['updated_at','inaproc_version','competition_type','selection_process','mini_stage','status','current_round']
+    return ['updated_at','inaproc_version','competition_type','selection_process','mini_stage','status','current_round',
+      'hps_alokasi','judul_permohonan','ppk_nama','ppk_email','notes']
       .every(field=>String(req[field]??'').trim().toUpperCase()===String(summary[field]??'').trim().toUpperCase());
   }
   function clearCachedDetail(id){
@@ -299,15 +300,31 @@
     const key=detailKey(id),memory=detailCache.get(key),stored=memory||storedDetail(id);
     if(!stored)return null;
     const summary=requestSummary(id);
+    // HPS 0 adalah data lama yang saat ini tidak lolos validasi permohonan.
+    // Jangan tahan kartu Rp0 sampai 30 menit: refresh sesekali, khusus paket ini saja.
+    if(Number(stored.request?.hps_alokasi)<=0 && Date.now()-(detailCacheAt.get(key)||0)>15000){
+      clearCachedDetail(id);return null;
+    }
     if(summary&&!detailMatchesSummary(stored,summary)){clearCachedDetail(id);return null;}
     if(!memory)detailCache.set(key,stored);
     return stored;
   }
   function withPokja(d){return {...d,pokja:state.dashboard?.pokja||d.pokja||[],loading:false}}
   function perbaruiStatusDaftarDariDetail(detail){
-    const r=detail?.request,p=r?.inaproc_progress;
-    if(!r||p?.state!=='ready'||!(Number(p.count)>0))return;
-    state.requests=state.requests.map(old=>String(old.request_id)===String(r.request_id)?{...old,status:r.status,inaproc_progress:p,inaproc_version:r.inaproc_version}:old);
+    const r=detail?.request;
+    if(!r)return;
+    let changed=false;
+    const fields=['updated_at','hps_alokasi','judul_permohonan','ppk_nama','ppk_email','notes',
+      'competition_type','selection_process','mini_stage','status','current_round','inaproc_progress','inaproc_version'];
+    state.requests=state.requests.map(old=>{
+      if(String(old.request_id)!==String(r.request_id))return old;
+      const oldAt=Date.parse(old.updated_at||''),newAt=Date.parse(r.updated_at||'');
+      if(Number.isFinite(oldAt)&&Number.isFinite(newAt)&&newAt<oldAt)return old;
+      const next={...old};
+      fields.forEach(field=>{if(r[field]!==undefined&&JSON.stringify(old[field])!==JSON.stringify(r[field])){next[field]=r[field];changed=true;}});
+      return next;
+    });
+    if(changed)clearBootCache();
   }
 
   async function prefetchDetail(id){id=String(id||'');if(!id||!state.me||writing())return null;const key=detailKey(id),summary=state.requests.find(x=>String(x.request_id)===id),cached=cachedDetail(id);if(cached&&summary&&detailMatchesSummary(cached,summary))return cached;if(detailPrefetchLoads.has(key))return detailPrefetchLoads.get(key);const userId=state.me.user_id,activePokja=state.me.role==='POKJA'?state.me.pokja_id:'',rev=writeVersion();const pending=API().call('requestDetail',{requestId:id},{timeoutMs:22000}).then(r=>{if(state.me?.user_id!==userId||(state.me?.role==='POKJA'&&state.me?.pokja_id!==activePokja)||rev!==writeVersion())return null;const next=withPokja(r.data);perbaruiStatusDaftarDariDetail(next);rememberDetail(next);return next}).catch(()=>null).finally(()=>detailPrefetchLoads.delete(key));detailPrefetchLoads.set(key,pending);return pending}
@@ -383,8 +400,9 @@
     if(nav!==navigationVersion||fetchVersion!==detailFetchVersion||!canBackgroundRender())return;
     if(view==='detail'&&id&&state.view==='detail'){
       const summary=state.requests.find(r=>r.request_id===id);
-      if(pendingDetailVersion!==writeVersion()||pendingDetail?.request?.updated_at!==summary?.updated_at||pendingDetail?.request?.inaproc_version!==summary?.inaproc_version)pendingDetail=null;
-      if(pendingDetail?.request?.request_id===id){state.detail=pendingDetail;pendingDetail=null;renderPreservingPosition();}else if(!summary||summary.updated_at!==state.detail?.request?.updated_at||summary.inaproc_version!==state.detail?.request?.inaproc_version)await refreshDetail(true);
+      if(pendingDetailVersion!==writeVersion()||!detailMatchesSummary(pendingDetail,summary))pendingDetail=null;
+      if(pendingDetail?.request?.request_id===id){state.detail=pendingDetail;pendingDetail=null;renderPreservingPosition();}
+      else if(!summary||!detailMatchesSummary(state.detail,summary))await refreshDetail(true);
     }else if(view===state.view&&backgroundRenderPending)renderPreservingPosition();
   }
 
@@ -2500,9 +2518,18 @@
       if(!await confirmCritical({eyebrow:'PERBAIKAN PERMOHONAN',title:isData?'Simpan perubahan data permohonan?':isReturn?'Kembalikan permohonan ke Pokja?':'Simpan koreksi jenis kompetisi?',message:`Paket ${r.request_id}. Alasan: ${reason}. Semua tindakan dicatat di Riwayat Paket.`,yes:label,no:'Periksa lagi',danger:isReturn}))return;
       const proc=criticalProcess({eyebrow:'PERBAIKAN PERMOHONAN',title:'Menyimpan perbaikan',message:'Memeriksa tahap dan mencatat riwayat…'});
       try{
-        await API().call(action,{requestId:r.request_id,expectedStatus:r.status,expectedMiniStage:r.mini_stage||'',expectedCompetitionType:type,expectedSelectionProcess:p,expectedUpdatedAt:r.updated_at||'',reason,competitionType,editedData:edited,externalConfirmed:isData?$('#adminEditExternalConfirmed')?.checked===true:$('#adminCorrectionExternal')?.checked===true},{timeoutMs:45000});
+        const saved=await API().call(action,{requestId:r.request_id,expectedStatus:r.status,expectedMiniStage:r.mini_stage||'',expectedCompetitionType:type,expectedSelectionProcess:p,expectedUpdatedAt:r.updated_at||'',reason,competitionType,editedData:edited,externalConfirmed:isData?$('#adminEditExternalConfirmed')?.checked===true:$('#adminCorrectionExternal')?.checked===true},{timeoutMs:45000});
         $('#selModal')?.classList.remove('open');
-        const key=detailKey(r.request_id);detailCache.delete(key);detailCacheAt.delete(key);detailPrefetchLoads.delete(key);try{sessionStorage.removeItem(detailStorageKey(r.request_id))}catch(_){}
+        // Backend sudah menyimpan nilai baru: pakai responsnya sekarang juga,
+        // bukan menunggu polling yang masih dapat membawa snapshot HPS lama.
+        const updated=saved?.data;
+        if(updated?.request_id===r.request_id){
+          state.requests=state.requests.map(old=>String(old.request_id)===String(r.request_id)?{...old,...updated}:old);
+          if(state.detail?.request?.request_id===r.request_id)state.detail.request={...state.detail.request,...updated};
+        }
+        clearCachedDetail(r.request_id);
+        detailPrefetchLoads.delete(detailKey(r.request_id));
+        pendingDetail=null;clearBootCache();
         state.adminAuditLoaded=false;
         await proc.success('Perbaikan tersimpan dan tercatat di Riwayat Paket.');
         const input=$('#selAdminCorrectionSearch');if(input)input.value=r.request_id;
