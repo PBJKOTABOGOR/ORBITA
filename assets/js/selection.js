@@ -200,15 +200,19 @@
   function selectionPath(){const loc=browserLocation();const h=String(loc?.hash||'');if(!h.startsWith(selectionBase))return'';return h.slice(selectionBase.length).replace(/^\/+|\/+$/g,'');}
   function selectionHash(path=''){return selectionBase+(path?'/'+String(path).replace(/^\/+/, ''):'');}
   function setSelectionHash(path='',replace=false){const loc=browserLocation(),hist=browserHistory();if(!loc||!hist)return;const next=selectionHash(path);if(loc.hash===next)return;hist[replace?'replaceState':'pushState']({traxPanel:'procurement',module:'selection'},'',loc.pathname+loc.search+next);}
-  // HPS yang valid dari pembacaan langsung sel database. Tidak menggunakan pagu sebagai pengganti.
+  // HPS untuk permohonan lama bisa 0 pada snapshot API. Jika demikian,
+  // validasi dari SEL ASLI pada backend, tanpa menggunakan pagu sebagai pengganti.
   const verifiedHps=new Map(),hpsProbeAt=new Map();
   let hpsProbeRunning=false,hpsProbeWarned=false;
   function displayHps(r){
-    const current=Number(r?.hps_alokasi);
-    if(Number.isFinite(current)&&current>0)return current;
-    const check=verifiedHps.get(String(r?.request_id||''));
-    if(check&&check.value>0&&(!check.updated_at||!r?.updated_at||check.updated_at===String(r.updated_at)))return check.value;
-    return 0;
+    const amount=Number(r?.hps_alokasi);
+    if(Number.isSafeInteger(amount)&&amount>0)return amount;
+    const verified=verifiedHps.get(String(r?.request_id||''));
+    if(!verified||!Number.isSafeInteger(verified.value)||verified.value<=0)return 0;
+    // Jangan pakai pemeriksaan lama kalau record server punya tanggal lebih baru.
+    const sourceTime=Date.parse(r?.updated_at||''),verifiedTime=Date.parse(verified.updated_at||'');
+    if(Number.isFinite(sourceTime)&&Number.isFinite(verifiedTime)&&sourceTime>verifiedTime)return 0;
+    return verified.value;
   }
   async function verifyMissingHps_(){
     if(!state.me||!API()?.hasSession()||hpsProbeRunning||writing()||state.requestsLoading||state.busy)return;
@@ -222,19 +226,33 @@
     if(!ids.length)return;
     ids.forEach(id=>hpsProbeAt.set(id,now));hpsProbeRunning=true;
     try{
-      const result=await API().call('verifyRequestHps',{requestIds:ids},{timeoutMs:20000});
-      let changed=false;
-      (result?.data?.items||[]).forEach(item=>{
+      const res=await API().call('verifyRequestHps',{requestIds:ids},{timeoutMs:20000});
+      let changed=false,verifiedCount=0;
+      (res?.data?.items||[]).forEach(item=>{
         const id=String(item?.request_id||''),amount=Number(item?.hps_alokasi);
-        if(!id||!Number.isSafeInteger(amount)||amount<=0)return;
-        const prev=verifiedHps.get(id);
-        if(!prev||prev.value!==amount||prev.updated_at!==String(item.updated_at||''))changed=true;
-        verifiedHps.set(id,{value:amount,updated_at:String(item.updated_at||'')});
+        if(!ids.includes(id)||!Number.isSafeInteger(amount)||amount<=0)return;
+        verifiedCount++;
+        const verified={value:amount,updated_at:String(item.updated_at||''),at:Date.now()};
+        verifiedHps.set(id,verified);
+        state.requests=state.requests.map(r=>{
+          if(String(r.request_id)!==id||Number(r.hps_alokasi)>0)return r;
+          changed=true;return {...r,hps_alokasi:amount};
+        });
+        if(state.detail?.request?.request_id===id&&!(Number(state.detail.request.hps_alokasi)>0)){
+          state.detail={...state.detail,request:{...state.detail.request,hps_alokasi:amount}};
+          rememberDetail(state.detail);changed=true;
+        }
       });
-      if(changed&&['requests','detail'].includes(state.view)){if(state.detail?.request)state.detail=withPokja(state.detail);renderPreservingPosition();}
+      if(changed){clearBootCache();if(['requests','detail'].includes(state.view))renderPreservingPosition();}
+      if(!verifiedCount&&!hpsProbeWarned&&state.me?.role==='ADMIN'){
+        hpsProbeWarned=true;
+        flash('HPS masih dikirim 0 oleh Apps Script. Cek versi deployment dan alamat API Pemilihan.','error');
+      }
     }catch(e){
-      if(!hpsProbeWarned&&state.me?.role==='ADMIN'&&/Aksi tidak dikenal|verifyRequestHps/i.test(String(e?.message||''))){
-        hpsProbeWarned=true;flash('Pembaruan HPS butuh versi Apps Script Pemilihan terbaru. Perbarui deployment backend terlebih dahulu.','error');
+      if(!hpsProbeWarned&&state.me?.role==='ADMIN'){
+        hpsProbeWarned=true;
+        const unsupported=/Aksi tidak dikenal|verifyRequestHps|tidak dikenal/i.test(String(e?.message||''));
+        flash(unsupported?'Backend Pemilihan belum mendukung verifikasi HPS. Deploy ulang Apps Script v28.88.':'HPS belum bisa diverifikasi dari backend: '+String(e?.message||'koneksi gagal').slice(0,105),'error');
       }
     }finally{hpsProbeRunning=false;}
   }
@@ -939,7 +957,7 @@
       </div>
       <div class="sel-detail-meta" aria-label="Informasi utama paket">
         <div class="sel-meta-money"><span>PAGU RUP</span><b>${fmtRp(r.pagu)}</b></div>
-        <div class="sel-meta-money"><span>HPS DIAJUKAN</span><b>${fmtRp(r.hps_alokasi)}</b></div>
+        <div class="sel-meta-money"><span>HPS DIAJUKAN</span><b>${displayHps(r)>0?fmtRp(displayHps(r)):'Belum terbaca'}</b></div>
         <div class="sel-meta-person"><span>PPK</span><b>${esc(r.ppk_nama||'—')}</b></div>
         <div class="sel-meta-person"><span>POKJA</span>${state.me?.role==='ADMIN'&&r.assigned_pokja_id?`<button type="button" class="sel-pokja-view" data-show-pokja-members="${esc(r.assigned_pokja_id)}" aria-label="Lihat anggota ${esc(pokja)}"><b>${esc(pokja)}</b><small>Lihat anggota ›</small></button>`:`<b>${esc(pokja)}</b>`}</div>
         <div class="sel-meta-inaproc ${inaprocEmpty?'empty':''}"><span>INAPROC</span><b>${esc(inaproc)}</b></div>

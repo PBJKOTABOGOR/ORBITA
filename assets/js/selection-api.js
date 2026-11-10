@@ -8,7 +8,7 @@
   const token=()=>sessionStorage.getItem(KEY_TOKEN)||'';
   const setToken=t=>t?sessionStorage.setItem(KEY_TOKEN,t):sessionStorage.removeItem(KEY_TOKEN);
 
-  const readActions=new Set(['health','me','bootstrap','bootstrapFast','syncPulse','dashboard','listRequests','requestDetail','listRupOptions','listProductCategories','listConstructionCategories','getCategoryReference','lookupRup','probeDirectUpload','adminList','adminAudit','adminDbHealth','adminDbFindRequest','listNotifications','pokjaSkpReport','exportPokjaSkpPdf']);
+  const readActions=new Set(['health','me','bootstrap','bootstrapFast','syncPulse','dashboard','listRequests','requestDetail','listRupOptions','listProductCategories','listConstructionCategories','getCategoryReference','lookupRup','probeDirectUpload','adminList','adminAudit','adminDbHealth','adminDbFindRequest','verifyRequestHps','listNotifications','pokjaSkpReport','exportPokjaSkpPdf']);
   const nonMutatingActions=new Set([...readActions,'beginDirectUpload','readNotification','sendBroadcast']);
   let pendingWrites=0,activeUploads=0,revision=0;
   const uploadsByRequest=new Map();
