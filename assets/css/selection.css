@@ -1541,19 +1541,26 @@ html.sel-process-lock,html.sel-process-lock body{overflow:hidden!important}
 .sel-inaproc-warning{color:#945c22;background:#fff7e8;border:1px solid #f2dcaa;border-radius:9px;padding:9px 12px}
 @media(max-width:640px){.sel-inaproc-choice{flex-wrap:wrap}.sel-inaproc-choice strong{width:100%;padding-left:29px}.sel-inaproc-report header .sel-report-buttons{justify-content:flex-start}}
 
-/* v28.96 — Beban Pokja: aktif, selesai setelah Handover, dan total. */
-.sel-app .sel-pokja-summary{padding:12px 13px}
+/* v28.97 — Ringkasan: kartu statistik seragam, tanpa mengubah nilai dan filter. */
+.sel-app .sel-kpi{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;min-width:0}
+.sel-app .sel-kpi small{display:block;flex:none;line-height:1.3}
+.sel-app .sel-kpi strong{display:block;flex:none;line-height:1.08;margin:9px 0 0;font-variant-numeric:tabular-nums}
+.sel-app .sel-kpi span{display:block;line-height:1.35;margin:6px 0 0;max-width:100%;overflow-wrap:break-word}
+
+/* v28.97 — Pokja: satu angka total yang jelas, detail aktif/selesai tanpa kotak. */
+.sel-app .sel-pokja-summary{padding:12px 14px}
 .sel-app .sel-pokja-summary .sel-pokja-top{align-items:center}
 .sel-app .sel-pokja-summary .sel-pokja-top b{font-size:12.5px!important}
 .sel-app .sel-pokja-summary .sel-pokja-remaining{font-size:10.5px!important;color:#607b8c;white-space:nowrap}
-.sel-app .sel-pokja-stats{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:6px;margin-top:10px}
-.sel-app .sel-pokja-stats>div{display:flex;align-items:baseline;gap:6px;min-width:0;padding:8px 7px;border-radius:9px;background:#f3f8fb}
-.sel-app .sel-pokja-stats>div:nth-child(2){background:#eff9f2}
-.sel-app .sel-pokja-stats>div.sel-pokja-stats-total{background:#eaf4fc;border:1px solid #cde4f4}
-.sel-app .sel-pokja-stats strong{font-size:22px;line-height:1.2;font-weight:850;letter-spacing:-.5px;color:#123b54;font-variant-numeric:tabular-nums}
-.sel-app .sel-pokja-stats>div:nth-child(2) strong{color:#167a51}
-.sel-app .sel-pokja-stats>div.sel-pokja-stats-total strong{color:#0a6aab}
-.sel-app .sel-pokja-stats span{font-size:11px!important;font-weight:700;color:#536f80;white-space:nowrap}
+.sel-app .sel-pokja-overview{display:grid;gap:3px;margin-top:10px}
+.sel-app .sel-pokja-total{display:flex;align-items:baseline;gap:7px;min-width:0}
+.sel-app .sel-pokja-total strong{font-size:26px;line-height:1.15;font-weight:850;letter-spacing:-.6px;color:#0d3852;font-variant-numeric:tabular-nums}
+.sel-app .sel-pokja-total span{font-size:11px!important;font-weight:700;color:#536f80}
+.sel-app .sel-pokja-breakdown{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;color:#597387}
+.sel-app .sel-pokja-breakdown span{font-size:11px!important;color:#536e7f}
+.sel-app .sel-pokja-breakdown b{font-size:12px!important;font-weight:850;color:#0f5c8d;font-variant-numeric:tabular-nums}
+.sel-app .sel-pokja-breakdown .sel-pokja-done b{color:#188052}
+.sel-app .sel-pokja-breakdown i{font-size:12px;font-style:normal;color:#9db0bb}
 .sel-app .sel-pokja-summary .sel-meter{margin:10px 0 5px}
 .sel-app .sel-pokja-summary .sel-pokja-foot{font-size:10px!important}
-@media(max-width:420px){.sel-app .sel-pokja-stats{gap:4px}.sel-app .sel-pokja-stats>div{gap:4px;padding:8px 4px}.sel-app .sel-pokja-stats strong{font-size:19px}.sel-app .sel-pokja-stats span{font-size:10px!important}}
+@media(max-width:420px){.sel-app .sel-pokja-summary{padding:11px 12px}.sel-app .sel-pokja-breakdown{gap:7px}.sel-app .sel-pokja-total strong{font-size:24px}}
