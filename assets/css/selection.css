@@ -1540,3 +1540,20 @@ html.sel-process-lock,html.sel-process-lock body{overflow:hidden!important}
 .sel-inaproc-adjustment small{color:#597689}
 .sel-inaproc-warning{color:#945c22;background:#fff7e8;border:1px solid #f2dcaa;border-radius:9px;padding:9px 12px}
 @media(max-width:640px){.sel-inaproc-choice{flex-wrap:wrap}.sel-inaproc-choice strong{width:100%;padding-left:29px}.sel-inaproc-report header .sel-report-buttons{justify-content:flex-start}}
+
+/* v28.96 — Beban Pokja: aktif, selesai setelah Handover, dan total. */
+.sel-app .sel-pokja-summary{padding:12px 13px}
+.sel-app .sel-pokja-summary .sel-pokja-top{align-items:center}
+.sel-app .sel-pokja-summary .sel-pokja-top b{font-size:12.5px!important}
+.sel-app .sel-pokja-summary .sel-pokja-remaining{font-size:10.5px!important;color:#607b8c;white-space:nowrap}
+.sel-app .sel-pokja-stats{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:6px;margin-top:10px}
+.sel-app .sel-pokja-stats>div{display:flex;align-items:baseline;gap:6px;min-width:0;padding:8px 7px;border-radius:9px;background:#f3f8fb}
+.sel-app .sel-pokja-stats>div:nth-child(2){background:#eff9f2}
+.sel-app .sel-pokja-stats>div.sel-pokja-stats-total{background:#eaf4fc;border:1px solid #cde4f4}
+.sel-app .sel-pokja-stats strong{font-size:22px;line-height:1.2;font-weight:850;letter-spacing:-.5px;color:#123b54;font-variant-numeric:tabular-nums}
+.sel-app .sel-pokja-stats>div:nth-child(2) strong{color:#167a51}
+.sel-app .sel-pokja-stats>div.sel-pokja-stats-total strong{color:#0a6aab}
+.sel-app .sel-pokja-stats span{font-size:11px!important;font-weight:700;color:#536f80;white-space:nowrap}
+.sel-app .sel-pokja-summary .sel-meter{margin:10px 0 5px}
+.sel-app .sel-pokja-summary .sel-pokja-foot{font-size:10px!important}
+@media(max-width:420px){.sel-app .sel-pokja-stats{gap:4px}.sel-app .sel-pokja-stats>div{gap:4px;padding:8px 4px}.sel-app .sel-pokja-stats strong{font-size:19px}.sel-app .sel-pokja-stats span{font-size:10px!important}}
