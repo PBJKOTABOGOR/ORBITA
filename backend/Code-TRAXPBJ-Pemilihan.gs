@@ -932,6 +932,11 @@ function bootstrap_(user, payload) {
   if(status)list=pokjaRingkasanFilter_(list,status);
   if(search)list=list.filter(x=>[x.request_id,x.kode_rup,x.judul_permohonan,x.nama_paket,x.opd,x.status].join(' ').toLowerCase().indexOf(search)>=0);
   if(['ADMIN','POKJA','KEPALA_UKPBJ'].includes(user.role)&&String(payload&&payload.opd||'').trim()){const opdFilter=norm_(payload.opd);list=list.filter(r=>norm_(r.opd).includes(opdFilter));}
+  // Filter Pokja khusus Admin/Kepala memakai ID penugasan asli, bukan nama atau index baris.
+  if(['ADMIN','KEPALA_UKPBJ'].includes(user.role)&&String(payload&&payload.pokja||'').trim()){
+    const pokjaId=String(payload.pokja).trim();
+    list=list.filter(r=>String(r.assigned_pokja_id||'')===pokjaId);
+  }
   list.sort((a,b)=>new Date(b.updated_at||0)-new Date(a.updated_at||0));
   const dashboard={user:publicUser_(user),counts:counts,total:packageReqs.length,pokja:listPokjaCapacity_(allReqs),updatedAt:new Date().toISOString()};
   // Bootstrap awal tetap dibatasi 500 untuk loading cepat. Pilihan "Semua"
@@ -960,6 +965,11 @@ function bootstrapFast_(user,payload) {
   if(status)list=pokjaRingkasanFilter_(list,status);
   if(search)list=list.filter(x=>[x.request_id,x.kode_rup,x.judul_permohonan,x.nama_paket,x.opd,x.status].join(' ').toLowerCase().indexOf(search)>=0);
   if(['ADMIN','POKJA','KEPALA_UKPBJ'].includes(user.role)&&String(payload&&payload.opd||'').trim()){const opdFilter=norm_(payload.opd);list=list.filter(r=>norm_(r.opd).includes(opdFilter));}
+  // Filter Pokja khusus Admin/Kepala memakai ID penugasan asli, bukan nama atau index baris.
+  if(['ADMIN','KEPALA_UKPBJ'].includes(user.role)&&String(payload&&payload.pokja||'').trim()){
+    const pokjaId=String(payload.pokja).trim();
+    list=list.filter(r=>String(r.assigned_pokja_id||'')===pokjaId);
+  }
   list.sort((a,b)=>new Date(b.updated_at||0)-new Date(a.updated_at||0));
   const pokja=user.role==='PPK'?[]:listPokjaCapacity_(stored),updatedAt=new Date().toISOString();
   return {user:publicUser_(user),dashboard:{user:publicUser_(user),counts:counts,total:packageReqs.length,pokja:pokja,updatedAt:updatedAt},requests:list.slice(0,500).map(publicRequest_),updatedAt:updatedAt,syncVersion:'',fast:true};

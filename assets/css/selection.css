@@ -1578,3 +1578,28 @@ html.sel-process-lock,html.sel-process-lock body{overflow:hidden!important}
 .sel-app .sel-pokja-members{font-size:10.5px;line-height:1.5;color:#37546a;margin-top:7px;overflow-wrap:anywhere}
 .sel-app .sel-pokja-members span{font-size:10.5px;font-weight:800;color:#607b8d}
 @media(max-width:700px){.sel-app .sel-page-controls{justify-content:flex-start}.sel-app .sel-page-nav{width:100%}}
+
+
+/* v29.00 — Ringkasan lebih ringkas; anggota dibuka ketika dibutuhkan. */
+.sel-app .sel-pokja-members-button{display:inline-flex;align-items:center;gap:5px;min-height:30px;margin:7px 0 0;padding:5px 10px;border:1px solid #d7e6ef;border-radius:9px;background:#f4f9fc;color:#17648b;font:inherit;font-size:10.5px;font-weight:750;cursor:pointer;transition:background .15s,border-color .15s}
+.sel-app .sel-pokja-members-button span{font-size:10.5px!important;color:inherit}
+.sel-app .sel-pokja-members-button:hover{background:#e6f2f9;border-color:#accfdf}
+.sel-app .sel-pokja-members-button:focus-visible{outline:2px solid #188ac2;outline-offset:2px}
+
+/* Warna mengikuti status, tanpa mengubah angka maupun logika Posisi Paket. */
+.sel-app .sel-status-row[data-status="BATAL"] i:after,
+.sel-app .sel-status-row[data-status="DITOLAK_KEPALA"] i:after{background:linear-gradient(90deg,#be454a,#e26a69)}
+.sel-app .sel-status-row[data-status="BATAL"] b,
+.sel-app .sel-status-row[data-status="BATAL"] strong,
+.sel-app .sel-status-row[data-status="DITOLAK_KEPALA"] b,
+.sel-app .sel-status-row[data-status="DITOLAK_KEPALA"] strong{color:#a63d45}
+.sel-app .sel-status-row[data-status="SELESAI"] i:after{background:linear-gradient(90deg,#249d69,#44bd83)}
+.sel-app .sel-status-row[data-status="SELESAI"] b,
+.sel-app .sel-status-row[data-status="SELESAI"] strong{color:#168055}
+
+/* Filter Pokja hanya tampil untuk Admin/Kepala UKPBJ, tetap nyaman di desktop dan HP. */
+.sel-app .sel-toolbar.sel-toolbar-pokja-filter{grid-template-columns:minmax(205px,1fr) minmax(132px,155px) minmax(175px,235px) minmax(140px,185px) auto}
+.sel-app .sel-toolbar-pokja-filter #selFilterPokja{width:100%;min-width:0;color:#1c4057;cursor:pointer}
+@media(max-width:1120px){.sel-app .sel-toolbar.sel-toolbar-pokja-filter{grid-template-columns:minmax(190px,1fr) minmax(145px,1fr) minmax(175px,1fr)}}
+@media(max-width:760px){.sel-app .sel-toolbar.sel-toolbar-pokja-filter{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.sel-app .sel-toolbar.sel-toolbar-pokja-filter{grid-template-columns:1fr}}
