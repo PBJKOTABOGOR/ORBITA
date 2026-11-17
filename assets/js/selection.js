@@ -13,7 +13,7 @@
   const warnStatuses=new Set(['PERLU_KELENGKAPAN','PERLU_PERBAIKAN_PPK']);
   const redStatuses=new Set(['BATAL','DITOLAK_KEPALA']); const greenStatuses=new Set(['SELESAI']);
   const skpYear=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta',year:'numeric'});
-  const state={skp:null,skpPeriod:{from:skpYear+'-01-01',to:skpYear+'-12-31'},skpError:'',skpExport:false,me:null,dashboard:null,requests:[],requestsLoading:false,detail:null,view:'dashboard',busy:false,admin:null,adminPanel:'manage',adminUserPage:1,adminUserPageSize:'10',requestPage:1,requestPageSize:'10',requestAllLoaded:false,pokjaPage:1,pokjaPageSize:'5',adminAuditLoaded:false,filterStatus:'',filterOpd:'',filterPokja:'',opdOptions:[],search:'',lastSync:0,syncing:false,syncVersion:'',create:null,sidebarCollapsed:false};
+  const state={skp:null,skpPeriod:{from:skpYear+'-01-01',to:skpYear+'-12-31'},skpError:'',skpExport:false,me:null,dashboard:null,requests:[],requestsLoading:false,detail:null,view:'dashboard',busy:false,admin:null,adminPanel:'manage',adminUserPage:1,adminUserPageSize:'10',requestPage:1,requestPageSize:'10',requestAllLoaded:false,pokjaPage:1,pokjaPageSize:'5',pokjaSearch:'',adminAuditLoaded:false,filterStatus:'',filterOpd:'',filterPokja:'',opdOptions:[],search:'',lastSync:0,syncing:false,syncVersion:'',create:null,sidebarCollapsed:false};
   const rupOptionCache=new Map(),rupOptionLoads=new Map();
   const ppkRevisionDrafts=new Map();
   const ppkHistoryCache=new Map();
@@ -528,18 +528,34 @@
       <div class="sel-form-actions"><button type="button" class="sel-ghost" data-close-sel-modal>Tutup</button></div>`);
   }
 
-  function dashboardHtml(){
-    const c=state.dashboard?.counts||{},pokja=sortedPokja_(state.dashboard?.pokja||[]);
-    const pokjaPage=pageInfo_(pokja.length,state.pokjaPage,state.pokjaPageSize,[5,10,20]);
-    state.pokjaPage=pokjaPage.page;
-    const pageTeams=pokja.slice(pokjaPage.start,pokjaPage.end);
+  // Pencarian Pokja hanya menyaring data Ringkasan yang sudah ada di memori.
+  // Jika nama Pokja cocok persis (misalnya "Pokja 1"), jangan ikutkan "Pokja 10".
+  function dashboardPokjaItems_(){
+    const teams=sortedPokja_(state.dashboard?.pokja||[]);
+    if(!['ADMIN','KEPALA_UKPBJ','POKJA'].includes(state.me?.role))return teams;
+    const query=String(state.pokjaSearch||'').trim().toLocaleLowerCase('id-ID');
+    if(!query)return teams;
+    const name=p=>String(p.nama||'').trim().toLocaleLowerCase('id-ID');
+    const exact=teams.filter(p=>name(p)===query);
+    return exact.length?exact:teams.filter(p=>name(p).includes(query));
+  }
+  function dashboardPokjaListHtml_(){
+    const pokja=dashboardPokjaItems_();
+    const info=pageInfo_(pokja.length,state.pokjaPage,state.pokjaPageSize,[5,10,20]);
+    state.pokjaPage=info.page;
     const showMembers=['ADMIN','KEPALA_UKPBJ'].includes(state.me?.role);
+    const anyTeams=(state.dashboard?.pokja||[]).length>0;
+    return `<div class="sel-pokja-grid">${pokja.length?pokja.slice(info.start,info.end).map(p=>`<article class="sel-pokja sel-pokja-summary"><div class="sel-pokja-top">${showMembers?`<button type="button" class="sel-pokja-name-trigger" data-show-summary-pokja-members="${esc(p.pokja_id)}" aria-label="Lihat anggota ${esc(p.nama)}" title="Klik untuk melihat anggota"><b>${esc(p.nama)}</b></button>`:`<div><b>${esc(p.nama)}</b></div>`}<span class="sel-pokja-remaining">${nf.format(p.remaining)} sisa kapasitas</span></div><div class="sel-pokja-overview"><div class="sel-pokja-total"><strong>${nf.format(Number.isFinite(Number(p.totalCount))?p.totalCount:((p.activeCount||0)+(p.doneCount||0)))}</strong><span>total paket</span></div><div class="sel-pokja-breakdown"><span><b>${nf.format(p.activeCount||0)}</b> aktif</span><i aria-hidden="true">·</i><span class="sel-pokja-done"><b>${nf.format(p.doneCount||0)}</b> selesai</span></div></div><div class="sel-meter ${capacityTone(p.loadPct)}"><i style="--w:${pf.format(p.loadPct||0)}%"></i></div><div class="sel-pokja-foot"><span>Beban aktif</span><span>${pf.format(p.loadPct||0)}%</span></div></article>`).join(''):`<div class="sel-empty"><b>${anyTeams?'Pokja tidak ditemukan':'Pokja belum dibuat'}</b>${anyTeams?'Coba nama Pokja lain.':'Admin dapat menambahkan Pokja dan kapasitasnya.'}</div>`}</div>${pokja.length?pageControlsHtml_('pokja',info,state.pokjaPageSize,[5,10,20]):''}`;
+  }
+  function dashboardHtml(){
+    const c=state.dashboard?.counts||{};
+    const canSearch=['ADMIN','KEPALA_UKPBJ','POKJA'].includes(state.me?.role);
     const pending=(c.DIAJUKAN||0)+(c.MENUNGGU_DISPOSISI||0),review=(c.DITUGASKAN_POKJA||0)+(c.REVIU_POKJA||0)+(c.REVIU_ULANG||0)+(c.PERLU_PERBAIKAN_PPK||0)+(c.PERLU_DETAIL_PPK||0),inap=(c.SIAP_PROSES_INAPROC||0)+(c.PROSES_INAPROC||0);
     const max=Math.max(1,...Object.values(c).map(Number));
     return `<div class="sel-head"><div><small>RINGKASAN</small><h3>${esc(roleActionText())}</h3><p>Terakhir sinkron ${state.lastSync?dt(state.lastSync):'—'}</p></div><div class="sel-head-actions">${state.me?.role==='PPK'?'<button class="sel-primary" type="button" data-sel-create>+ Buat Permohonan</button>':''}<button class="sel-ghost" type="button" data-sel-refresh>Perbarui</button></div></div>
     <div class="sel-kpis">${kpi('TOTAL PAKET',nf.format(state.dashboard?.total||0),'Seluruh permohonan',true)}${kpi('MENUNGGU TINDAK LANJUT',nf.format(pending),'Menunggu disposisi')}${kpi('REVIU & PERBAIKAN',nf.format(review),'Pokja / PPK')}${kpi('INAPROC',nf.format(inap),'Sedang proses')}${kpi('SELESAI',nf.format(c.SELESAI||0),'Proses pemilihan selesai')}</div>
     <div class="sel-grid"><section class="sel-card"><header><b>Posisi Paket</b><span>berdasarkan status terbaru</span></header><div class="sel-status-bars">${Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([s,n])=>`<button type="button" class="sel-status-row" data-dashboard-filter="${esc(s)}" data-status="${esc(s)}"><b>${esc(statusLabel[s]||s)}</b><i style="--w:${Math.max(4,n/max*100)}%"></i><strong>${nf.format(n)}</strong></button>`).join('')||'<div class="sel-empty"><b>Belum ada permohonan</b>Data akan muncul setelah permohonan pertama dibuat.</div>'}</div></section>
-    <section class="sel-card"><header><b>Distribusi Beban Pokja</b><span>urut total paket terbanyak</span></header><div class="sel-pokja-grid">${pokja.length?pageTeams.map(p=>`<article class="sel-pokja sel-pokja-summary"><div class="sel-pokja-top"><div><b>${esc(p.nama)}</b></div><span class="sel-pokja-remaining">${nf.format(p.remaining)} sisa kapasitas</span></div>${showMembers?`<button type="button" class="sel-pokja-members-button" data-show-summary-pokja-members="${esc(p.pokja_id)}" aria-label="Lihat anggota ${esc(p.nama)}">Lihat anggota <span>(${(p.members||[]).length})</span></button>`:''}<div class="sel-pokja-overview"><div class="sel-pokja-total"><strong>${nf.format(Number.isFinite(Number(p.totalCount))?p.totalCount:((p.activeCount||0)+(p.doneCount||0)))}</strong><span>total paket</span></div><div class="sel-pokja-breakdown"><span><b>${nf.format(p.activeCount||0)}</b> aktif</span><i aria-hidden="true">·</i><span class="sel-pokja-done"><b>${nf.format(p.doneCount||0)}</b> selesai</span></div></div><div class="sel-meter ${capacityTone(p.loadPct)}"><i style="--w:${pf.format(p.loadPct||0)}%"></i></div><div class="sel-pokja-foot"><span>Beban aktif</span><span>${pf.format(p.loadPct||0)}%</span></div></article>`).join(''):'<div class="sel-empty"><b>Pokja belum dibuat</b>Admin dapat menambahkan Pokja dan kapasitasnya.</div>'}</div>${pokja.length?pageControlsHtml_('pokja',pokjaPage,state.pokjaPageSize,[5,10,20]):''}</section></div>`;
+    <section class="sel-card" id="selPokjaSummary"><header><b>Distribusi Beban Pokja</b><span>urut total paket terbanyak</span></header>${canSearch?`<div class="sel-pokja-search"><input id="selPokjaSearch" type="search" autocomplete="off" placeholder="Cari Pokja..." aria-label="Cari Pokja" value="${esc(state.pokjaSearch)}"><button type="button" data-pokja-search-go>Cari</button></div>`:''}<div id="selPokjaResults">${dashboardPokjaListHtml_()}</div></section></div>`;
   }
 
   function negoPhaseLabel(r){return ({SIAP_NEGOSIASI:'Menunggu dokumen Negosiasi',NEGOSIASI:'Menunggu dokumen Negosiasi',HASIL_NEGOSIASI:'Menunggu dokumen Negosiasi',HANDOVER:'Handover ke PPK',BATAL:'Negosiasi Dibatalkan'})[r.nego_stage]||''}
@@ -1153,7 +1169,31 @@
   function bindApp(){
     $('[data-sel-side-toggle]')?.addEventListener('click',()=>{state.sidebarCollapsed=!state.sidebarCollapsed;try{localStorage.setItem('orbit_pbj_selection_side_collapsed',state.sidebarCollapsed?'1':'0')}catch(_){}renderPreservingPosition()});
     $$('[data-dashboard-filter]').forEach(b=>b.addEventListener('click',()=>openDashboardFilter(b.dataset.dashboardFilter)));
-    $$('[data-show-summary-pokja-members]').forEach(b=>b.addEventListener('click',()=>showSummaryPokjaMembers(b.dataset.showSummaryPokjaMembers)));
+    const pokjaSection=$('#selPokjaSummary');
+    const refreshPokjaList=()=>{const results=$('#selPokjaResults',pokjaSection||document);if(results)results.innerHTML=dashboardPokjaListHtml_();};
+    // Event delegation keeps the popup and paging working after an in-place search.
+    pokjaSection?.addEventListener('click',e=>{
+      const name=e.target.closest('[data-show-summary-pokja-members]');
+      if(name){showSummaryPokjaMembers(name.dataset.showSummaryPokjaMembers);return;}
+      const searchButton=e.target.closest('[data-pokja-search-go]');
+      if(searchButton){const input=$('#selPokjaSearch',pokjaSection);if(input){state.pokjaSearch=input.value;state.pokjaPage=1;refreshPokjaList();input.focus();}return;}
+      const pageButton=e.target.closest('[data-sel-page^="pokja:"]');
+      if(!pageButton||pageButton.disabled)return;
+      const action=String(pageButton.dataset.selPage).split(':')[1];
+      const current=state.pokjaPage||1;
+      state.pokjaPage=action==='prev'?current-1:action==='next'?current+1:Number(action)||1;
+      refreshPokjaList();
+      const main=$('.sel-main'),list=$('.sel-pokja-grid',pokjaSection);
+      if(main&&list){const top=list.getBoundingClientRect().top-main.getBoundingClientRect().top+main.scrollTop;main.scrollTop=Math.max(0,top-115);}
+    });
+    pokjaSection?.addEventListener('change',e=>{
+      if(e.target.matches('[data-sel-page-size="pokja"]')){state.pokjaPageSize=e.target.value;state.pokjaPage=1;refreshPokjaList();}
+    });
+    pokjaSection?.addEventListener('input',e=>{
+      if(!e.target.matches('#selPokjaSearch'))return;
+      state.pokjaSearch=e.target.value;state.pokjaPage=1;
+      refreshPokjaList(); // No API call and no full-page rerender on keystrokes.
+    });
     $('#selLogout')?.addEventListener('click',async()=>{navigationVersion++;stopPolling();busy(true,'Keluar…');await API().logout();clearBootCache();state.me=null;state.dashboard=null;state.requests=[];state.opdOptions=[];state.filterOpd='';state.filterPokja='';state.detail=null;state.admin=null;state.adminPanel='manage';state.adminAuditLoaded=false;state.create=null;busy(false);render()});
     $$('[data-sel-view]').forEach(b=>b.addEventListener('click',async()=>{navigationVersion++;state.create=null;state.detail=null;state.view=b.dataset.selView;if(state.view==='requests')createRoute('permohonan');else if(state.view==='skp')createRoute('laporan');else if(state.view==='admin')createRoute('admin');else createRoute('',true);if(state.view==='skp'){render();await loadSkp();return;}if(state.view==='admin'&&!state.admin)await loadAdmin();render()}));
     $$('[data-sel-refresh]').forEach(b=>b.addEventListener('click',()=>sync(true).then(render).catch(e=>flash(apiErr(e),'error'))));
@@ -1164,7 +1204,7 @@
       const main=$('.sel-main'),list=kind==='request'?$('.sel-list'):$('.sel-pokja-grid');
       if(main&&list){const position=list.getBoundingClientRect().top-main.getBoundingClientRect().top+main.scrollTop;main.scrollTop=Math.max(0,position-115);}
     };
-    $$('[data-sel-page-size]').forEach(el=>el.addEventListener('change',async()=>{
+    $$('[data-sel-page-size="request"]').forEach(el=>el.addEventListener('change',async()=>{
       const kind=el.dataset.selPageSize;
       if(kind==='request'){
         state.requestPageSize=el.value;state.requestPage=1;
@@ -1183,7 +1223,7 @@
       else return;
       showPagedList(kind);
     }));
-    $$('[data-sel-page]').forEach(el=>el.addEventListener('click',()=>{
+    $$('[data-sel-page^="request:"]').forEach(el=>el.addEventListener('click',()=>{
       if(el.disabled)return;
       const [kind,action]=String(el.dataset.selPage||'').split(':');
       const key=kind==='request'?'requestPage':kind==='pokja'?'pokjaPage':'';
@@ -2800,7 +2840,7 @@
   function stopPolling(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
   function useSession(user,bootstrap){
     navigationVersion++;clearRupOptions();docUploadStates.clear();skpFetchVersion++;skpLoading=false;state.skp=null;state.skpError='';state.skpExport=false;assignmentOpen=false;pendingDetail=null;detailCache.clear();detailCacheAt.clear();detailPrefetchLoads.clear();state.detail=null;state.admin=null;state.adminPanel='manage';state.adminAuditLoaded=false;state.create=null;state.search='';state.filterStatus='';state.filterPokja='';state.requestPage=1;state.requestPageSize='10';state.requestAllLoaded=false;state.pokjaPage=1;state.view='dashboard';
-    verifiedHps.clear();hpsProbeAt.clear();hpsProbeRunning=false;hpsProbeWarned=false;state.me=user&&user.role!=='ADMIN_CONTENT'?user:null;state.dashboard=bootstrap?.dashboard||null;state.requests=bootstrap?.requests||[];state.opdOptions=[];state.filterOpd='';state.filterPokja='';rememberRequestOpds(state.requests);state.requestsLoading=!!(state.me&&!bootstrap);
+    verifiedHps.clear();hpsProbeAt.clear();hpsProbeRunning=false;hpsProbeWarned=false;state.me=user&&user.role!=='ADMIN_CONTENT'?user:null;state.dashboard=bootstrap?.dashboard||null;state.requests=bootstrap?.requests||[];state.opdOptions=[];state.filterOpd='';state.filterPokja='';state.pokjaSearch='';rememberRequestOpds(state.requests);state.requestsLoading=!!(state.me&&!bootstrap);
     try{state.sidebarCollapsed=localStorage.getItem('orbit_pbj_selection_side_collapsed')==='1'}catch(_){}
     state.lastSync=bootstrap?Date.now():0;state.syncVersion=String(bootstrap?.syncVersion||'');if(bootstrap)saveBootCache(bootstrap);else clearBootCache();
     if(host()?.closest('.proc-module.active')){Promise.resolve(applySelectionRoute()).then(handled=>{if(!handled)render();if(state.me){startPolling();if(bootstrap){setTimeout(()=>{if(canBackgroundRender())prefetchRupOptions();},700);scheduleDetailPrefetch();}else{setTimeout(async()=>{if(!state.me||!host()?.closest('.proc-module.active')||state.syncing)return;try{const fast=await loadFastBootstrap();if(!fast){await sync(true);if(!await applySelectionRoute())renderPreservingPosition();}setTimeout(()=>{if(canBackgroundRender())prefetchRupOptions();},180);scheduleDetailPrefetch();}catch(e){flash(apiErr(e),'error')}},30);}}else stopPolling();});}

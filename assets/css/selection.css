@@ -1603,3 +1603,16 @@ html.sel-process-lock,html.sel-process-lock body{overflow:hidden!important}
 @media(max-width:1120px){.sel-app .sel-toolbar.sel-toolbar-pokja-filter{grid-template-columns:minmax(190px,1fr) minmax(145px,1fr) minmax(175px,1fr)}}
 @media(max-width:760px){.sel-app .sel-toolbar.sel-toolbar-pokja-filter{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.sel-app .sel-toolbar.sel-toolbar-pokja-filter{grid-template-columns:1fr}}
+
+/* v29.01 — judul Pokja membuka anggota; pencarian ringkas tanpa fetch tambahan. */
+.sel-app .sel-pokja-name-trigger{appearance:none;display:inline-flex;align-items:center;text-align:left;max-width:100%;margin:0;padding:2px 0;background:none;border:0;border-radius:4px;color:#123b54;font:inherit;cursor:pointer}
+.sel-app .sel-pokja-name-trigger b{font-size:12.5px!important;color:inherit;line-height:1.4}
+.sel-app .sel-pokja-name-trigger:hover b{color:#087da9;text-decoration:underline;text-underline-offset:3px}
+.sel-app .sel-pokja-name-trigger:focus-visible{outline:2px solid #148cc1;outline-offset:3px}
+.sel-app .sel-pokja-search{display:flex;align-items:center;gap:6px;margin:0 0 11px;max-width:100%}
+.sel-app .sel-pokja-search input{flex:1;min-width:0;min-height:36px;padding:7px 12px;border:1px solid #d8e6ed;border-radius:10px;background:#fbfdfe;color:#173e55;font:inherit;font-size:11px;outline:0}
+.sel-app .sel-pokja-search input:focus{border-color:#2093c1;box-shadow:0 0 0 3px rgba(26,135,180,.12);background:#fff}
+.sel-app .sel-pokja-search button{flex:none;min-height:36px;padding:7px 13px;border:1px solid #cde2ee;border-radius:10px;background:#edf7fc;color:#146b94;font:inherit;font-size:11px;font-weight:750;cursor:pointer}
+.sel-app .sel-pokja-search button:hover{border-color:#99c9df;background:#e5f3fb}
+.sel-app .sel-pokja-search button:focus-visible{outline:2px solid #148cc1;outline-offset:2px}
+@media(max-width:480px){.sel-app .sel-pokja-search input{min-height:34px}.sel-app .sel-pokja-search button{min-height:34px;padding:7px 10px}}
