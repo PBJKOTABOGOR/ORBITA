@@ -37,7 +37,8 @@ const PBJWF = {
     CATEGORY_KBLI: 'PBJ_KATEGORI_KBLI',
     CATEGORY_FIELDS: 'PBJ_KATEGORI_FIELD',
     NOTIFICATIONS: 'PBJ_NOTIFIKASI',
-    NOTIFICATION_READS: 'PBJ_NOTIFIKASI_BACA'
+    NOTIFICATION_READS: 'PBJ_NOTIFIKASI_BACA',
+    INAPROC_BINDINGS: 'PBJ_INAPROC_BINDINGS'
   }
 };
 
@@ -46,7 +47,7 @@ const PBJ_HEADERS = {
   PBJ_SESSIONS: ['token_hash','user_id','expires_at','created_at','last_seen','active','selected_pokja_id'],
   PBJ_POKJA: ['pokja_id','nama','capacity_max','active','created_at','updated_at'],
   PBJ_POKJA_MEMBERS: ['member_id','pokja_id','user_id','position','active','created_at','updated_at'],
-  PBJ_PERMOHONAN: ['request_id','year','kode_rup','nama_paket','opd','ppk_user_id','jenis','cara','metode_pengadaan','metode_epurchasing','pagu','sumber_dana','waktu_pemilihan','status','current_round','verifier_user_id','verified_at','head_user_id','assigned_pokja_id','assigned_at','review_started_at','review_completed_at','inaproc_code','inaproc_started_at','winner_name','result_value','result_date','completed_at','folder_id','created_at','updated_at','notes','program','kegiatan','sub_kegiatan','produk_dalam_negeri','sop_started_at','rejected_reason','rejected_at','rejected_by','previous_request_id','competition_type','competition_title','schedule_start_date','schedule_end_date','schedule_start_time','schedule_end_time','qualification_json','product_category','product_details_json','offer_type','payment_type','payment_terms_count','payment_terms_note','construction_details_json','work_location','completion_date','submitted_at','selection_process','mini_stage','mini_tayang_at','mini_handover_at','mini_failure_at','mini_last_change_at','nego_stage','nego_started_at','nego_handover_at','workflow_scheme','kaji_ulang_date','kaji_ulang_result','kaji_ulang_note','method_locked_at','details_submitted_at','ppk_email','ppk_nama','hps_alokasi','judul_permohonan'],
+  PBJ_PERMOHONAN: ['request_id','year','kode_rup','nama_paket','opd','ppk_user_id','jenis','cara','metode_pengadaan','metode_epurchasing','pagu','sumber_dana','waktu_pemilihan','status','current_round','verifier_user_id','verified_at','head_user_id','assigned_pokja_id','assigned_at','review_started_at','review_completed_at','inaproc_code','inaproc_started_at','winner_name','result_value','result_date','completed_at','folder_id','created_at','updated_at','notes','program','kegiatan','sub_kegiatan','produk_dalam_negeri','sop_started_at','rejected_reason','rejected_at','rejected_by','previous_request_id','competition_type','competition_title','schedule_start_date','schedule_end_date','schedule_start_time','schedule_end_time','qualification_json','product_category','product_details_json','offer_type','payment_type','payment_terms_count','payment_terms_note','construction_details_json','work_location','completion_date','submitted_at','selection_process','mini_stage','mini_tayang_at','mini_handover_at','mini_failure_at','mini_last_change_at','nego_stage','nego_started_at','nego_handover_at','workflow_scheme','kaji_ulang_date','kaji_ulang_result','kaji_ulang_note','method_locked_at','details_submitted_at','ppk_email','ppk_nama','hps_alokasi','judul_permohonan','realisasi_admin','realisasi_admin_at','realisasi_admin_by','realisasi_admin_note','report_cutoff_at'],
   PBJ_DOKUMEN: ['doc_id','request_id','doc_type','doc_label','version','drive_file_id','drive_url','file_name','mime_type','size_bytes','uploader_user_id','uploaded_at','is_current'],
   PBJ_REVIU: ['review_id','request_id','round','doc_id','doc_type','reviewer_user_id','status','note','created_at','updated_at'],
   PBJ_CATATAN: ['note_id','request_id','phase','author_user_id','status','note','created_at'],
@@ -61,7 +62,8 @@ const PBJ_HEADERS = {
   PBJ_KATEGORI_KBLI: ['category_id','kelompok','category_name','kbli_code','kbli_version','aktif','urutan'],
   PBJ_KATEGORI_FIELD: ['category_id','kelompok','category_name','field_group','field_id','field_name','field_type','default_value','additional_info','urutan'],
   PBJ_NOTIFIKASI: ['notification_id','created_at','created_by','title','message','target_roles','request_id','active','attachment_name','attachment_url','attachment_file_id','attachments_json'],
-  PBJ_NOTIFIKASI_BACA: ['user_id','read_ids_json','updated_at']
+  PBJ_NOTIFIKASI_BACA: ['user_id','read_ids_json','updated_at'],
+  PBJ_INAPROC_BINDINGS: ['transaction_key','request_id','kode_rup','opd','year','source_name','source_total','order_date','updated_by','updated_at','source_identifier','source_shipment_status','source_status','source_last_seen_at']
 };
 
 const ROLES = ['ADMIN','PPK','KEPALA_UKPBJ','POKJA','PIMPINAN','PENGAWAS'];
@@ -83,7 +85,7 @@ function pastikanDatabaseProduksiORBITA_(){
 }
 function kesehatanProduksiORBITA_(){
   pastikanDatabaseProduksiORBITA_();
-  return {data:{service:'ORBITA PBJ Pemilihan',version:'28.85-PRODUKSI',mode:'PRODUKSI',
+  return {data:{service:'ORBITA PBJ Pemilihan',version:'28.95-PRODUKSI-INAPROC-PERSISTEN',mode:'PRODUKSI',
     database:'TRAXPBJ_PEMILIHAN_DATABASE',databaseId:PBJWF.DB_ID,
     emailDatabaseId:PBJWF.MAIL_DB_ID,time:new Date().toISOString()}};
 }
@@ -111,6 +113,8 @@ function route_(action, payload, method) {
   const user = requireSession_(payload.token || '');
   if (action === 'logout') return logout_(payload.token, user);
   if (action === 'me') return {data:publicUser_(user)};
+  // Permohonan SiRUP: satu project dengan login ORBITA, database terpisah.
+  if (action.startsWith('permohonanSirup')) return permohonanSirupRoute_(user,action,payload);
   // Konsultan SiRUP: rute tambahan saja, seluruh aksi lama tetap.
   if (action.startsWith('sirup')) return sirupRoute_(user,action,payload);
   if (action === 'switchActivePokja') return {data:switchActivePokja_(user,payload)};
@@ -126,6 +130,8 @@ function route_(action, payload, method) {
   if (action === 'listRequests') return {data:listRequests_(user, payload)};
   if (action === 'listPpkHistory') return {data:listPpkHistory_(user)};
   if (action === 'requestDetail') return {data:requestDetail_(user, payload.requestId)};
+  if (action === 'verifyRequestHps') return {data:verifyRequestHpsFresh2893_(user,payload)};
+  if (action === 'inspectRequestHps') return {data:inspectRequestHps2893_(user,payload)};
   if (action === 'pokjaSkpReport') return {data:pokjaSkpReport_(user,payload)};
   if (action === 'exportPokjaSkpPdf') return {data:exportPokjaSkpPdf_(user,payload)};
   if (action === 'listRupOptions') return {data:listRupOptions_(user,payload)};
@@ -163,6 +169,9 @@ function route_(action, payload, method) {
   if (action === 'adminUpdateRequestRup') return {data:withWorkflowLock_(()=>adminUpdateRequestRup_(user,payload))};
   if (action === 'adminSearchCorrections') return {data:adminSearchCorrections_(user,payload)};
   if (action === 'adminEditRequestData') return {data:withWorkflowLock_(()=>adminEditRequestData_(user,payload))};
+  if (action === 'adminListInaprocTransactions') return {data:adminListInaprocTransactions_(user,payload)};
+  if (action === 'adminAssignInaprocTransactions') { requireRole_(user,['ADMIN']); const report=readInaprocReport_(); return {data:withWorkflowLock_(()=>adminAssignInaprocTransactions_(user,payload,report))}; }
+  if (action === 'adminSetRealization') { requireRole_(user,['ADMIN']); const report=readInaprocReport_(); return {data:withWorkflowLock_(()=>adminSetRealization_(user,payload,report))}; }
   if (action === 'adminCorrectCompetition') return {data:withWorkflowLock_(()=>adminCorrectCompetition_(user,payload))};
   if (action === 'adminReturnToPokja') return {data:withWorkflowLock_(()=>adminReturnToPokja_(user,payload))};
   if (action === 'adminSaveUser') return {data:adminSaveUser_(user, payload.data||{})};
@@ -355,6 +364,12 @@ function upgradePemilihanV275() {
   });
 }
 
+// Optional one-time preparation; does not change data in any existing rows.
+function siapkanKolomRealisasiV2928(){return withWorkflowLock_(()=>{
+  const root=sheet_(PBJWF.SHEETS.REQUESTS),parts=shardSheets_(root.getName(),root);
+  parts.forEach(sh=>ensureSheet_(sh.getParent(),sh.getName(),PBJ_HEADERS.PBJ_PERMOHONAN));
+  SpreadsheetApp.flush();return {berhasil:true,spreadsheet:parts.length};
+});}
 function ensureRequestSchema_() {
   const required=PBJ_HEADERS.PBJ_PERMOHONAN;
   const actual=headers_(sheet_(PBJWF.SHEETS.REQUESTS));
@@ -600,10 +615,32 @@ function notifyPokjaStatus_(req,kind,detail,suffix){
   if(!users.length)return; // Tidak perlu lookup nama Pokja jika tidak ada penerima.
   notifyAccountUsers_(req,'POKJA',kind,{...msg,suffix:suffix||'',pokjaLabel:pokjaLabelForMail_(req)},users);
 }
+// HPS asli tidak pernah ditimpa oleh realisasi. Penyesuaian hanya berlaku
+// sesudah Handover PPK dan hanya jika disimpan oleh Admin, lengkap dengan audit.
+function rupConsumesAllocation_(r){
+  return !['DRAFT','PERLU_KELENGKAPAN','DITOLAK_KEPALA','BATAL'].includes(String(r.status||''));
+}
+function rupHasAdminRealization_(r){
+  const v=r.realisasi_admin;
+  return v!==''&&v!==null&&v!==undefined&&
+    Number.isSafeInteger(Number(v))&&Number(v)>0&&Boolean(String(r.realisasi_admin_at||'').trim());
+}
+function rupHasHandover_(r){
+  if(!r||['DRAFT','BATAL','DITOLAK_KEPALA'].includes(String(r.status||'')))return false;
+  if(String(r.status||'')==='SELESAI')return true;
+  if(String(r.selection_process||'')==='MINI_KOMPETISI'||String(r.mini_stage||''))return String(r.mini_stage||'')==='HANDOVER';
+  if(String(r.selection_process||'')==='NEGOSIASI'||String(r.nego_stage||''))return String(r.nego_stage||'')==='HANDOVER';
+  return false;
+}
+function rupReservedValue_(r){
+  if(rupHasHandover_(r)&&rupHasAdminRealization_(r))return Number(r.realisasi_admin);
+  const hps=Number(r.hps_alokasi);
+  return Number.isSafeInteger(hps)&&hps>0?hps:Math.max(0,Number(r.pagu)||0);
+}
 function rupAllocationTotal_(kodeRup,excludeRequestId){
   return rows_(sheet_(PBJWF.SHEETS.REQUESTS)).reduce((sum,r)=>{
-    if(String(r.kode_rup)!==String(kodeRup)||String(r.request_id)===String(excludeRequestId||'')||['DRAFT','PERLU_KELENGKAPAN','DITOLAK_KEPALA','BATAL'].includes(String(r.status||'')))return sum;
-    return sum+Math.max(0,Number(r.hps_alokasi)||Number(r.pagu)||0);
+    if(String(r.kode_rup)!==String(kodeRup)||String(r.request_id)===String(excludeRequestId||'')||!rupConsumesAllocation_(r))return sum;
+    return sum+rupReservedValue_(r);
   },0);
 }
 function checkRupAllocation_(req){
@@ -854,6 +891,31 @@ function persistConfirmedCompleted_(stored,calculated){
   return count;
 }
 
+// Status posisi paket adalah status proses sesungguhnya. Handover hanya
+// menghentikan beban aktif Pokja (lihat listPokjaCapacity_), bukan berarti
+// transaksi INAPROC / proses pemilihan seluruhnya sudah SELESAI.
+function pokjaRingkasanStatus_(r){return r.status;}
+function pokjaRingkasanCounts_(rows){
+  const counts={};
+  (rows||[]).forEach(r=>{
+    const status=pokjaRingkasanStatus_(r);
+    counts[status]=(counts[status]||0)+1;
+  });
+  return counts;
+}
+function pokjaRingkasanFilter_(rows,status){
+  const groups={
+    GROUP_DRAFT:[STATUS.DRAFT,STATUS.PERLU_KELENGKAPAN],
+    GROUP_PENDING:[STATUS.DIAJUKAN,STATUS.MENUNGGU_DISPOSISI],
+    GROUP_REVIEW:[STATUS.DITUGASKAN_POKJA,STATUS.REVIU_POKJA,STATUS.REVIU_ULANG,STATUS.PERLU_PERBAIKAN_PPK,STATUS.PERLU_DETAIL_PPK],
+    GROUP_INAPROC:[STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC],
+    GROUP_ONGOING:[STATUS.DIAJUKAN,STATUS.MENUNGGU_DISPOSISI,STATUS.DITUGASKAN_POKJA,STATUS.REVIU_POKJA,STATUS.REVIU_ULANG,STATUS.PERLU_PERBAIKAN_PPK,STATUS.PERLU_DETAIL_PPK,STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC],
+    GROUP_CLOSED:[STATUS.DITOLAK_KEPALA,STATUS.BATAL]
+  };
+  const selected=groups[status]||[status];
+  return (rows||[]).filter(r=>selected.includes(pokjaRingkasanStatus_(r)));
+}
+
 function bootstrap_(user, payload) {
   const stored=rows_(sheet_(PBJWF.SHEETS.REQUESTS));
   // Paket dengan status SELESAI sudah final, tidak perlu dicocokkan ulang setiap refresh.
@@ -863,17 +925,19 @@ function bootstrap_(user, payload) {
   let reqs=user.role==='KEPALA_UKPBJ'?allReqs.filter(r=>!['DRAFT','PERLU_KELENGKAPAN'].includes(String(r.status||''))):allReqs,packageSource=reqs;
   if(user.role==='PPK'){reqs=allReqs.filter(r=>String(r.ppk_user_id)===String(user.user_id));packageSource=reqs;}
   if(user.role==='POKJA'){const assigned=allReqs.filter(r=>String(r.assigned_pokja_id||'')===String(user.pokja_id||''));const linked=linkedAncestorsForPokja_(allReqs,assigned);const ids={};reqs=assigned.concat(linked).filter(r=>{const id=String(r.request_id||'');if(ids[id])return false;ids[id]=true;return true});packageSource=assigned;}
-  const packageReqs=packageSource,counts = {};
-  packageReqs.forEach(r => counts[r.status] = (counts[r.status]||0)+1);
+  const packageReqs=packageSource,counts=pokjaRingkasanCounts_(packageReqs);
   let list=reqs.slice();
   const status=String(payload && payload.status || '').trim();
   const search=String(payload && payload.search || '').trim().toLowerCase();
-  if(status){const groups={GROUP_DRAFT:[STATUS.DRAFT,STATUS.PERLU_KELENGKAPAN],GROUP_PENDING:[STATUS.DIAJUKAN,STATUS.MENUNGGU_DISPOSISI],GROUP_REVIEW:[STATUS.DITUGASKAN_POKJA,STATUS.REVIU_POKJA,STATUS.REVIU_ULANG,STATUS.PERLU_PERBAIKAN_PPK,STATUS.PERLU_DETAIL_PPK],GROUP_INAPROC:[STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC],GROUP_ONGOING:[STATUS.DIAJUKAN,STATUS.MENUNGGU_DISPOSISI,STATUS.DITUGASKAN_POKJA,STATUS.REVIU_POKJA,STATUS.REVIU_ULANG,STATUS.PERLU_PERBAIKAN_PPK,STATUS.PERLU_DETAIL_PPK,STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC],GROUP_CLOSED:[STATUS.DITOLAK_KEPALA,STATUS.BATAL]};const selected=groups[status]||[status];list=list.filter(x=>selected.includes(x.status));}
+  if(status)list=pokjaRingkasanFilter_(list,status);
   if(search)list=list.filter(x=>[x.request_id,x.kode_rup,x.judul_permohonan,x.nama_paket,x.opd,x.status].join(' ').toLowerCase().indexOf(search)>=0);
   if(['ADMIN','POKJA','KEPALA_UKPBJ'].includes(user.role)&&String(payload&&payload.opd||'').trim()){const opdFilter=norm_(payload.opd);list=list.filter(r=>norm_(r.opd).includes(opdFilter));}
   list.sort((a,b)=>new Date(b.updated_at||0)-new Date(a.updated_at||0));
   const dashboard={user:publicUser_(user),counts:counts,total:packageReqs.length,pokja:listPokjaCapacity_(allReqs),updatedAt:new Date().toISOString()};
-  const result={user:publicUser_(user),dashboard:dashboard,requests:list.slice(0,500).map(publicRequest_),updatedAt:dashboard.updatedAt,syncVersion:syncVersion_()};
+  // Bootstrap awal tetap dibatasi 500 untuk loading cepat. Pilihan "Semua"
+  // meminta seluruh hasil secara eksplisit, tanpa batas 500 pada respons itu.
+  const listLimit=payload&&payload.includeAll===true?list.length:500;
+  const result={user:publicUser_(user),dashboard:dashboard,requests:list.slice(0,listLimit).map(publicRequest_),updatedAt:dashboard.updatedAt,syncVersion:syncVersion_()};
   // Tidak ada lagi snapshot SELESAI yang habis setelah 360 detik.
   // bootstrapFast membaca status final langsung dari data permohonan.
 
@@ -890,11 +954,10 @@ function bootstrapFast_(user,payload) {
   let reqs=user.role==='KEPALA_UKPBJ'?stored.filter(r=>!['DRAFT','PERLU_KELENGKAPAN'].includes(String(r.status||''))):stored,packageSource=reqs;
   if(user.role==='PPK'){reqs=stored.filter(r=>String(r.ppk_user_id)===String(user.user_id));packageSource=reqs;}
   if(user.role==='POKJA'){const assigned=stored.filter(r=>String(r.assigned_pokja_id||'')===String(user.pokja_id||''));const linked=linkedAncestorsForPokja_(stored,assigned);const ids={};reqs=assigned.concat(linked).filter(r=>{const id=String(r.request_id||'');if(ids[id])return false;ids[id]=true;return true});packageSource=assigned;}
-  const packageReqs=packageSource,counts={};
-  packageReqs.forEach(r=>counts[r.status]=(counts[r.status]||0)+1);
+  const packageReqs=packageSource,counts=pokjaRingkasanCounts_(packageReqs);
   let list=reqs.slice();
   const status=String(payload&&payload.status||'').trim(),search=String(payload&&payload.search||'').trim().toLowerCase();
-  if(status){const groups={GROUP_DRAFT:[STATUS.DRAFT,STATUS.PERLU_KELENGKAPAN],GROUP_PENDING:[STATUS.DIAJUKAN,STATUS.MENUNGGU_DISPOSISI],GROUP_REVIEW:[STATUS.DITUGASKAN_POKJA,STATUS.REVIU_POKJA,STATUS.REVIU_ULANG,STATUS.PERLU_PERBAIKAN_PPK,STATUS.PERLU_DETAIL_PPK],GROUP_INAPROC:[STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC],GROUP_ONGOING:[STATUS.DIAJUKAN,STATUS.MENUNGGU_DISPOSISI,STATUS.DITUGASKAN_POKJA,STATUS.REVIU_POKJA,STATUS.REVIU_ULANG,STATUS.PERLU_PERBAIKAN_PPK,STATUS.PERLU_DETAIL_PPK,STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC],GROUP_CLOSED:[STATUS.DITOLAK_KEPALA,STATUS.BATAL]};const selected=groups[status]||[status];list=list.filter(x=>selected.includes(x.status));}
+  if(status)list=pokjaRingkasanFilter_(list,status);
   if(search)list=list.filter(x=>[x.request_id,x.kode_rup,x.judul_permohonan,x.nama_paket,x.opd,x.status].join(' ').toLowerCase().indexOf(search)>=0);
   if(['ADMIN','POKJA','KEPALA_UKPBJ'].includes(user.role)&&String(payload&&payload.opd||'').trim()){const opdFilter=norm_(payload.opd);list=list.filter(r=>norm_(r.opd).includes(opdFilter));}
   list.sort((a,b)=>new Date(b.updated_at||0)-new Date(a.updated_at||0));
@@ -1054,6 +1117,117 @@ function previousRequestHistory_(user,req,requestRows,auditRows){
   return out.reverse();
 }
 
+// v28.94: diagnostik HPS aman saat sel Date tidak valid. Pembacaan sel tunggal
+// digunakan hanya bila hasil baris bernilai nol/tidak valid. Saat tetap gagal,
+// Admin dapat memakai inspectRequestHps untuk melihat apa yang dibaca Apps Script.
+// Semua fungsi ini READ-ONLY. Tidak menulis ke Sheet, audit, atau cache.
+function hpsAngkaPositif2893_(v){
+  if(typeof v==='number')return Number.isSafeInteger(v)&&v>0?v:null;
+  if(typeof v!=='string')return null;
+  let t=v.trim().replace(/[\u00a0\u202f]/g,'');
+  if(/^\d{1,3}(?:\.\d{3})+$/.test(t))t=t.replace(/\./g,'');
+  // Terima hanya bilangan bulat positif; jangan tebakan nilai dari pagu.
+  if(!/^\d+$/.test(t))return null;
+  const n=Number(t);return Number.isSafeInteger(n)&&n>0?n:null;
+}
+function hpsStr2893_(v){
+  if(v===null)return 'null';
+  if(v===undefined)return 'undefined';
+  // getValues() bisa menghasilkan Date yang tidak valid dari sel berformat tanggal.
+  // Jangan biarkan diagnostik pembacaan HPS gagal karena toISOString().
+  if(v instanceof Date){
+    const t=v.getTime();
+    return Number.isFinite(t)?v.toISOString():'INVALID_DATE';
+  }
+  try{return String(v).slice(0,80);}
+  catch(_){return '[NILAI_TIDAK_BISA_DITAMPILKAN]';}
+}
+function hpsReadPhysical2893_(user,id,diagnostic){
+  const authorized=getRequestHitAuthorized_(user,id);
+  const root=sheet_(PBJWF.SHEETS.REQUESTS);
+  const target=pbjResolveRow_(root,authorized.row).sheet;
+  const lastCol=target.getLastColumn();
+  const header=target.getRange(1,1,1,lastCol).getDisplayValues()[0].map(x=>String(x||'').trim());
+  const idCol=header.indexOf('request_id'),hpsCol=header.indexOf('hps_alokasi'),timeCol=header.indexOf('updated_at');
+  if(idCol<0||hpsCol<0)throw new Error('Header ID/HPS tidak ditemukan pada sheet permohonan.');
+  if(header.indexOf('request_id',idCol+1)>=0||header.indexOf('hps_alokasi',hpsCol+1)>=0)
+    throw new Error('Header request_id atau hps_alokasi ganda. Periksa Sheet.');
+  const lastRow=target.getLastRow();if(lastRow<2)throw new Error('Sheet permohonan kosong.');
+  const found=target.getRange(2,idCol+1,lastRow-1,1)
+    .createTextFinder(id).matchEntireCell(true).findNext();
+  if(!found)throw new Error('Paket '+id+' tidak ditemukan pada sheet fisiknya.');
+  const row=found.getRow();
+  const read=target.getRange(row,1,1,lastCol).getValues()[0];
+  if(String(read[idCol]||'').trim()!==id)throw new Error('ID paket pada baris fisik tidak cocok.');
+  const rowRaw=read[hpsCol];
+  let amount=hpsAngkaPositif2893_(rowRaw),source='baris';
+  let directRaw,displayRaw,freshRaw,freshDisplay;
+  // Pembacaan tambahan dilakukan hanya bila nilai baris 0/kosong, atau saat
+  // Admin secara eksplisit menjalankan diagnostik.
+  if(amount===null||diagnostic){
+    const cell=target.getRange(row,hpsCol+1);
+    directRaw=cell.getValue();displayRaw=cell.getDisplayValue();
+    if(amount===null){
+      amount=hpsAngkaPositif2893_(directRaw)||hpsAngkaPositif2893_(displayRaw);
+      if(amount!==null)source='sel langsung';
+    }
+  }
+  if(amount===null||diagnostic){
+    // Buka kembali objek spreadsheet sumber untuk membedakan referensi object
+    // yang stale dari isi sel aktual. Fail CLOSED jika ID pada baris berbeda.
+    const reopened=SpreadsheetApp.openById(target.getParent().getId()).getSheetByName(target.getName());
+    if(!reopened)throw new Error('Sheet fisik tidak ditemukan saat dibuka ulang.');
+    const idAgain=String(reopened.getRange(row,idCol+1).getDisplayValue()||'').trim();
+    if(idAgain!==id)throw new Error('ID paket berubah saat pembacaan ulang. Ulangi pemeriksaan.');
+    const cell=reopened.getRange(row,hpsCol+1);
+    freshRaw=cell.getValue();freshDisplay=cell.getDisplayValue();
+    if(amount===null){
+      amount=hpsAngkaPositif2893_(freshRaw)||hpsAngkaPositif2893_(freshDisplay);
+      if(amount!==null)source='dibuka ulang';
+    }
+  }
+  const diag={request_id:id,spreadsheet_id:target.getParent().getId(),sheet:target.getName(),row:row,
+    column:hpsCol+1,column_name:'hps_alokasi',source:source,
+    row_value:hpsStr2893_(rowRaw),row_type:typeof rowRaw,
+    direct_value:hpsStr2893_(directRaw),direct_type:typeof directRaw,
+    direct_display:hpsStr2893_(displayRaw),
+    reopened_value:hpsStr2893_(freshRaw),reopened_display:hpsStr2893_(freshDisplay),
+    positive_value:amount,header_id_column:idCol+1,
+    id_at_row:String(read[idCol]||'').trim()};
+  return {amount:amount,diagnostic:diag,updated_at:timeCol<0?String(authorized.obj.updated_at||''):
+    String(normalizeCell_(read[timeCol])||'')};
+}
+function verifyRequestHpsFresh2893_(user,payload){
+  const supplied=Array.isArray(payload.requestIds)?payload.requestIds:[payload.requestId];
+  const ids=[...new Set(supplied.map(x=>String(x||'').trim())
+    .filter(x=>/^P-[A-Za-z0-9-]{4,70}$/.test(x)))].slice(0,12);
+  if(!ids.length)throw new Error('Isi nomor permohonan yang valid.');
+  const items=[];
+  ids.forEach(id=>{
+    const reading=hpsReadPhysical2893_(user,id,false);
+    if(reading.amount===null)
+      throw new Error('HPS paket '+id+' belum terbaca sebagai angka positif di '+
+        reading.diagnostic.sheet+', baris '+reading.diagnostic.row+'. Admin dapat jalankan inspectRequestHps.');
+    const item={request_id:id,hps_alokasi:reading.amount,updated_at:reading.updated_at};
+    if(user.role==='ADMIN')item.verifikasi={spreadsheet_id:reading.diagnostic.spreadsheet_id,
+      sheet:reading.diagnostic.sheet,row:reading.diagnostic.row,
+      column:reading.diagnostic.column,source:reading.diagnostic.source};
+    items.push(item);
+  });
+  return {schema:'28.93-HPS-VERIFY',items};
+}
+// Diagnostik tidak menulis apa pun dan hanya menerima satu ID untuk Admin.
+// Data yang dikirim dibatasi ke nomor permohonan dan nilai HPS sumber.
+function inspectRequestHps2893_(user,payload){
+  requireRole_(user,['ADMIN']);
+  const id=String(payload.requestId||'').trim();
+  if(!/^P-[A-Za-z0-9-]{4,70}$/.test(id))throw new Error('Nomor permohonan tidak valid.');
+  return {schema:'28.93-HPS-INSPECT',...hpsReadPhysical2893_(user,id,true).diagnostic};
+}
+// Alias kompatibilitas internal saja; route selalu menunjuk fungsi v28.93.
+function verifyRequestHps_(user,payload){return verifyRequestHpsFresh2893_(user,payload);}
+function verifyRequestHpsFresh2892_(user,payload){return verifyRequestHpsFresh2893_(user,payload);}
+
 function requestDetail_(user, requestId, fresh=false, reportSource) {
   const req = getRequestAuthorized_(user, requestId);
   const report=reportEligible_(req)?(reportSource||readInaprocReport_()):null;
@@ -1075,6 +1249,200 @@ function requestDetail_(user, requestId, fresh=false, reportSource) {
   return present(result);
 }
 
+// v28.95: penetapan Admin tetap disimpan di PBJ_INAPROC_BINDINGS.
+// Sheet Report hanya dipakai untuk memperbarui status transaksi, bukan sebagai
+// satu-satunya sumber kebenaran penetapan. Snapshot dipakai saat Report berubah.
+function reportBindingRecords_(fresh=false){
+  try{
+    const sh=ss_().getSheetByName(PBJWF.SHEETS.INAPROC_BINDINGS);
+    if(!sh||sh.getLastRow()<2)return [];
+    // Pada operasi tulis, abaikan cache pembacaan yang dibuat sebelum ScriptLock.
+    if(fresh)invalidateShardTable_(sh);
+    return rows_(sh).filter(r=>String(r.transaction_key||'').trim()&&String(r.request_id||'').trim());
+  }catch(err){throw new Error('Pemetaan transaksi INAPROC belum bisa dibaca. '+String(err&&err.message||err));}
+}
+function reportBindings_(records){
+  const map=Object.create(null);
+  (records||reportBindingRecords_()).forEach(r=>{
+    const key=String(r.transaction_key||''),id=String(r.request_id||'').trim();
+    if(!key||!id)return;
+    if(map[key]&&map[key]!==id)map[key]='__BINDING_CONFLICT__';
+    else map[key]=id;
+  });
+  return map;
+}
+function reportTransactionIdentity_(headers,row,sourceRow,rup,opd,year){
+  const names=['order_id','order_number','order_no','order_code','id_pesanan','nomor_pesanan','no_pesanan','nomor pesanan','nomor order','kode_pesanan','kode transaksi','kode_transaksi','transaction_id','transaction_code','nomor_transaksi','no_transaksi','id_transaksi','po_number'];
+  const at=names.map(k=>headers.indexOf(k)).find(i=>i>=0&&String(row[i]??'').trim());
+  const natural=at===undefined?'':String(normalizeCell_(row[at])||'').trim();
+  const dateIx=headers.indexOf('order_date'),nameIx=headers.indexOf('rup_name'),amountIx=headers.indexOf('total');
+  const rawDate=dateIx>=0?normalizeCell_(row[dateIx]):'',name=nameIx>=0?row[nameIx]:'',amount=amountIx>=0?row[amountIx]:'';
+  // Tanpa ID pesanan gunakan sidik isi yang relatif tetap, BUKAN nomor baris.
+  // Jika dua pesanan identik, readInaprocReport_ mengarantina kunci duplikat
+  // dengan nomor baris; transaksi ambigu tidak direkatkan otomatis.
+  const signature=natural?['id',natural]:['isi',String(name||'').trim().toUpperCase(),String(amount||'').trim(),String(rawDate||'').slice(0,10)];
+  return 'TRX-'+hash_(JSON.stringify([reportKey_(rup,opd,year),signature])).replace(/=+$/,'').slice(0,38);
+}
+function reportSnapshotSignature_(rup,opd,year,name,total,date){
+  if(!reportRup_(rup)||!reportOpd_(opd)||!year||!String(name||'').trim()||total==null||total===' '||total==='')return '';
+  const amount=Number(total);
+  const when=String(normalizeCell_(date)||'').trim().slice(0,10);
+  if(!Number.isFinite(amount)||!when)return '';
+  return JSON.stringify([reportKey_(rup,opd,year),String(name).trim().replace(/\s+/g,' ').toUpperCase(),amount,when]);
+}
+function reportBindingIndex_(records){
+  const index=Object.create(null);
+  (records||[]).forEach(r=>{const id=String(r.request_id||'').trim();if(id)(index[id]||(index[id]=[])).push(r);});
+  return index;
+}
+function reportBindingSnapshot_(r){
+  const v=r.source_total,amount=v!==''&&v!=null&&Number.isSafeInteger(Number(v))&&Number(v)>=0?Number(v):null;
+  return {transaction_key:String(r.transaction_key||''),identifier:String(r.source_identifier||''),row:null,
+    rup_code:reportRup_(r.kode_rup),rup_name:String(r.source_name||''),opd:String(r.opd||''),
+    total:amount,order_date:String(r.order_date||''),shipment_status:'',status:'',
+    source_available:false,archived:true};
+}
+function reconcileReportBindings_(index,records){
+  const bindings=reportBindings_(records),all=Object.keys(index).flatMap(k=>index[k]);
+  const byKey=new Map(),bySignature=new Map(),bindingSignatureCounts=new Map(),claimed=new Set();
+  all.forEach(t=>{
+    byKey.set(t.transaction_key,t);
+    const signature=reportSnapshotSignature_(t.rup_code,t.opd,reportYear_(t.order_date),t.rup_name,t.total,t.order_date);
+    if(signature){const arr=bySignature.get(signature)||[];arr.push(t);bySignature.set(signature,arr);}
+  });
+  const active=records.filter(r=>bindings[String(r.transaction_key||'')]===String(r.request_id||''));
+  active.forEach(r=>{
+    const sig=reportSnapshotSignature_(r.kode_rup,r.opd,r.year,r.source_name,r.source_total,r.order_date);
+    if(sig)bindingSignatureCounts.set(sig,(bindingSignatureCounts.get(sig)||0)+1);
+  });
+  function attach(t,r){
+    if(!t||claimed.has(t))return false;
+    claimed.add(t);t.transaction_key=String(r.transaction_key);t.source_available=true;
+    if(!t.identifier)t.identifier=String(r.source_identifier||'');
+    return true;
+  }
+  // ID pesanan yang benar-benar stabil boleh mengikuti status/nilai terbaru.
+  // Baris duplikat tidak dianggap identik hanya karena menempati posisi sama.
+  active.forEach(r=>{
+    const t=byKey.get(String(r.transaction_key));
+    if(t&&!t.row_sensitive)attach(t,r);
+  });
+  // Migrasi kompatibel v28.91–v28.94: kunci lama berbasis nomor baris.
+  // Rekatkan hanya bila tepat satu data sumber dan satu penetapan yang cocok.
+  active.forEach(r=>{
+    if(all.some(t=>claimed.has(t)&&t.transaction_key===String(r.transaction_key)))return;
+    const sig=reportSnapshotSignature_(r.kode_rup,r.opd,r.year,r.source_name,r.source_total,r.order_date);
+    const hits=sig?bySignature.get(sig)||[]:[];
+    if(sig&&hits.length===1&&bindingSignatureCounts.get(sig)===1&&!hits[0].row_sensitive)attach(hits[0],r);
+  });
+  return {bindings,records};
+}
+function reportCandidatesForRequest_(req,report){
+  return (report.index||{})[reportKey_(req.kode_rup,req.opd,req.year)]||[];
+}
+function reportAssignedForRequest_(req,report){
+  const rows=reportCandidatesForRequest_(req,report),bindings=report.bindings||{},id=String(req.request_id);
+  const live=rows.filter(t=>bindings[t.transaction_key]===id);
+  const found=new Set(live.map(t=>t.transaction_key));
+  const stored=report.bindingByRequest?report.bindingByRequest[id]||[]:(report.bindingRecords||[]).filter(r=>String(r.request_id||'')===id);
+  const archived=stored.filter(r=>!found.has(String(r.transaction_key||'')))
+    .filter(r=>reportKey_(r.kode_rup,r.opd,r.year)===reportKey_(req.kode_rup,req.opd,req.year))
+    .map(reportBindingSnapshot_);
+  return {live,archived,items:live.concat(archived)};
+}
+function adminListInaprocTransactions_(user,payload){
+  requireRole_(user,['ADMIN']);
+  const req=getRequestAuthorized_(user,String(payload.requestId||''));
+  if(!rupHasHandover_(req))throw new Error('Transaksi hanya dapat ditetapkan setelah Handover PPK.');
+  const report=readInaprocReport_();
+  if(report.state!=='ready')throw new Error(report.message||'Sheet Report belum tersedia. Penetapan lama tetap tersimpan.');
+  const candidates=reportCandidatesForRequest_(req,report),assigned=report.bindings||{};
+  const selected=reportAssignedForRequest_(req,report);
+  const transactions=candidates.concat(selected.archived);
+  return {requestId:req.request_id,updatedAt:String(req.updated_at||''),kodeRup:req.kode_rup,hpsAlokasi:Number(req.hps_alokasi)||0,
+    realisasiAdmin:rupHasAdminRealization_(req)?Number(req.realisasi_admin):null,
+    transactions:transactions.map(t=>({transaction_key:t.transaction_key,rup_name:t.rup_name,total:t.total,order_date:t.order_date,
+      shipment_status:t.shipment_status,status:t.status,source_row:t.row,identifier:t.identifier||'',archived:Boolean(t.archived),assigned_to:t.archived?req.request_id:assigned[t.transaction_key]||''})),
+    selectedKeys:selected.items.map(t=>t.transaction_key),
+    missingKeys:selected.archived.map(t=>t.transaction_key),
+    message:candidates.length?'':'Belum ada transaksi untuk Kode RUP ini di Sheet Report.'};
+}
+function adminAssignInaprocTransactions_(user,payload,reportSource){
+  requireRole_(user,['ADMIN']);
+  const requestId=String(payload.requestId||''),hit=findRow_(sheet_(PBJWF.SHEETS.REQUESTS),'request_id',requestId);
+  if(!hit)throw new Error('Permohonan tidak ditemukan.');
+  const req=hit.obj;
+  if(String(req.updated_at||'')!==String(payload.expectedUpdatedAt||''))throw new Error('Data berubah. Perbarui permohonan sebelum menyimpan.');
+  if(!rupHasHandover_(req))throw new Error('Permohonan belum Handover PPK.');
+  if(payload.confirmed!==true)throw new Error('Konfirmasi transaksi yang dipilih terlebih dahulu.');
+  const reason=String(payload.reason||'').trim();
+  if(reason.length<10||reason.length>1000)throw new Error('Isi alasan penetapan minimal 10 karakter.');
+  const ids=payload.selectedKeys;
+  if(!Array.isArray(ids)||ids.length>150||ids.some(k=>typeof k!=='string'||!/^TRX-[A-Za-z0-9_-]{12,50}$/.test(k)))throw new Error('Daftar transaksi tidak valid.');
+  const desired=new Set(ids);
+  if(desired.size!==ids.length)throw new Error('Ada transaksi yang dipilih dua kali.');
+  const report=reportSource||readInaprocReport_();
+  if(report.state!=='ready')throw new Error('Sheet Report belum bisa dibaca.');
+  // Baca ulang mapping DI DALAM ScriptLock; hasil report yang dibaca sebelum lock bisa usang.
+  const currentRecords=reportBindingRecords_(true);
+  const bindings=reportBindings_(currentRecords);
+  const transactions=reportCandidatesForRequest_(req,report);
+  const archived=currentRecords.filter(r=>String(r.request_id||'')===requestId&&!transactions.some(t=>t.transaction_key===String(r.transaction_key)))
+    .filter(r=>reportKey_(r.kode_rup,r.opd,r.year)===reportKey_(req.kode_rup,req.opd,req.year)).map(reportBindingSnapshot_);
+  const options=transactions.concat(archived),byKey=new Map(options.map(t=>[t.transaction_key,t]));
+  if(desired.size!==ids.filter(id=>byKey.has(id)).length)throw new Error('Transaksi telah berubah di Sheet Report. Muat ulang pilihan.');
+  desired.forEach(key=>{if(bindings[key]&&bindings[key]!==requestId)throw new Error('Ada transaksi yang sudah dipakai permohonan '+bindings[key]+'.');});
+  const previous=Object.keys(bindings).filter(key=>bindings[key]===requestId);
+  const oldSet=new Set(previous),changed=previous.length!==desired.size||previous.some(k=>!desired.has(k));
+  if(!changed)throw new Error('Pilihan transaksi belum berubah.');
+  const selected=options.filter(t=>desired.has(t.transaction_key));
+  const total=selected.reduce((sum,t)=>sum+(Number(t.total)||0),0);
+  if(!Number.isSafeInteger(total)||total<0)throw new Error('Nominal transaksi tidak valid.');
+  let newAllocation=null,clearOverride=payload.resetToHps===true;
+  if(rupHasAdminRealization_(req)){
+    if(clearOverride){newAllocation=rupReservedValue_({...req,realisasi_admin:'',realisasi_admin_at:''});}
+    else{
+      newAllocation=Number(payload.adjustedAmount);
+      if(!Number.isSafeInteger(newAllocation)||newAllocation<=0||newAllocation>total||selected.some(t=>t.total==null))
+        throw new Error('Sesuaikan pagu terpakai. Nilai harus lebih dari 0 dan tidak melebihi total transaksi yang dipilih.');
+    }
+    const pagu=lookupRup_(req.kode_rup).pagu;
+    if(newAllocation+rupAllocationTotal_(req.kode_rup,req.request_id)>pagu)
+      throw new Error('Pagu RUP tidak cukup untuk perubahan alokasi ini.');
+  }
+  // Satu kunci = satu permohonan. Aksi dijalankan di dalam ScriptLock.
+  const name=PBJWF.SHEETS.INAPROC_BINDINGS;
+  const sh=ensureSheet_(ss_(),name,PBJ_HEADERS.PBJ_INAPROC_BINDINGS),existing=currentRecords,rowsByKey=new Map(existing.map(r=>[String(r.transaction_key||''),r]));
+  const now=new Date(),newly=[],removed=[];
+  for(const key of previous){
+    if(desired.has(key))continue;
+    const old=rowsByKey.get(key),match=old&&findRow_(sh,'transaction_key',key);
+    if(match){updateRow_(sh,match.row,{request_id:'',updated_by:user.user_id,updated_at:now});removed.push(key);}
+  }
+  for(const trx of selected){
+    if(oldSet.has(trx.transaction_key))continue;
+    if(trx.archived)throw new Error('Transaksi tersimpan tidak boleh ditetapkan ulang tanpa sumber.');
+    const record={request_id:requestId,kode_rup:String(req.kode_rup),opd:String(req.opd),year:String(req.year),
+      source_name:String(trx.rup_name||''),source_total:trx.total==null?'':Number(trx.total),order_date:String(trx.order_date||''),
+      source_identifier:String(trx.identifier||''),source_shipment_status:String(trx.shipment_status||''),
+      source_status:String(trx.status||''),source_last_seen_at:now,updated_by:user.user_id,updated_at:now};
+    const existingRow=rowsByKey.get(trx.transaction_key),match=existingRow&&findRow_(sh,'transaction_key',trx.transaction_key);
+    if(match)updateRow_(sh,match.row,record);
+    else appendObj_(sh,{transaction_key:trx.transaction_key,...record});
+    newly.push(trx.transaction_key);
+  }
+  let patch={updated_at:now};
+  if(newAllocation!==null){
+    patch={...patch,realisasi_admin:clearOverride?'':newAllocation,realisasi_admin_at:clearOverride?'':now,realisasi_admin_by:clearOverride?'':user.user_id,
+      realisasi_admin_note:clearOverride?'':reason+' | Penyesuaian bersamaan dengan pemetaan transaksi'};
+  }
+  updateRow_(sheet_(PBJWF.SHEETS.REQUESTS),hit.row,patch);
+  audit_(user,'ADMIN_TETAPKAN_TRANSAKSI_INAPROC',requestId,{note:reason,ditambahkan:newly,dilepas:removed,jumlahTransaksi:selected.length,
+    totalTransaksi:total,alokasiSebelumnya:rupReservedValue_(req),alokasiBaru:newAllocation===null?rupReservedValue_(req):newAllocation});
+  appendNote_(user,requestId,'INAPROC','PENETAPAN_TRANSAKSI',reason+' ('+selected.length+' transaksi, total Rp'+total.toLocaleString('id-ID')+').');
+  return {requestId,selectedCount:selected.length,selectedTotal:total,request:publicRequest_(getRequest_(requestId))};
+}
+
 // Report is read once per response. Its progress is derived, never written over
 // the workflow or back into the source sheet. Documents keep their existing cache.
 function reportEligible_(r){return [STATUS.SIAP_INAPROC,STATUS.PROSES_INAPROC,STATUS.SELESAI].includes(r.status)&&(requestSelectionProcess_(r)!=='MINI_KOMPETISI'||!r.mini_stage||r.mini_stage==='HANDOVER')&&(requestSelectionProcess_(r)!=='NEGOSIASI'||!r.nego_stage||r.nego_stage==='HANDOVER');}
@@ -1083,39 +1451,67 @@ function reportOpd_(v){return String(v||'').trim().replace(/\s+/g,' ').toUpperCa
 function reportKey_(rup,opd,year){return JSON.stringify([reportRup_(rup),reportOpd_(opd),String(year||'')]);}
 function reportYear_(v){const d=new Date(v);return v&&!isNaN(d.getTime())?String(new Date(d.getTime()+7*3600000).getUTCFullYear()):'';}
 function readInaprocReport_(){
+  // Mapping dibaca sekali. Jika sumber harian tidak tersedia, snapshot tersimpan
+  // tetap dapat ditampilkan, tanpa mengubah status menjadi selesai secara otomatis.
+  let bindingRecords;
+  try{bindingRecords=reportBindingRecords_();}
+  catch(err){return {state:'unavailable',message:String(err&&err.message||err),bindingRecords:[],bindings:{}};}
+  const bindings=reportBindings_(bindingRecords),bindingByRequest=reportBindingIndex_(bindingRecords);
+  const unavailable=message=>({state:'unavailable',message,bindings,bindingRecords,bindingByRequest,index:{}});
   try{
     const sh=ss_().getSheetByName(PBJWF.REPORT_SHEET);
-    if(!sh)return {state:'unavailable',message:'Sheet Report belum tersedia.'};
-    if(sh.getLastRow()<1)return {state:'unavailable',message:'Kolom pada sheet Report belum tersedia.'};
+    if(!sh)return unavailable('Sheet Report belum tersedia. Data penetapan Admin tetap tersimpan.');
+    if(sh.getLastRow()<1)return unavailable('Kolom pada sheet Report belum tersedia. Data penetapan Admin tetap tersimpan.');
     const values=sh.getRange(1,1,sh.getLastRow(),sh.getLastColumn()).getValues();
     const headers=values.shift().map(x=>String(x).trim().toLowerCase());
     const names=['rup_code','rup_name','nama satuan kerja','total','order_date','shipment_status','status'];
-    if(names.some(n=>!headers.includes(n)))return {state:'unavailable',message:'Kolom pada sheet Report belum lengkap.'};
-    const index=Object.create(null),cols=names.map(n=>headers.indexOf(n));
+    if(names.some(n=>!headers.includes(n)))return unavailable('Kolom pada sheet Report belum lengkap. Data penetapan Admin tetap tersimpan.');
+    const index=Object.create(null),cols=names.map(n=>headers.indexOf(n)),firstByKey=new Map(),duplicateBase=new Set();
     values.forEach((row,i)=>{
       const v=cols.map(c=>normalizeCell_(row[c])),rup=reportRup_(v[0]),opd=reportOpd_(v[2]),year=reportYear_(v[4]);
       if(!rup||!opd||!year)return;
       const key=reportKey_(rup,opd,year),amount=typeof v[3]==='number'?v[3]:Number(String(v[3]??'').trim());
-      const item={row:i+2,rup_code:rup,rup_name:String(v[1]||''),opd:String(v[2]||''),total:v[3]!==''&&v[3]!=null&&Number.isFinite(amount)?amount:null,order_date:v[4]||'',shipment_status:String(v[5]||'').trim().toUpperCase(),status:String(v[6]||'').trim().toUpperCase()};
+      const transactionKey=reportTransactionIdentity_(headers,row,i+2,rup,opd,year);
+      let stableKey=transactionKey,rowSensitive=false;
+      if(firstByKey.has(transactionKey)){
+        if(!duplicateBase.has(transactionKey)){
+          const first=firstByKey.get(transactionKey);
+          first.transaction_key='TRX-'+hash_(transactionKey+':'+first.row).replace(/=+$/,'').slice(0,38);
+          first.row_sensitive=true;
+          duplicateBase.add(transactionKey);
+        }
+        stableKey='TRX-'+hash_(transactionKey+':'+String(i+2)).replace(/=+$/,'').slice(0,38);
+        rowSensitive=true;
+      }
+      const orderIdx=['order_id','order_number','order_no','order_code','id_pesanan','nomor_pesanan','no_pesanan','nomor pesanan','transaction_id','nomor_transaksi'].map(x=>headers.indexOf(x)).find(x=>x>=0&&row[x]);
+      const item={transaction_key:stableKey,identifier:orderIdx===undefined?'':String(row[orderIdx]),row:i+2,
+        rup_code:rup,rup_name:String(v[1]||''),opd:String(v[2]||''),total:v[3]!==''&&v[3]!=null&&Number.isSafeInteger(amount)&&amount>=0?amount:null,
+        order_date:v[4]||'',shipment_status:String(v[5]||'').trim().toUpperCase(),status:String(v[6]||'').trim().toUpperCase(),source_available:true,row_sensitive:rowSensitive};
       (index[key]||(index[key]=[])).push(item);
+      if(!firstByKey.has(transactionKey))firstByKey.set(transactionKey,item);
     });
-    return {state:'ready',index:index};
-  }catch(_){return {state:'unavailable',message:'Progres belum tersedia. Coba lagi.'};}
+    reconcileReportBindings_(index,bindingRecords);
+    return {state:'ready',index,bindings,bindingRecords,bindingByRequest};
+  }catch(err){if(typeof Logger!=='undefined')Logger.log('Report INAPROC tidak dapat dibaca: '+String(err));return unavailable('Progres Report belum tersedia. Data penetapan Admin tetap tersimpan.');}
 }
 function inaprocProgress_(req,source,includeRows){
   const unavailable=!source||source.state==='unavailable';
-  const items=unavailable?[]:(source.index[reportKey_(req.kode_rup,req.opd,req.year)]||[]);
-  const completed=items.filter(x=>['PAYMENT_OUTSIDE_SYSTEM','COMPLETED'].includes(x.status)).length;
-  const state=unavailable?'unavailable':items.length?'ready':'empty';
-  const message=unavailable?(source&&source.message||'Report belum bisa dibaca.'):(items.length?'':'Belum ada transaksi.');
-  const summary={state:state,message:message,count:items.length,completed:completed,total:items.reduce((n,x)=>n+(x.total||0),0),missing_values:items.filter(x=>x.total==null).length};
+  const data=source||{index:{},bindings:{},bindingRecords:[]};
+  const selected=reportAssignedForRequest_(req,data),items=selected.items;
+  // Status lama tidak dipakai untuk otomatis menyelesaikan paket saat transaksi
+  // tidak lagi ditemukan di Report. Snapshot hanya mempertahankan penetapan.
+  const completed=selected.live.filter(x=>['PAYMENT_OUTSIDE_SYSTEM','COMPLETED'].includes(x.status)).length;
+  const state=items.length?'ready':unavailable?'unavailable':'unassigned';
+  const message=unavailable?(source?.message||'Report belum bisa dibaca.'):(items.length?'':'Belum ada transaksi yang ditetapkan Admin untuk permohonan ini.');
+  const summary={state,message,count:items.length,completed,total:items.reduce((n,x)=>n+(x.total||0),0),
+    missing_values:items.filter(x=>x.total==null).length,missing_source:selected.archived.length,source_unavailable:unavailable};
   summary.version=hash_(JSON.stringify([state,message,items]));
   return includeRows?{...summary,transactions:items}:summary;
 }
 function requestWithReport_(req,source){
   if(!reportEligible_(req))return req;
   const p=inaprocProgress_(req,source,false);
-  const status=p.count?(p.completed===p.count?STATUS.SELESAI:STATUS.PROSES_INAPROC):req.status;
+  const status=req.status===STATUS.SELESAI?STATUS.SELESAI:p.count?(p.completed===p.count?STATUS.SELESAI:STATUS.PROSES_INAPROC):req.status;
   return {...req,status:status,inaproc_progress:p,inaproc_version:p.version};
 }
 
@@ -1277,7 +1673,7 @@ function listRupOptions_(user,payload) {
   const reserved={};
   rows_(sheet_(PBJWF.SHEETS.REQUESTS)).forEach(r=>{
     if(['DRAFT','PERLU_KELENGKAPAN','DITOLAK_KEPALA','BATAL'].includes(String(r.status||'')))return;
-    const code=String(r.kode_rup||'');reserved[code]=(reserved[code]||0)+Math.max(0,Number(r.hps_alokasi)||Number(r.pagu)||0);
+    const code=String(r.kode_rup||'');reserved[code]=(reserved[code]||0)+rupReservedValue_(r);
   });
   const items=base.map(x=>({...x,sisaPagu:Math.max(0,Number(x.pagu)-Number(reserved[x.kodeRup]||0)),terpakai:Number(reserved[x.kodeRup]||0),activeRequestId:''}));
   const selectable=items.filter(x=>x.sisaPagu>0).length;
@@ -1511,7 +1907,7 @@ function createRequest_(user, data) {
     const requestedHps=Number(data.hpsAlokasi);
     if(!Number.isSafeInteger(requestedHps)||requestedHps<=0)throw new Error('Total HPS harus lebih dari nol dan dalam rupiah penuh.');
     // Pakai hasil baca RUP di atas agar tidak membaca ulang seluruh Sheet permohonan.
-    const allocated=sameRup.reduce((sum,r)=>['DRAFT','PERLU_KELENGKAPAN','DITOLAK_KEPALA','BATAL'].includes(String(r.status||''))?sum:sum+Math.max(0,Number(r.hps_alokasi)||Number(r.pagu)||0),0);
+    const allocated=sameRup.reduce((sum,r)=>['DRAFT','PERLU_KELENGKAPAN','DITOLAK_KEPALA','BATAL'].includes(String(r.status||''))?sum:sum+rupReservedValue_(r),0);
     const remaining=Math.max(0,Number(rup.pagu)-allocated);
     if(requestedHps>remaining)throw new Error('Total HPS melebihi sisa pagu RUP ('+remaining.toLocaleString('id-ID')+' tersisa).');
   } else {
@@ -1533,7 +1929,7 @@ function createRequest_(user, data) {
   // HPS wajib angka rupiah penuh. Pagu besar dengan HPS di bawah Rp100 juta harus dikonfirmasi dan diberi alasan.
   const hpsAmount=Number(data.hpsAlokasi);
   if(!Number.isSafeInteger(hpsAmount)||hpsAmount<100000)throw new Error('HPS wajib diisi benar, minimal Rp100.000 (bukan Rp3, Rp10, atau Rp30).');
-  const allocatedOther=sameRup.reduce((sum,r)=>['DRAFT','PERLU_KELENGKAPAN','DITOLAK_KEPALA','BATAL'].includes(String(r.status||''))?sum:sum+Math.max(0,Number(r.hps_alokasi)||Number(r.pagu)||0),0);
+  const allocatedOther=sameRup.reduce((sum,r)=>['DRAFT','PERLU_KELENGKAPAN','DITOLAK_KEPALA','BATAL'].includes(String(r.status||''))?sum:sum+rupReservedValue_(r),0);
   const remainingForNew=Math.max(0,Number(rup.pagu)-allocatedOther);
   if(hpsAmount>remainingForNew)throw new Error('HPS melebihi sisa pagu RUP ('+remainingForNew.toLocaleString('id-ID')+' tersedia).');
   const needsLowReview=Number(rup.pagu)>=100000000&&hpsAmount<100000000;
@@ -1541,7 +1937,8 @@ function createRequest_(user, data) {
   const id = requestIdForRup_(rup.kodeRup);
   const folder = createRequestFolder_(id, rup);
   const now = new Date();
-  const obj = {request_id:id,year:rup.tahun||2026,kode_rup:rup.kodeRup,nama_paket:rup.namaPaket,judul_permohonan:requestTitle||rup.namaPaket,opd:rup.opd,ppk_user_id:user.user_id,jenis:rup.jenis,cara:rup.cara,metode_pengadaan:rup.metode,metode_epurchasing:'E-Purchasing',pagu:rup.pagu,sumber_dana:rup.sumberDana,waktu_pemilihan:rup.waktuPemilihan,status:STATUS.DRAFT,current_round:1,folder_id:folder.getId(),created_at:now,updated_at:now,notes:previous?String(previous.notes||''):String(data.notes||''),selection_process:selectionProcess,ppk_nama:previous?String(previous.ppk_nama||''):String(data.ppkNama||'').trim(),ppk_email:previous?String(previous.ppk_email||''):String(data.ppkEmail||'').trim(),hps_alokasi:Number(data.hpsAlokasi)||0,workflow_scheme:selectionProcess==='PERSIAPAN'?'KAJI_ULANG_2026':'',program:rup.program||'',kegiatan:rup.kegiatan||'',sub_kegiatan:rup.subKegiatan||'',produk_dalam_negeri:rup.pdn||'',previous_request_id:previous?previous.request_id:'',...(selectionProcess==='MINI_KOMPETISI'?requestFormPatch_(data,rup):{})};
+  const reusedReport=sameRup.some(r=>rupHasHandover_(r)||['SIAP_PROSES_INAPROC','PROSES_INAPROC','SELESAI'].includes(String(r.status||'')));
+  const obj = {report_cutoff_at:reusedReport?now:'',request_id:id,year:rup.tahun||2026,kode_rup:rup.kodeRup,nama_paket:rup.namaPaket,judul_permohonan:requestTitle||rup.namaPaket,opd:rup.opd,ppk_user_id:user.user_id,jenis:rup.jenis,cara:rup.cara,metode_pengadaan:rup.metode,metode_epurchasing:'E-Purchasing',pagu:rup.pagu,sumber_dana:rup.sumberDana,waktu_pemilihan:rup.waktuPemilihan,status:STATUS.DRAFT,current_round:1,folder_id:folder.getId(),created_at:now,updated_at:now,notes:previous?String(previous.notes||''):String(data.notes||''),selection_process:selectionProcess,ppk_nama:previous?String(previous.ppk_nama||''):String(data.ppkNama||'').trim(),ppk_email:previous?String(previous.ppk_email||''):String(data.ppkEmail||'').trim(),hps_alokasi:Number(data.hpsAlokasi)||0,workflow_scheme:selectionProcess==='PERSIAPAN'?'KAJI_ULANG_2026':'',program:rup.program||'',kegiatan:rup.kegiatan||'',sub_kegiatan:rup.subKegiatan||'',produk_dalam_negeri:rup.pdn||'',previous_request_id:previous?previous.request_id:'',...(selectionProcess==='MINI_KOMPETISI'?requestFormPatch_(data,rup):{})};
   appendObj_(sheet_(PBJWF.SHEETS.REQUESTS), obj); audit_(user,'CREATE_REQUEST',id,{kodeRup:rup.kodeRup,previousRequestId:obj.previous_request_id,...(needsLowReview?{hpsReviewNote:String(data.hpsSmallReason||'').trim(),hpsAmount}: {})});
   if(previous){audit_(user,'REAPPLY_REQUEST',previous.request_id,{newRequestId:id});touchRequest_(previous.request_id);}
   return publicRequest_(obj);
@@ -1704,7 +2101,7 @@ function negoWorkflow_(user,payload){
 function directUploadContext_(user,payload){
   const purpose=String(payload.purpose||'DOCUMENT').toUpperCase();
   const requestId=String(payload.requestId||'').trim();
-  const req=purpose==='BROADCAST'?(requireRole_(user,['ADMIN']),{request_id:'',folder_id:getOrCreateChildFolder_(getOrCreateWorkflowFolder_(),'BROADCAST').getId()}):getRequestAuthorized_(user,requestId);
+  const req=purpose==='BROADCAST'?(requireRole_(user,['ADMIN']),{request_id:'',folder_id:getOrCreateChildFolder_(getOrCreateWorkflowFolder_(),'BROADCAST').getId()}):purpose==='SIRUP_LETTER'?(psrAccess_(user,requestId,true),{request_id:requestId,folder_id:psrFolder_().getId()}):getRequestAuthorized_(user,requestId);
   const meta=payload.file||{};
   const safeName=sanitizeFileName_(meta.name||'');
   const mimeType=String(meta.mimeType||'application/octet-stream').slice(0,160);
@@ -1713,7 +2110,10 @@ function directUploadContext_(user,payload){
   if(!Number.isFinite(sizeBytes)||sizeBytes<=0)throw new Error('File kosong.');
   if(sizeBytes>PBJWF.MAX_FILE_BYTES)throw new Error('Ukuran file maksimal 10 MB.');
   let docType='';
-  if(purpose==='BROADCAST'){
+  if(purpose==='SIRUP_LETTER'){
+    if(!/\.pdf$/i.test(safeName)||!['application/pdf','application/octet-stream'].includes(mimeType)||sizeBytes>PSR.MAX_PDF)throw new Error('Surat harus PDF maksimal 5 MB.');
+    docType='SIRUP_SURAT';
+  }else if(purpose==='BROADCAST'){
     if(!/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|jpg|jpeg|png|zip)$/i.test(safeName))throw new Error('Lampiran hanya PDF, Office, gambar, atau ZIP.');
     docType='BROADCAST_ATTACHMENT';
   }else if(purpose==='KAJI_DOCUMENT'){
@@ -2424,7 +2824,7 @@ function adminUpdateRequestRup_(user,payload){
   if(['DRAFT','DITOLAK_KEPALA','BATAL','SELESAI'].includes(String(req.status||'')))throw new Error('Hanya permohonan berjalan yang dapat diperbarui.');
   const newRup=lookupRup_(newCode);
   if(norm_(newRup.opd)!==norm_(req.opd))throw new Error('Kode RUP baru harus milik OPD yang sama.');
-  const used=rupAllocationTotal_(newCode,id),needed=Math.max(0,Number(req.hps_alokasi)||0);
+  const used=rupAllocationTotal_(newCode,id),needed=rupReservedValue_(req);
   if(needed+used>Number(newRup.pagu))throw new Error('Sisa pagu pada RUP baru tidak cukup untuk HPS permohonan ini.');
   // Hanya ganti kode dan sumber pagu. Nomor, judul, dokumen dan tahap tetap utuh.
   updateRow_(sheet_(PBJWF.SHEETS.REQUESTS),hit.row,{kode_rup:newCode,pagu:Number(newRup.pagu),updated_at:new Date()});
@@ -2439,7 +2839,7 @@ function adminCorrectionSnapshot_(r){return {
   opd:String(r.opd||''),status:String(r.status||''),selection_process:requestSelectionProcess_(r),
   competition_type:String(r.competition_type||''),mini_stage:String(r.mini_stage||''),nego_stage:String(r.nego_stage||''),
   assigned_pokja_id:String(r.assigned_pokja_id||''),current_round:Number(r.current_round)||1,
-  updated_at:String(r.updated_at||''),method_locked_at:String(r.method_locked_at||''),pagu:Number(r.pagu)||0,hps_alokasi:Number(r.hps_alokasi)||0,ppk_nama:String(r.ppk_nama||''),ppk_email:String(r.ppk_email||''),notes:String(r.notes||'')
+  updated_at:String(r.updated_at||''),method_locked_at:String(r.method_locked_at||''),pagu:Number(r.pagu)||0,hps_alokasi:Number(r.hps_alokasi)||0,realisasi_admin:rupHasAdminRealization_(r)?Number(r.realisasi_admin):null,realisasi_admin_at:String(r.realisasi_admin_at||''),pagu_terpakai:rupConsumesAllocation_(r)?rupReservedValue_(r):0,can_adjust_realisasi:rupHasHandover_(r),ppk_nama:String(r.ppk_nama||''),ppk_email:String(r.ppk_email||''),notes:String(r.notes||'')
 };}
 function adminSearchCorrections_(user,payload){
   requireRole_(user,['ADMIN']);
@@ -2482,8 +2882,9 @@ function adminEditRequestData_(user,payload){
   if(oldHps!==hps){
     if(payload.externalConfirmed!==true)throw new Error('Konfirmasi pemeriksaan HPS dan data INAPROC sebelum menyimpan.');
     // Pagu RUP tidak bisa dilampaui walaupun admin mengubah nominal HPS.
-    const other=rows_(sheet_(PBJWF.SHEETS.REQUESTS)).filter(r=>String(r.kode_rup)===String(req.kode_rup)&&String(r.request_id)!==String(req.request_id)&&!['DRAFT','PERLU_KELENGKAPAN','DITOLAK_KEPALA','BATAL'].includes(String(r.status||''))).reduce((sum,r)=>sum+Math.max(0,Number(r.hps_alokasi)||Number(r.pagu)||0),0);
-    if(hps>Math.max(0,Number(req.pagu)-other))throw new Error('HPS melebihi sisa pagu RUP setelah menghitung permohonan lain.');
+    const other=rupAllocationTotal_(req.kode_rup,req.request_id);
+    const proposedReservation=rupHasHandover_(req)&&rupHasAdminRealization_(req)?Number(req.realisasi_admin):hps;
+    if(proposedReservation>Math.max(0,Number(req.pagu)-other)||hps>Number(req.pagu))throw new Error('HPS melebihi sisa pagu RUP setelah menghitung permohonan lain.');
     if(Number(req.pagu)>=100000000&&hps<100000000&&note.length<10)throw new Error('HPS kecil pada pagu besar harus dijelaskan.');
   }
   const before={judul_permohonan:String(req.judul_permohonan||''),ppk_nama:String(req.ppk_nama||''),ppk_email:String(req.ppk_email||''),hps_alokasi:oldHps,notes:String(req.notes||'')};
@@ -2493,6 +2894,48 @@ function adminEditRequestData_(user,payload){
   audit_(user,'ADMIN_EDIT_REQUEST_DATA',req.request_id,{note,before,after,oldStatus:req.status,round:req.current_round});
   appendNote_(user,req.request_id,'PERBAIKAN_ADMIN','KOREKSI_DATA',note);
   return adminCorrectionSnapshot_(getRequest_(req.request_id));
+}
+// v29.28: sesudah Handover PPK, Admin dapat mengunci alokasi pada nilai
+// realisasi terverifikasi. Report hanya bukti keberadaan transaksi per RUP,
+// bukan bukti otomatis bahwa seluruh transaksi milik permohonan yang sama.
+function adminSetRealization_(user,payload,reportSource){
+  requireRole_(user,['ADMIN']);
+  const id=String(payload.requestId||'').trim();
+  if(!/^P-[A-Za-z0-9-]{4,70}$/.test(id))throw new Error('Nomor permohonan tidak valid.');
+  const sh=sheet_(PBJWF.SHEETS.REQUESTS),hit=findRow_(sh,'request_id',id);
+  if(!hit)throw new Error('Permohonan tidak ditemukan.');
+  const req=hit.obj;
+  if(String(req.updated_at||'')!==String(payload.expectedUpdatedAt||''))throw new Error('Permohonan telah berubah. Cari ulang sebelum menyimpan.');
+  if(!rupHasHandover_(req))throw new Error('Penyesuaian realisasi hanya dapat dilakukan setelah Handover PPK.');
+  if(payload.confirmed!==true)throw new Error('Periksa data transaksi INAPROC sebelum menyimpan realisasi.');
+  const amount=Number(payload.realisasi);
+  if(!Number.isSafeInteger(amount)||amount<=0)throw new Error('Nilai realisasi harus rupiah penuh dan lebih dari nol.');
+  const reason=String(payload.reason||'').trim();
+  if(reason.length<10||reason.length>1000)throw new Error('Isi dasar penyesuaian minimal 10 karakter dan maksimal 1.000 karakter.');
+  const reference=String(payload.reference||'').trim();
+  if(reference.length<4||reference.length>160)throw new Error('Isi nomor pesanan atau referensi transaksi INAPROC.');
+  const report=reportSource||readInaprocReport_();
+  if(report.state!=='ready')throw new Error('Sheet Report belum dapat dibaca. Penyesuaian dibatalkan.');
+  const p=inaprocProgress_(req,report,false);
+  if(p.state!=='ready'||p.count<1||p.missing_values>0)throw new Error('Pilih dulu transaksi INAPROC yang sesuai dengan permohonan ini melalui tombol Atur Transaksi.');
+  if(!(Number(p.total)>0)||amount>Number(p.total))throw new Error('Nominal melebihi total transaksi INAPROC yang sudah dipilih untuk permohonan ini.');
+  // HPS tetap utuh, kuota tidak boleh melebihi pagu ketika ada permohonan lain.
+  const master=lookupRup_(req.kode_rup),max=Number(master.pagu)||0;
+  if(max<=0||amount>max)throw new Error('Realisasi melebihi pagu RUP.');
+  const other=rupAllocationTotal_(req.kode_rup,id);
+  if(other+amount>max)throw new Error('Pagu RUP tidak cukup. Total alokasi permohonan lain Rp'+other.toLocaleString('id-ID')+'.');
+  const before=rupReservedValue_(req);
+  if(rupHasAdminRealization_(req)&&Number(req.realisasi_admin)===amount)throw new Error('Realisasi yang dimasukkan sama dengan sebelumnya.');
+  // Menambah kolom hanya bila perlu; baris di shard lama di-update di tempat asalnya.
+  const physical=pbjResolveRow_(sh,hit.row);
+  if(!['realisasi_admin','realisasi_admin_at','realisasi_admin_by','realisasi_admin_note'].every(k=>headers_(physical.sheet).includes(k)))
+    ensureSheet_(physical.sheet.getParent(),physical.sheet.getName(),PBJ_HEADERS.PBJ_PERMOHONAN);
+  const now=new Date();
+  updateRow_(sh,hit.row,{realisasi_admin:amount,realisasi_admin_at:now,realisasi_admin_by:user.user_id,realisasi_admin_note:reason+' | Referensi: '+reference,updated_at:now});
+  audit_(user,'ADMIN_SESUAIKAN_REALISASI',id,{kodeRup:req.kode_rup,hpsAwal:Number(req.hps_alokasi)||0,paguRup:max,alokasiSebelumnya:before,realisasiLama:rupHasAdminRealization_(req)?Number(req.realisasi_admin):null,realisasiBaru:amount,sisaPagu:max-other-amount,referensi:reference,catatan:reason,reportCount:p.count,reportTotal:p.total});
+  appendNote_(user,id,'PENYESUAIAN_PAGU','REALISASI_ADMIN','Pagu terpakai disesuaikan: Rp'+before.toLocaleString('id-ID')+' → Rp'+amount.toLocaleString('id-ID')+'. Referensi: '+reference+'. '+reason);
+  const updated=getRequest_(id);
+  return {...adminCorrectionSnapshot_(updated),pagu_terpakai:rupReservedValue_(updated),sisa_pagu_rup:max-other-amount};
 }
 function adminCorrectCompetition_(user,payload){
   const {hit,req,note}=adminCorrectionGuard_(user,payload);
@@ -2634,8 +3077,10 @@ function listPokjaCapacity_(requestRows) {
   teams.forEach(t=>{const id=String(t.pokja_id);counts.set(id,{active:0,done:0});members.set(id,[]);});
   (reqs||[]).forEach(r=>{
     const bucket=counts.get(String(r.assigned_pokja_id||''));if(!bucket)return;
-    if(activeStatuses.has(r.status))bucket.active++;
-    if(r.status===STATUS.SELESAI)bucket.done++;
+    // Handover berarti pekerjaan Pokja telah selesai. Jangan ikut
+    // menghitungnya sebagai aktif walau status INAPROC masih berjalan.
+    if(rupHasHandover_(r))bucket.done++;
+    else if(activeStatuses.has(r.status))bucket.active++;
   });
   users.forEach(u=>{
     if(u.role!=='POKJA'||!truthy_(u.active)||u.deleted_at)return;
@@ -2644,7 +3089,7 @@ function listPokjaCapacity_(requestRows) {
   });
   return teams.map(t=>{
     const id=String(t.pokja_id),count=counts.get(id),max=Math.max(1,Number(t.capacity_max)||8);
-    return {...t,activeCount:count.active,doneCount:count.done,remaining:Math.max(0,max-count.active),loadPct:Math.min(100,count.active/max*100),members:members.get(id)};
+    return {...t,activeCount:count.active,doneCount:count.done,totalCount:count.active+count.done,remaining:Math.max(0,max-count.active),loadPct:Math.min(100,count.active/max*100),members:members.get(id)};
   });
 }
 
@@ -2824,7 +3269,7 @@ function requestTimeHHmm_(value){
   if(d.getUTCFullYear()<1902){const m=(d.getUTCHours()*60+d.getUTCMinutes()+420)%1440;return ('0'+Math.floor(m/60)).slice(-2)+':'+('0'+m%60).slice(-2);}
   return Utilities.formatDate(d,'Asia/Jakarta','HH:mm');
 }
-function publicRequest_(r){return{request_id:r.request_id,year:r.year,kode_rup:r.kode_rup,nama_paket:r.nama_paket,judul_permohonan:r.judul_permohonan||r.nama_paket||'',opd:r.opd,ppk_user_id:r.ppk_user_id,jenis:r.jenis,cara:r.cara,metode_pengadaan:r.metode_pengadaan,metode_epurchasing:r.metode_epurchasing,pagu:Number(r.pagu)||0,sumber_dana:r.sumber_dana,waktu_pemilihan:r.waktu_pemilihan,status:r.status,inaproc_version:r.inaproc_version||'',inaproc_progress:r.inaproc_progress||null,current_round:Number(r.current_round)||1,assigned_pokja_id:r.assigned_pokja_id||'',assigned_at:r.assigned_at||'',sop_started_at:r.sop_started_at||'',rejected_reason:r.rejected_reason||'',rejected_at:r.rejected_at||'',rejected_by:r.rejected_by||'',previous_request_id:r.previous_request_id||'',inaproc_code:r.inaproc_code||'',winner_name:r.winner_name||'',result_value:Number(r.result_value)||0,result_date:r.result_date||'',created_at:r.created_at||'',updated_at:r.updated_at||'',notes:r.notes||'',ppk_nama:r.ppk_nama||'',ppk_email:r.ppk_email||'',hps_alokasi:Number(r.hps_alokasi)||0,program:r.program||'',kegiatan:r.kegiatan||'',sub_kegiatan:r.sub_kegiatan||'',produk_dalam_negeri:r.produk_dalam_negeri||'',selection_process:requestSelectionProcess_(r),workflow_scheme:r.workflow_scheme||'',kaji_ulang_date:requestDateYmd_(r.kaji_ulang_date),kaji_ulang_result:r.kaji_ulang_result||'',kaji_ulang_note:r.kaji_ulang_note||'',method_locked_at:r.method_locked_at||'',details_submitted_at:r.details_submitted_at||'',competition_type:r.competition_type||'',competition_title:r.competition_title||r.nama_paket||'',schedule_start_date:requestDateYmd_(r.schedule_start_date),schedule_end_date:requestDateYmd_(r.schedule_end_date),schedule_start_time:requestTimeHHmm_(r.schedule_start_time),schedule_end_time:requestTimeHHmm_(r.schedule_end_time),qualification_json:r.qualification_json||'',product_category:r.product_category||'',product_details_json:r.product_details_json||'',offer_type:r.offer_type||'',payment_type:r.payment_type||'',payment_terms_count:Number(r.payment_terms_count)||0,payment_terms_note:r.payment_terms_note||'',construction_details_json:r.construction_details_json||'',work_location:r.work_location||'',completion_date:requestDateYmd_(r.completion_date),submitted_at:r.submitted_at||'',mini_stage:r.mini_stage||'',mini_tayang_at:r.mini_tayang_at||'',mini_handover_at:r.mini_handover_at||'',mini_failure_at:r.mini_failure_at||'',mini_last_change_at:r.mini_last_change_at||'',nego_stage:r.nego_stage||'',nego_started_at:r.nego_started_at||'',nego_handover_at:r.nego_handover_at||''};}
+function publicRequest_(r){return{request_id:r.request_id,year:r.year,kode_rup:r.kode_rup,nama_paket:r.nama_paket,judul_permohonan:r.judul_permohonan||r.nama_paket||'',opd:r.opd,ppk_user_id:r.ppk_user_id,jenis:r.jenis,cara:r.cara,metode_pengadaan:r.metode_pengadaan,metode_epurchasing:r.metode_epurchasing,pagu:Number(r.pagu)||0,sumber_dana:r.sumber_dana,waktu_pemilihan:r.waktu_pemilihan,status:r.status,inaproc_version:r.inaproc_version||'',inaproc_progress:r.inaproc_progress||null,current_round:Number(r.current_round)||1,assigned_pokja_id:r.assigned_pokja_id||'',assigned_at:r.assigned_at||'',sop_started_at:r.sop_started_at||'',rejected_reason:r.rejected_reason||'',rejected_at:r.rejected_at||'',rejected_by:r.rejected_by||'',previous_request_id:r.previous_request_id||'',inaproc_code:r.inaproc_code||'',winner_name:r.winner_name||'',result_value:Number(r.result_value)||0,result_date:r.result_date||'',created_at:r.created_at||'',updated_at:r.updated_at||'',notes:r.notes||'',ppk_nama:r.ppk_nama||'',ppk_email:r.ppk_email||'',hps_alokasi:Number(r.hps_alokasi)||0,realisasi_admin:rupHasAdminRealization_(r)?Number(r.realisasi_admin):null,realisasi_admin_at:r.realisasi_admin_at||'',realisasi_admin_note:r.realisasi_admin_note||'',pagu_terpakai:rupConsumesAllocation_(r)?rupReservedValue_(r):0,can_adjust_realisasi:rupHasHandover_(r),program:r.program||'',kegiatan:r.kegiatan||'',sub_kegiatan:r.sub_kegiatan||'',produk_dalam_negeri:r.produk_dalam_negeri||'',selection_process:requestSelectionProcess_(r),workflow_scheme:r.workflow_scheme||'',kaji_ulang_date:requestDateYmd_(r.kaji_ulang_date),kaji_ulang_result:r.kaji_ulang_result||'',kaji_ulang_note:r.kaji_ulang_note||'',method_locked_at:r.method_locked_at||'',details_submitted_at:r.details_submitted_at||'',competition_type:r.competition_type||'',competition_title:r.competition_title||r.nama_paket||'',schedule_start_date:requestDateYmd_(r.schedule_start_date),schedule_end_date:requestDateYmd_(r.schedule_end_date),schedule_start_time:requestTimeHHmm_(r.schedule_start_time),schedule_end_time:requestTimeHHmm_(r.schedule_end_time),qualification_json:r.qualification_json||'',product_category:r.product_category||'',product_details_json:r.product_details_json||'',offer_type:r.offer_type||'',payment_type:r.payment_type||'',payment_terms_count:Number(r.payment_terms_count)||0,payment_terms_note:r.payment_terms_note||'',construction_details_json:r.construction_details_json||'',work_location:r.work_location||'',completion_date:requestDateYmd_(r.completion_date),submitted_at:r.submitted_at||'',mini_stage:r.mini_stage||'',mini_tayang_at:r.mini_tayang_at||'',mini_handover_at:r.mini_handover_at||'',mini_failure_at:r.mini_failure_at||'',mini_last_change_at:r.mini_last_change_at||'',nego_stage:r.nego_stage||'',nego_started_at:r.nego_started_at||'',nego_handover_at:r.nego_handover_at||''};}
 function clearDocConfigCache_(){try{scriptCache_()?.remove('pbj_doc_config_active_v1');}catch(_){}}
 function activeDocConfig_(includeInactive){if(!includeInactive){try{const cached=scriptCache_()?.get('pbj_doc_config_active_v1');if(cached)return JSON.parse(cached);}catch(_){}}let r=rows_(sheet_(PBJWF.SHEETS.DOC_CONFIG));r=r.filter(x=>x.doc_type!=='SURAT_PERINTAH_POKJA');if(!includeInactive)r=r.filter(x=>truthy_(x.active));r=r.sort((a,b)=>Number(a.sort)-Number(b.sort));if(!includeInactive)try{scriptCache_()?.put('pbj_doc_config_active_v1',JSON.stringify(r),60);}catch(_){}return r;}
 function appendNote_(user,requestId,phase,status,note){appendObj_(sheet_(PBJWF.SHEETS.NOTES),{note_id:id_('NTE'),request_id:requestId,phase:phase,author_user_id:user.user_id,status:status,note:String(note||''),created_at:new Date()});}

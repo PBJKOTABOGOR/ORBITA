@@ -1564,3 +1564,17 @@ html.sel-process-lock,html.sel-process-lock body{overflow:hidden!important}
 .sel-app .sel-pokja-summary .sel-meter{margin:10px 0 5px}
 .sel-app .sel-pokja-summary .sel-pokja-foot{font-size:10px!important}
 @media(max-width:420px){.sel-app .sel-pokja-summary{padding:11px 12px}.sel-app .sel-pokja-breakdown{gap:7px}.sel-app .sel-pokja-total strong{font-size:24px}}
+
+/* v28.99 — Paging ringan daftar permohonan dan beban Pokja */
+.sel-app .sel-page-controls{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px;margin-top:12px;padding:10px 2px;border-top:1px solid #e4edf2;color:#617d8d;font-size:11px}
+.sel-app .sel-page-count{font-size:11px;font-weight:650;white-space:nowrap}
+.sel-app .sel-page-size{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:650;white-space:nowrap}
+.sel-app .sel-page-size select{height:32px;min-width:76px;padding:0 9px;border:1px solid #d7e5ec;border-radius:9px;background:#fff;color:#183a50;font:inherit;font-size:11px;cursor:pointer}
+.sel-app .sel-page-nav{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.sel-app .sel-page-nav button{min-height:32px;min-width:32px;padding:5px 9px;border:1px solid #dbe6ed;border-radius:9px;background:#fff;color:#365c74;font-weight:750;font-size:11px;line-height:1.2;font-family:inherit;cursor:pointer}
+.sel-app .sel-page-nav button.current{border-color:#b4d8ea;background:#e7f3fa;color:#096c9e}
+.sel-app .sel-page-nav button:disabled{opacity:.45;cursor:default}
+.sel-app .sel-page-nav span{color:#8094a0;padding:0 2px}
+.sel-app .sel-pokja-members{font-size:10.5px;line-height:1.5;color:#37546a;margin-top:7px;overflow-wrap:anywhere}
+.sel-app .sel-pokja-members span{font-size:10.5px;font-weight:800;color:#607b8d}
+@media(max-width:700px){.sel-app .sel-page-controls{justify-content:flex-start}.sel-app .sel-page-nav{width:100%}}
