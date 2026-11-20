@@ -1616,3 +1616,9 @@ html.sel-process-lock,html.sel-process-lock body{overflow:hidden!important}
 .sel-app .sel-pokja-search button:hover{border-color:#99c9df;background:#e5f3fb}
 .sel-app .sel-pokja-search button:focus-visible{outline:2px solid #148cc1;outline-offset:2px}
 @media(max-width:480px){.sel-app .sel-pokja-search input{min-height:34px}.sel-app .sel-pokja-search button{min-height:34px;padding:7px 10px}}
+
+/* v29.02 — tanda aktivitas yang belum dibaca, tanpa mengubah ukuran kartu */
+.sel-request-card[data-attention="unread"]{border-left-color:#e29c2b;box-shadow:inset 3px 0 0 rgba(226,156,43,.15)}
+.sel-request-copy>b .sel-unread-pill{display:inline-flex;vertical-align:middle;margin-left:8px;margin-top:0;padding:3px 7px;border-radius:100px;background:#fff0d9;border:1px solid #f3d4a0;color:#965d11;font-size:8px;font-weight:800;line-height:1.35;white-space:nowrap;letter-spacing:0}
+.sel-request-card[data-attention="unread"] .sel-request-code code{font-weight:950}
+@media(max-width:760px){.sel-request-copy>b .sel-unread-pill{margin-left:4px;font-size:7px;padding:2px 5px;white-space:normal}}

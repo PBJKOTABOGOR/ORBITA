@@ -89,7 +89,7 @@
     const pbj=window.TRAXPBJ_SELECTION_API,content=window.TRAXPBJ_API;
     if(pbj?.hasSession()){const token=pbj.token();pbj.call('logout',{token},{auth:false}).catch(()=>{});pbj.setToken('');}
     if(content?.hasSession()){const token=sessionStorage.getItem('traxpbj_admin_token');content.post('logout',{token},{token:false,emit:false}).catch(()=>{});content.clearSession();}
-    for(const key of ['traxpbj_selection_bootstrap_v275','traxpbj_selection_bootstrap_v276','traxpbj_selection_bootstrap_v277','traxpbj_selection_bootstrap_v2713'])sessionStorage.removeItem(key);
+    for(const key of ['traxpbj_selection_bootstrap_v275','traxpbj_selection_bootstrap_v276','traxpbj_selection_bootstrap_v277','traxpbj_selection_bootstrap_v2713','traxpbj_selection_bootstrap_v2902'])sessionStorage.removeItem(key);
     accept(null);close();
   }
   async function restore(){
@@ -98,7 +98,7 @@
       const api=window.TRAXPBJ_SELECTION_API;
       let cached=null;try{cached=JSON.parse(sessionStorage.getItem(KEY)||'null')}catch(_){}
       if(api?.hasSession()){
-        let cachedBoot=null;try{const box=JSON.parse(sessionStorage.getItem('traxpbj_selection_bootstrap_v2713')||'null');if(box?.data&&Date.now()-Number(box.at||0)<10*60*1000)cachedBoot=box.data;}catch(_){}
+        let cachedBoot=null;try{const box=JSON.parse(sessionStorage.getItem('traxpbj_selection_bootstrap_v2902')||'null');if(box?.data&&Date.now()-Number(box.at||0)<10*60*1000)cachedBoot=box.data;}catch(_){}
         if(cached?.provider==='pbj')accept(cached.user,cachedBoot,'pbj');
         const started=generation,token=api.token();
         const current=()=>started===generation&&token===api.token();
@@ -130,7 +130,7 @@
     button.disabled=true;button.classList.add('is-switching');button.setAttribute('aria-busy','true');
     const previous=button.textContent;button.textContent='Mengganti Pokja…';if(info){info.innerHTML='<span class="portal-pokja-wait"><i aria-hidden="true"></i> Menyimpan Pokja aktif…</span>'; }
     try{const api=window.TRAXPBJ_SELECTION_API;const response=await api.call('switchActivePokja',{pokjaId:id},{timeoutMs:18000});
-      for(const key of ['traxpbj_selection_bootstrap_v275','traxpbj_selection_bootstrap_v276','traxpbj_selection_bootstrap_v277','traxpbj_selection_bootstrap_v2713'])sessionStorage.removeItem(key);
+      for(const key of ['traxpbj_selection_bootstrap_v275','traxpbj_selection_bootstrap_v276','traxpbj_selection_bootstrap_v277','traxpbj_selection_bootstrap_v2713','traxpbj_selection_bootstrap_v2902'])sessionStorage.removeItem(key);
       // Satu request wajib saja. Daftar dan ringkasan Pokja baru dimuat oleh halaman saat dibuka.
       accept(response.data,null,'pbj');close();
     }catch(e){if(info)info.textContent=e.message||'Gagal mengganti Pokja.';}
