@@ -3,7 +3,8 @@
     const $ = s => document.querySelector(s);
     const main = $('#main');
     const cfg = window.SPPD_CONFIG;
-    const token = () => sessionStorage.getItem('traxpbj_selection_token') || '';
+    const session = window.SPPD_SESSION;
+    const token = session.token;
     const escape = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const e = escape;
     const rup = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
@@ -48,7 +49,9 @@
     let rateQuery = '';
     let listQuery = '';
     let listStatus = '';
-    let initialToken = token();
+    let initialToken = session.restore();
+    let openingSession = false;
+    let initializing = false;
     let formDirty = false;
     const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('orbita-sppd-v1') : null;
     const navIcons = {
@@ -111,7 +114,9 @@
                 signal: ctrl.signal,
                 cache: 'no-store'
             });
-            const j = await res.json();
+            let j;
+            try { j = await res.json(); }
+            catch (_) { throw Error('Web App SPPD belum memberikan respons yang sesuai. Periksa deployment dan izin akses Apps Script.'); }
             if (!j.ok)
                 throw Error(j.error || 'Permintaan belum berhasil.');
             if (token() !== initialToken)
@@ -143,8 +148,11 @@
             synced();
         }
         catch (err) {
-            toast(err.message, true);
-            sync('Belum tersinkron', true);
+            if (session.classify(err.message) !== 'connection') sessionError(err);
+            else {
+                toast(err.message, true);
+                sync('Belum tersinkron', true);
+            }
         }
         finally {
             pending--;
@@ -156,9 +164,56 @@
     }
 
     // Komponen tampilan
-    function fail(msg) {
-        main.innerHTML = `<div class="panel"><h2>Belum bisa membuka Perjalanan Dinas</h2><p>${e(msg)}</p><div class="actions"><a href="${e(cfg.portalUrl)}"><button>Masuk melalui ORBITA</button></a><button class="ghost" data-act="retry">Coba lagi</button></div></div>`;
-        sync('Tidak terhubung', true);
+    function fail(msg, type = 'connection') {
+        const login = type === 'login' || type === 'expired';
+        const title = login ? 'Sambungkan akun ORBITA' : type === 'access' ? 'Akses Perjalanan Dinas belum diberikan' : 'Perjalanan Dinas belum terhubung';
+        const hint = login ? '<p>Sudah login di ORBITA pada tab lain? Salin alamat halaman ini, lalu tempel di tab ORBITA tersebut. Sesi browser tidak otomatis berpindah antar-tab.</p>' : '';
+        const connect = login ? '<button data-act="connectSession">Sambungkan akun</button><button class="ghost" data-act="copyAddress">Salin alamat SPPD</button>' : '';
+        main.innerHTML = `<div class="panel"><h2>${title}</h2><p>${e(msg)}</p>${hint}<div class="actions">${connect}<button class="ghost" data-act="retry">Coba lagi</button></div><p id="sessionHint" role="status"></p></div>`;
+        $('#headOffice').textContent = login ? 'Akun belum tersambung' : type === 'access' ? 'Menunggu hak akses' : 'Periksa koneksi layanan';
+        sync(login ? 'Belum masuk' : type === 'access' ? 'Akses terbatas' : 'Tidak terhubung', true);
+    }
+
+    function clearWorkspace() {
+        user = null;
+        opd = '';
+        offices = [];
+        boot = { trips: [], masters: { employees: [], office: null, number: [] }, rates: [] };
+        current = null;
+        draft = null;
+        formDirty = false;
+        epoch++;
+        $('#nav').innerHTML = '';
+        $('#account').textContent = '';
+        $('#avatar').textContent = 'O';
+        $('#office').hidden = true;
+    }
+
+    function sessionError(err) {
+        const type = session.classify(err.message);
+        if (type === 'expired' || type === 'access') {
+            if (type === 'expired') session.clear(initialToken);
+            clearWorkspace();
+        }
+        fail(err.message, type);
+    }
+
+    async function connectSession(button) {
+        if (openingSession || initializing) return;
+        openingSession = true;
+        button.disabled = true;
+        try {
+            await session.openLogin(text => {
+                $('#sessionHint').textContent = text;
+                sync('Menunggu login ORBITA', true);
+            });
+            await init();
+        } catch (err) {
+            fail(err.message, 'login');
+        } finally {
+            openingSession = false;
+            if (button.isConnected) button.disabled = false;
+        }
     }
 
     function field(label, key, val = '', type = 'text', extra = '') {
@@ -220,26 +275,29 @@
 
     // Sesi dan ruang kerja OPD
     async function init() {
-        if (!token())
-            return fail('Masuk ke akun ORBITA terlebih dahulu.');
-        initialToken = token();
+        if (initializing) return;
+        initialToken = session.restore();
+        if (!initialToken) {
+            clearWorkspace();
+            return fail('Belum ada sesi akun PBJ di tab ini.', 'login');
+        }
+        initializing = true;
+        $('#headOffice').textContent = 'Memeriksa akun dan hak akses…';
         sync('Menyiapkan data…', true);
         try {
             const d = await api('init', { opd: sessionStorage.getItem('orbita_sppd_opd') || '' });
             user = d.user;
             offices = d.offices;
             opd = d.selected || '';
-            if (d.boot)
-                boot = d.boot;
-            else
-                boot = { trips: [], masters: { employees: [], office: null, number: [] }, rates: [] };
+            boot = d.boot || { trips: [], masters: { employees: [], office: null, number: [] }, rates: [] };
             view = 'home';
             nav();
             render();
             synced();
-        }
-        catch (err) {
-            fail(err.message);
+        } catch (err) {
+            sessionError(err);
+        } finally {
+            initializing = false;
         }
     }
 
@@ -259,7 +317,7 @@
             synced();
         }
         catch (err) {
-            fail(err.message);
+            sessionError(err);
         }
     }
 
@@ -591,8 +649,17 @@
         if (!b || pending)
             return;
         const a = b.dataset.act, id = b.dataset.id;
+        if (a === 'connectSession') {
+            connectSession(b);
+            return;
+        }
+        if (a === 'copyAddress') {
+            const address = new URL(location.pathname, location.origin).href;
+            navigator.clipboard.writeText(address).then(() => toast('Alamat disalin. Tempel di tab ORBITA yang sudah login.')).catch(() => prompt('Salin alamat SPPD:', address));
+            return;
+        }
         if (a === 'retry') {
-            init();
+            if (!openingSession) init();
             return;
         }
         if (a === 'new' || a === 'list') {
@@ -852,7 +919,7 @@
 
     // Sinkronisasi antar pengguna
     async function poll() {
-        if (!user || !opd || pending || refreshing || document.hidden)
+        if (!user || !opd || pending || refreshing || initializing || document.hidden)
             return;
         refreshing = true;
         try {
@@ -879,16 +946,11 @@
             }
         }
         catch (err) {
-            if (/sesi|akses tidak tersedia|akun belum/i.test(err.message)) {
-                user = null;
-                boot = { trips: [], masters: { employees: [], office: null, number: [] }, rates: [] };
-                current = null;
-                draft = null;
-                $('#nav').innerHTML = '';
-                fail(err.message);
-            }
-            else
+            if (session.classify(err.message) !== 'connection') {
+                sessionError(err);
+            } else {
                 sync('Koneksi terputus · mencoba lagi', true);
+            }
         }
         finally {
             refreshing = false;
