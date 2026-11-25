@@ -21,6 +21,37 @@
     let actions;
     let lastRecords;
     let lastAdmin;
+    const sidebarPreference = 'orbita.sirup.sidebar.collapsed';
+
+    function setSidebar(collapsed) {
+        document.body.classList.toggle('sidebar-collapsed', collapsed);
+        const toggle = byId('sidebarToggle');
+        const label = collapsed ? 'Tampilkan menu' : 'Sembunyikan menu';
+        toggle.setAttribute('aria-expanded', String(!collapsed));
+        toggle.setAttribute('aria-label', label);
+        toggle.title = label;
+        byId('sidebarToggleText').textContent = label;
+    }
+
+    function bindSidebar() {
+        // Hanya menyimpan pilihan tampilan, bukan data akun atau pengajuan.
+        let collapsed = false;
+        try {
+            collapsed = localStorage.getItem(sidebarPreference) === '1';
+        } catch (_) {
+            // Tetap berfungsi jika penyimpanan browser diblokir.
+        }
+        setSidebar(collapsed);
+        byId('sidebarToggle').addEventListener('click', () => {
+            const next = !document.body.classList.contains('sidebar-collapsed');
+            setSidebar(next);
+            try {
+                localStorage.setItem(sidebarPreference, next ? '1' : '0');
+            } catch (_) {
+                // Pilihan masih berlaku selama halaman terbuka.
+            }
+        });
+    }
 
     function element(tag, className, text) {
         const node = document.createElement(tag);
@@ -32,6 +63,7 @@
     function setPage(key, scroll = true) {
         if (!pages[key]) return;
         document.body.classList.add('workspace-ready');
+        byId('sidebarToggle').hidden = false;
         byId('pageTitle').textContent = pages[key][0];
         byId('pageDescription').textContent = pages[key][1];
         document.querySelectorAll('.workspace-nav [data-tab]').forEach(button => {
@@ -109,6 +141,7 @@
 
     function bind(callbacks) {
         actions = callbacks;
+        bindSidebar();
         document.addEventListener('click', event => {
             const button = event.target.closest('[data-go-tab], [data-filter-status], [data-open-request], [data-jump]');
             if (!button || button.disabled) return;

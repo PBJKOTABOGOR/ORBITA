@@ -9,7 +9,7 @@
   </title>
   <link href="../assets/img/favicon.png" rel="icon"/>
   <link href="permohonan.css?v=29.34" rel="stylesheet"/>
-  <link href="workspace.css?v=29.34" rel="stylesheet"/>
+  <link href="workspace.css?v=29.35" rel="stylesheet"/>
  </head>
  <body>
   <header class="app-top">
@@ -26,6 +26,13 @@
      </span>
     </a>
     <div class="top-actions">
+     <button aria-controls="workspaceNav" aria-expanded="true" aria-label="Sembunyikan menu" class="sidebar-toggle" hidden="" id="sidebarToggle" title="Sembunyikan menu" type="button">
+      <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewBox="0 0 24 24">
+       <rect height="17" rx="2" width="20" x="2" y="3.5"/>
+       <path d="M9 4v16M16 9l-3 3 3 3" class="sidebar-chevron"/>
+      </svg>
+      <span id="sidebarToggleText">Sembunyikan menu</span>
+     </button>
      <span id="currentUser">
       Memeriksa akun…
      </span>
@@ -70,7 +77,7 @@
     </div>
    </div>
    <section hidden="" id="workspace">
-    <nav aria-label="Ruang kerja SiRUP" class="tabs workspace-nav">
+    <nav aria-label="Ruang kerja SiRUP" class="tabs workspace-nav" id="workspaceNav">
      <span class="nav-label">
       RUANG KERJA
      </span>
@@ -825,7 +832,7 @@
   </script>
   <script src="../assets/js/selection-api.js?v=29.22">
   </script>
-  <script src="workspace.js?v=29.34">
+  <script src="workspace.js?v=29.35">
   </script>
   <script src="permohonan.js?v=29.34">
   </script>
