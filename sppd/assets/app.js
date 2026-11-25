@@ -12,8 +12,8 @@
     const date = s => s ? new Date(s.slice(0, 10) + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
     const status = {
         DRAFT: 'Draft',
-        SIAP_CETAK: 'Siap dicetak',
-        SPJ: 'Lengkapi SPJ',
+        SIAP_CETAK: 'SPD terbit',
+        SPJ: 'Biaya & berkas',
         PERIKSA: 'Diperiksa bendahara',
         PERBAIKAN: 'Perlu perbaikan',
         SIAP_BAYAR: 'Siap dibayarkan',
@@ -22,7 +22,7 @@
         BATAL: 'Dibatalkan'
     };
     const stages = ['DRAFT', 'SIAP_CETAK', 'SPJ', 'ARSIP'];
-    const stageLabels = ['Draft', 'SPD terbit', 'Lengkapi berkas', 'Selesai'];
+    const stageLabels = ['Buat SPD', 'SPD terbit', 'Biaya & berkas', 'Selesai'];
     const roles = ['OPERATOR', 'ADMIN_OPD', 'ADMIN_SHS'];
     const roleLabels = {
         OPERATOR: 'Operator',
@@ -373,7 +373,7 @@
 
     // Ringkasan dan daftar perjalanan
     function tableRows(rows) {
-        return rows.length ? `<div class="table-wrap"><table><thead><tr><th>Perjalanan dinas</th><th>Peserta</th><th>Jumlah</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(r => `<tr><td><b>${e(r.purpose)}</b><small>${e(r.destination)} · ${date(r.start)} — ${date(r.end)}</small><small>Input: ${e(r.createdBy || '—')}</small></td><td>${r.people} orang</td><td><b>${rup(r.total)}</b></td><td>${pill(r.status)}</td><td>${btn('Buka', 'detail', `data-id="${e(r.id)}"`, 'ghost small')}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada perjalanan dinas pada daftar ini.</div>';
+        return rows.length ? `<div class="table-wrap"><table><thead><tr><th>Perjalanan dinas</th><th>Peserta</th><th>Jumlah</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(r => `<tr><td><b>${e(r.purpose)}</b><small>${e(r.destination)} · ${date(r.start)} — ${date(r.end)}</small><small>Input: ${e(r.createdBy || '—')}</small></td><td>${r.people} orang</td><td><b>${r.costsRecorded === false ? 'Belum diisi' : rup(r.total)}</b></td><td>${pill(r.status)}</td><td>${btn('Buka', 'detail', `data-id="${e(r.id)}"`, 'ghost small')}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada perjalanan dinas pada daftar ini.</div>';
     }
 
     // Ringkasan pagu berasal dari KODE_REK dan transaksi yang sudah diterbitkan.
@@ -384,15 +384,18 @@
     function budgetTable() {
         const rows = budgetRows();
         if (!rows.length) return '<div class="empty">Belum ada rekening perjalanan dinas untuk tahun ini. Sumber SIPD saat ini adalah tahun 2026.</div>';
-        return `<div class="table-wrap"><table><thead><tr><th>Subkegiatan / rekening</th><th>Pagu</th><th>Terpakai sebelum aplikasi</th><th>SPD tercatat</th><th>Draft</th><th>Sisa pagu internal</th>${has('ADMIN_OPD') ? '<th></th>' : ''}</tr></thead><tbody>${rows.map(r => `<tr><td><b>${e(r.activity)}</b><small>${e(r.sub)} · ${e(r.account)} · ${e(r.fundName)}</small></td><td>${rup(r.pagu)}</td><td>${r.confirmed ? rup(r.opening) : '<span class="pill warn">Belum diatur</span>'}</td><td>${rup(r.used)}</td><td>${rup(r.draft)}</td><td><b>${r.confirmed && !boot.budget.unmatched ? rup(r.remaining) : 'Belum pasti'}</b>${r.confirmed ? `<div class="budget-meter"><i style="width:${Math.min(100, Math.max(0, (r.opening + r.used) / Math.max(1, r.pagu) * 100))}%"></i></div>` : ''}</td>${has('ADMIN_OPD') ? `<td>${btn('Atur pemakaian awal', 'openingBudget', `data-id="${e(r.key)}"`, 'ghost small')}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
+        return `<div class="table-wrap"><table><thead><tr><th>Subkegiatan / rekening</th><th>Pagu</th><th>Terpakai sebelum aplikasi</th><th>Biaya tercatat</th><th>SPD belum ada biaya</th><th>Sisa pagu internal</th>${has('ADMIN_OPD') ? '<th></th>' : ''}</tr></thead><tbody>${rows.map(r => `<tr><td><b>${e(r.activity)}</b><small>${e(r.sub)} · ${e(r.account)} · ${e(r.fundName)}</small></td><td>${rup(r.pagu)}</td><td>${r.confirmed ? rup(r.opening) : '<span class="pill warn">Belum diatur</span>'}</td><td>${rup(r.used)}</td><td>${r.pendingCosts || 0} SPD</td><td><b>${r.confirmed && !boot.budget.unmatched ? rup(r.remaining) : 'Belum pasti'}</b>${r.confirmed ? `<div class="budget-meter"><i style="width:${Math.min(100, Math.max(0, (r.opening + r.used) / Math.max(1, r.pagu) * 100))}%"></i></div>` : ''}</td>${has('ADMIN_OPD') ? `<td>${btn('Atur pemakaian awal', 'openingBudget', `data-id="${e(r.key)}"`, 'ghost small')}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
     }
 
     function budgetWarning() {
-        return boot.budget?.unmatched ? `<div class="notice">Ada SPD lama senilai ${rup(boot.budget.unmatched)} yang belum terhubung ke rekening. Sisa belum dapat dipastikan; penerbitan baru ditahan.</div>` : '';
+        const messages = [];
+        if (boot.budget?.unmatched) messages.push(`Ada SPD lama senilai ${rup(boot.budget.unmatched)} yang belum terhubung ke rekening. Pencatatan biaya ditahan.`);
+        if (boot.budget?.pendingCosts) messages.push(`${boot.budget.pendingCosts} SPD sudah terbit tetapi biayanya belum dicatat. Sisa pagu belum memperhitungkan SPD tersebut.`);
+        return messages.map(text => `<div class="notice">${e(text)}</div>`).join('');
     }
 
     function budgetPage() {
-        return top('Monitoring pagu perjalanan dinas', 'Tahun ' + year + ' · ' + unitName, btn('Perbarui', 'refreshBudget', '', 'ghost')) + `<div class="panel"><div class="section-title"><h2>Anggaran per subkegiatan</h2><label>Tahun <select id="budgetYear" aria-label="Tahun anggaran">${[...new Set([year,today().slice(0,4),...boot.trips.map(t=>String(t.year||'')).filter(y=>/^\d{4}$/.test(y)),'2026'])].sort().reverse().map(y=>`<option value="${e(y)}" ${y===year?'selected':''}>${e(y)}</option>`).join('')}</select></label></div><p>Saldo internal dihitung dari pagu KODE_REK, pemakaian awal dan seluruh SPD terbit yang belum dibatalkan. Ini bukan data pencairan SIPD. Draft belum membebani pagu.</p>${budgetWarning()}${budgetTable()}</div>`;
+        return top('Monitoring pagu perjalanan dinas', 'Tahun ' + year + ' · ' + unitName, btn('Perbarui', 'refreshBudget', '', 'ghost')) + `<div class="panel"><div class="section-title"><h2>Anggaran per subkegiatan</h2><label>Tahun <select id="budgetYear" aria-label="Tahun anggaran">${[...new Set([year,today().slice(0,4),...boot.trips.map(t=>String(t.year||'')).filter(y=>/^\d{4}$/.test(y)),'2026'])].sort().reverse().map(y=>`<option value="${e(y)}" ${y===year?'selected':''}>${e(y)}</option>`).join('')}</select></label></div><p>Saldo internal dihitung dari pagu KODE_REK, pemakaian awal dan biaya SPD yang sudah dicatat. SPD tanpa biaya dan draft belum mengurangi pagu. Ini bukan data pencairan SIPD.</p>${budgetWarning()}${budgetTable()}</div>`;
     }
 
     function home() {
@@ -400,7 +403,7 @@
         const ready = accounts.length > 0 && accounts.every(x => x.confirmed) && !boot.budget?.unmatched;
         const sum = k => accounts.reduce((n, x) => n + x[k], 0);
         const cards = [['Pagu perjalanan dinas', accounts.length ? rup(sum('pagu')) : 'Belum tersedia', 'blue'], ['Terpakai / teralokasi', ready ? rup(sum('opening') + sum('used')) : 'Belum pasti', 'amber'], ['Sisa pagu internal', ready ? rup(sum('remaining')) : 'Belum pasti', 'green'], ['SPD tercatat', t.filter(x => x.status !== 'BATAL').length, 'blue']];
-        return `<div class="welcome"><div class="eyebrow">${e(unitName)} · ${year}</div><div class="top"><div><h1>Perjalanan Dinas</h1><p>Siapkan SPD, kuitansi dan rincian biaya. Pantau sisa pagu di sini.</p></div>${btn('+ Buat SPPD', 'new')}</div></div><div class="cards">${cards.map(([l,n,c],i) => `<div class="card kpi kpi-${i}"><div class="kpi-head"><small>${l}</small><span class="kpi-icon">${uiIcon(['list','clock','check','done'][i])}</span></div><strong class="${c} budget-kpi">${n}</strong><span class="kpi-caption">${['KODE_REK · SIPD','Pemakaian awal + SPD terbit','Tidak termasuk draft','Termasuk draft'][i]}</span></div>`).join('')}</div><div class="panel"><div class="section-title"><h2>Anggaran per subkegiatan</h2>${btn('Lihat pagu', 'budget', '', 'ghost small')}</div>${budgetWarning()}${budgetTable()}</div><div class="panel"><div class="section-title"><h2>Perjalanan terbaru</h2>${btn('Lihat semua', 'list', '', 'ghost small')}</div>${tableRows(t.slice(0,8))}</div>`;
+        return `<div class="welcome"><div class="eyebrow">${e(unitName)} · ${year}</div><div class="top"><div><h1>Perjalanan Dinas</h1><p>Siapkan SPD, kuitansi dan rincian biaya. Pantau sisa pagu di sini.</p></div>${btn('+ Buat SPPD', 'new')}</div></div><div class="cards">${cards.map(([l,n,c],i) => `<div class="card kpi kpi-${i}"><div class="kpi-head"><small>${l}</small><span class="kpi-icon">${uiIcon(['list','clock','check','done'][i])}</span></div><strong class="${c} budget-kpi">${n}</strong><span class="kpi-caption">${['KODE_REK · SIPD','Pemakaian awal + biaya tercatat','Belum termasuk SPD tanpa biaya','Termasuk draft'][i]}</span></div>`).join('')}</div><div class="panel"><div class="section-title"><h2>Anggaran per subkegiatan</h2>${btn('Lihat pagu', 'budget', '', 'ghost small')}</div>${budgetWarning()}${budgetTable()}</div><div class="panel"><div class="section-title"><h2>Perjalanan terbaru</h2>${btn('Lihat semua', 'list', '', 'ghost small')}</div>${tableRows(t.slice(0,8))}</div>`;
     }
 
     function list() {
@@ -417,6 +420,8 @@
     function newDraft() {
         return {
             requestId: crypto.randomUUID(),
+            spdOnly: true,
+            costsRecorded: false,
             origin: 'Kota Bogor',
             destination: '',
             province: '',
@@ -452,60 +457,92 @@
         const office = boot.masters.office;
         const sub = ((view === 'new' ? draft?.budgetKey : current?.budgetKey) || '').split('|')[1];
         const pptk = office?.pptkBySub?.[sub];
+        const d = view === 'new' ? draft : current;
+        if (d?.spdOnly && d.costsRecorded === false) return !!office && ['name', 'kpaName', 'kpaNip'].every(key => String(office[key] || '').trim());
         return !!office && ['name', 'kpaName', 'bendName'].every(key => String(office[key] || '').trim()) && (!sub || !!(pptk?.name && pptk?.nip));
     }
 
     function preparationNotice() {
         const items = [];
         const masterLink = has('ADMIN_OPD') ? btn('Buka Pegawai & pejabat', 'master', '', 'ghost small') : '';
-        if (!officeReady()) items.push(`<div>Nama pejabat belum lengkap. Draft boleh disimpan, tetapi lengkapi pejabat sebelum menerbitkan SPD.</div>${masterLink}`);
+        if (!officeReady()) items.push(`<div>Nama pejabat belum lengkap. Draft boleh disimpan. Lengkapi PA/KPA sebelum menerbitkan SPD baru.</div>${masterLink}`);
         if (!boot.masters.employees.length) items.push(`<div>Belum ada pegawai. Tambahkan pegawai terlebih dahulu untuk memilih peserta.</div>${masterLink}`);
-        if (!boot.rates.length) items.push(`<div>Tarif SBU tahun ${e(year)} belum aktif. Aktifkan tarif agar biaya dapat dihitung.</div>${globalRole('ADMIN_SHS') ? btn('Buka Standar biaya (SBU)', 'rates', '', 'ghost small') : ''}`);
+
         return items.length ? `<div class="notice setup-notice">${items.map(item => `<div class="setup-item">${item}</div>`).join('')}</div>` : '';
     }
 
     function form() {
-        const d = draft, provs = [...new Set(boot.rates.map(r => r.name.replace('Uang Harian Perjalanan Dinas Luar Daerah ', '')))].sort();
-        return top(d.id ? 'Ubah draft' : 'Buat perjalanan dinas', 'Isi data sekali. SPD, kuitansi dan rincian biaya disiapkan otomatis.', btn('Kembali', 'list', '', 'ghost')) + preparationNotice() + `<div class="panel"><h2>1. Informasi perjalanan</h2><div class="grid">${field('Tempat berangkat', 'origin', d.origin)}${field('Kota / kabupaten tujuan', 'destination', d.destination)}${select('Provinsi tujuan', 'province', provs, d.province)}${select('Jenis perjalanan', 'category', ['Luar Kota', 'Diklat'], d.category)}${field('Tanggal berangkat', 'start', d.start, 'date')}${field('Tanggal kembali', 'end', d.end, 'date')}${field('Tanggal SPD', 'issued', d.issued, 'date')}${field('Alat angkutan', 'transport', d.transport)}<div class="wide"><label>Maksud dan tujuan perjalanan</label><textarea name="purpose">${e(d.purpose)}</textarea></div><div class="wide">${searchSelect('Rekening perjalanan dinas / subkegiatan', 'budgetKey', budgetRows().map(b => ({v:b.key,l:b.activity + ' · ' + b.account + ' · ' + b.fundName})), d.budgetKey || '', 'Cari subkegiatan atau kode rekening…')}<div class="notice info" id="budgetHint"></div></div></div><div class="notice info" id="rateHint"></div></div><div class="panel"><div class="section-title"><h2>2. Peserta & rincian biaya</h2>${btn('+ Tambah pegawai', 'addPerson', '', 'ghost')}</div><p>Masukkan biaya per peserta. Biaya kendaraan bersama dicatat pada satu peserta yang bertanggung jawab, jangan digandakan.</p><div id="people"></div><div class="total"><div><small>Total perjalanan</small><div id="daysText"></div></div><strong id="grandTotal">Rp 0</strong></div></div><div class="panel"><h2>3. Penomoran SPD</h2>${select('Cara penomoran', 'mode', [{ v: 'manual', l: 'Manual — dari register resmi' }, { v: 'auto', l: 'Otomatis — register OPD' }], d.mode)}<p>Nomor otomatis mengikuti nomor urut yang diatur admin. Draft belum memperoleh nomor resmi.</p></div><div class="panel"><h2>4. Surat perintah (opsional)</h2><p>Unggah PDF jika sudah ada. Jika belum, bisa menyusul dari riwayat SPPD.</p><input type="file" id="draftLetter" accept="application/pdf"></div><div class="actions">${btn('Simpan draft', 'saveDraft')}${btn('Batal', 'list', '', 'ghost')}</div>`;
+        const d = draft;
+        const legacy = !d.spdOnly;
+        const oldNotice = legacy ? '<div class="notice info">Draft lama sudah memiliki data biaya. Data tersebut tetap disimpan; perubahan biaya dilakukan melalui detail setelah terbit.</div>' : '';
+        return top(d.id ? 'Ubah draft SPD' : 'Buat perjalanan dinas', 'Isi data perjalanan dan peserta. Setelah SPD terbit, kuitansi dapat dibuat dari riwayat.', btn('Kembali', 'list', '', 'ghost')) + preparationNotice() + oldNotice +
+            `<div class="panel"><h2>1. Informasi perjalanan</h2><div class="grid">
+                ${field('Tempat berangkat', 'origin', d.origin)}${field('Kota / kabupaten tujuan', 'destination', d.destination)}
+                ${field('Tanggal berangkat', 'start', d.start, 'date')}${field('Tanggal kembali', 'end', d.end, 'date')}
+                ${field('Tanggal SPD', 'issued', d.issued, 'date')}${field('Alat angkutan', 'transport', d.transport)}
+                <div class="wide"><label>Maksud dan tujuan perjalanan</label><textarea name="purpose">${e(d.purpose)}</textarea></div>
+                <div class="wide">${searchSelect('Rekening perjalanan dinas / subkegiatan', 'budgetKey', budgetRows().map(b => ({v:b.key,l:b.activity + ' · ' + b.account + ' · ' + b.fundName})), d.budgetKey || '', 'Cari subkegiatan atau kode rekening…')}<div class="notice info" id="budgetHint"></div></div>
+            </div></div>
+            <div class="panel"><div class="section-title"><h2>2. Peserta perjalanan dinas</h2>${legacy ? '' : btn('+ Tambah pegawai', 'addPerson', '', 'ghost')}</div><p>Pilih pegawai yang akan dibuatkan SPD.</p><div id="people"></div><div class="total"><div><small>Durasi dan peserta</small><div id="daysText"></div></div></div></div>
+            <div class="panel"><h2>3. Penomoran SPD</h2>${select('Cara penomoran', 'mode', [{ v: 'manual', l: 'Manual — dari register resmi' }, { v: 'auto', l: 'Otomatis — register OPD' }], d.mode)}<p>Nomor otomatis mengikuti nomor urut yang diatur admin. Draft belum memperoleh nomor resmi.</p></div>
+            <div class="panel"><h2>4. Surat perintah (opsional)</h2><p>Unggah PDF jika sudah ada. Jika belum, bisa menyusul dari riwayat SPPD.</p><input type="file" id="draftLetter" accept="application/pdf"></div>
+            <div class="actions">${btn('Simpan draft SPD', 'saveDraft')}${btn('Batal', 'list', '', 'ghost')}</div>`;
     }
 
     function people() {
-        const d = draft, rt = ratesFor(d)[0];
-        $('#people').innerHTML = d.participants.length ? d.participants.map((p, i) => `<div class="person"><div class="section-title"><h3>Peserta ${i + 1}</h3>${btn('Hapus', 'removePerson', `data-i="${i}"`, 'danger small')}</div><div class="grid">${searchSelect('Pegawai', `employee-${i}`, boot.masters.employees.map(x => ({ v: x.id, l: x.name + ' · ' + x.nip })), p.employeeId, 'Cari nama atau NIP…')}${d.mode === 'manual' ? field('Nomor SPD (dapat diisi nanti)', `number-${i}`, p.number) : '<div class="field"><label>Nomor SPD</label><input readonly value="Diisi saat penerbitan"></div>'}<div class="field"><label>Uang harian per hari</label><input readonly value="${rt ? rup(rt.rate) : 'Tarif belum tersedia'}"></div>${field('Uang muka (Rp)', `advance-${i}`, p.advance, 'number', 'min="0" step="1"')}</div><details ${p.costs.some(c => +c.amount > 0) ? 'open' : ''}><summary style="cursor:pointer;margin-top:12px;font-weight:650">Biaya transportasi, penginapan, dan lainnya</summary><div class="grid" style="margin-top:12px">${p.costs.map((c, j) => field(c.label + ' (Rp)', `cost-${i}-${j}`, c.amount, 'number', 'min="0" step="1"') + field('Keterangan / dasar biaya', `note-${i}-${j}`, c.note)).join('')}</div></details><div class="between" style="margin-top:12px"><span class="muted">Subtotal peserta</span><b id="sub-${i}">Rp 0</b></div></div>`).join('') : '<div class="empty">Belum ada peserta. Klik Tambah pegawai.</div>';
+        const d = draft;
+        $('#people').innerHTML = d.participants.length ? d.participants.map((p, i) =>
+            `<div class="person"><div class="section-title"><h3>Peserta ${i + 1}</h3>${d.spdOnly ? btn('Hapus', 'removePerson', `data-i="${i}"`, 'danger small') : ''}</div><div class="grid">
+                ${d.spdOnly ? searchSelect('Pegawai', `employee-${i}`, boot.masters.employees.map(x => ({ v: x.id, l: x.name + ' · ' + x.nip })), p.employeeId, 'Cari nama atau NIP…') : field('Pegawai', `legacy-${i}`, boot.masters.employees.find(x => x.id === p.employeeId)?.name || p.employeeId, 'text', 'readonly')}
+                ${d.mode === 'manual' ? field('Nomor SPD (dapat diisi nanti)', `number-${i}`, p.number) : '<div class="field"><label>Nomor SPD</label><input readonly value="Diisi saat penerbitan"></div>'}
+            </div></div>`).join('') : '<div class="empty">Belum ada peserta. Klik Tambah pegawai.</div>';
         totals();
     }
 
     function totals() {
-        const d = draft, rt = ratesFor(d)[0], days = Math.round((Date.parse(d.end) - Date.parse(d.start)) / 86400000) + 1, n = Number.isFinite(days) && days > 0 ? days : 0;
-        let total = 0;
-        d.participants.forEach((p, i) => {
-            p.rateKey = rt?.key || '';
-            let value = n * (rt?.rate || 0) + p.costs.reduce((s, c) => s + Math.max(0, +c.amount || 0), 0);
-            total += value;
-            if ($('#sub-' + i))
-                $('#sub-' + i).textContent = rup(value);
-        });
-        $('#grandTotal').textContent = rup(total);
-        const b = budgetRows().find(x => x.key === d.budgetKey);
-        const hint = $('#budgetHint');
+        const d = draft, days = Math.round((Date.parse(d.end) - Date.parse(d.start)) / 86400000) + 1;
+        const n = Number.isFinite(days) && days > 0 ? days : 0;
+        const b = budgetRows().find(x => x.key === d.budgetKey), hint = $('#budgetHint');
         if (hint) {
             if (!b) hint.textContent = 'Pilih rekening perjalanan dinas sesuai kegiatan.';
-            else if (!b.confirmed || boot.budget?.unmatched) hint.textContent = 'Saldo belum dipastikan admin. Draft bisa disimpan, penerbitan belum bisa dilakukan.';
-            else hint.textContent = 'Pagu: ' + rup(b.pagu) + ' · Sisa sebelum SPD: ' + rup(b.remaining) + ' · Setelah SPD ini: ' + rup(b.remaining - total) + (total > b.remaining ? ' — Pagu tidak cukup.' : '');
-            if (b) {
-                const pptk = boot.masters.office?.pptkBySub?.[b.sub];
-                hint.textContent += ' · PPTK: ' + (pptk?.name || 'belum diatur');
+            else {
+                hint.textContent = 'Pagu: ' + rup(b.pagu) + ' · Sisa tercatat: ' + (b.confirmed && !boot.budget?.unmatched ? rup(b.remaining) : 'belum dipastikan admin');
+                if (b.pendingCosts) hint.textContent += ' · ' + b.pendingCosts + ' SPD belum ada biaya';
+                hint.textContent += ' · Biaya SPD ini dicatat setelah terbit.';
             }
-            hint.classList.toggle('budget-alert', !!b && b.confirmed && total > b.remaining);
         }
-        $('#daysText').textContent = n + ' hari · ' + d.participants.length + ' pegawai';
-        $('#rateHint').textContent = rt ? `Tarif SBU: ${rup(rt.rate)} / orang / hari · ${rt.spec} · ${rt.source}` : 'Tarif SBU belum tersedia untuk tujuan, jenis perjalanan, dan tanggal ini. Hubungi admin.';
+        if ($('#daysText')) $('#daysText').textContent = n + ' hari · ' + d.participants.length + ' pegawai';
     }
 
     // Detail perjalanan dan penyesuaian biaya
     function adjustment() {
-        const d = current;
-        return top('Sesuaikan biaya riil', 'Nomor SPD dan tarif uang harian tetap. Catat alasan perubahan.', btn('Kembali', 'backDetail', '', 'ghost')) + `<div class="panel" id="adjustForm">${d.participants.map((p, i) => `<div class="person"><h3>${e(p.name)} · Uang harian ${rup(p.daily)}</h3><div class="grid">${p.costs.map((c, j) => field(c.label + ' (Rp)', `adj-${i}-${j}`, c.amount, 'number', 'min="0"') + field('Keterangan', `adjNote-${i}-${j}`, c.note)).join('')}${field('Uang muka (Rp)', `adv-${i}`, p.advance, 'number', 'min="0"')}</div></div>`).join('')}${field('Alasan perubahan', 'reason')}${btn('Simpan biaya riil', 'saveAdjustment')}</div>`;
+        const d = current, first = d.costsRecorded === false;
+        const provs = [...new Set(boot.rates.filter(r => String(r.year) === String(d.year)).map(r => r.name.replace('Uang Harian Perjalanan Dinas Luar Daerah ', '')))].sort();
+        const rateFields = first ? `<div class="grid">${select('Provinsi tujuan', 'costProvince', provs, d.province)}${select('Jenis perjalanan', 'costCategory', ['Luar Kota', 'Diklat'], d.category || 'Luar Kota')}</div><div id="costRateHint" class="notice info"></div>${!provs.length && globalRole('ADMIN_SHS') ? btn('Buka Standar biaya (SBU)', 'rates', '', 'ghost small') : ''}` : '';
+        return top(first ? 'Buat kuitansi & rincian biaya' : 'Sesuaikan biaya riil', first ? 'SPD sudah terbit. Isi biaya perjalanan untuk setiap peserta.' : 'Nomor SPD dan tarif uang harian tetap. Catat alasan perubahan.', btn('Kembali', 'backDetail', '', 'ghost')) +
+            `<div class="panel" id="adjustForm"><h2>${e(d.destination)} · ${d.days} hari</h2>${rateFields}<p>Biaya bersama cukup dicatat pada satu peserta. Isi keterangan untuk setiap biaya tambahan.</p>
+            ${d.participants.map((p, i) => `<div class="person"><h3>${e(p.name)} · SPD ${e(p.number)}</h3><p>Uang harian: <b id="daily-${i}">${first ? 'Pilih tarif' : rup(p.daily)}</b></p><div class="grid">${p.costs.map((c, j) => field(c.label + ' (Rp)', `adj-${i}-${j}`, c.amount, 'number', 'min="0" step="1"') + field('Keterangan', `adjNote-${i}-${j}`, c.note)).join('')}${field('Uang muka (Rp)', `adv-${i}`, p.advance, 'number', 'min="0" step="1"')}</div><p>Subtotal: <b id="costSub-${i}">${rup(p.total)}</b></p></div>`).join('')}
+            ${first ? '' : field('Alasan perubahan', 'reason')}<div class="total"><span>Total biaya perjalanan</span><strong id="costTotal">${rup(d.total)}</strong></div><p id="costBudget" class="hint"></p>${btn(first ? 'Simpan biaya & siapkan kuitansi' : 'Simpan biaya riil', 'saveAdjustment')}</div>`;
+    }
+
+    function updateCostPreview() {
+        if (view !== 'adjust' || !$('#adjustForm')) return;
+        const d = current, x = formData('#adjustForm'), first = d.costsRecorded === false;
+        const rt = first ? ratesFor({ ...d, province: x.costProvince, category: x.costCategory })[0] : null;
+        if (first) $('#costRateHint').textContent = rt ? `Uang harian: ${rup(rt.rate)} / orang / hari · ${rt.source}` : 'Pilih provinsi dan jenis perjalanan. Tarif SBU harus aktif untuk tanggal perjalanan.';
+        let total = 0;
+        d.participants.forEach((p, i) => {
+            const daily = first ? d.days * (rt?.rate || 0) : p.daily;
+            const subtotal = daily + p.costs.reduce((n, c, j) => n + Math.max(0, Number(x[`adj-${i}-${j}`]) || 0), 0);
+            $(`#daily-${i}`).textContent = first && !rt ? 'Tarif belum tersedia' : rup(daily);
+            $(`#costSub-${i}`).textContent = rup(subtotal);
+            total += subtotal;
+        });
+        $('#costTotal').textContent = first && !rt ? 'Belum lengkap' : rup(total);
+        const b = budgetRows().find(b => b.key === d.budgetKey);
+        const before = b ? b.remaining + (first ? 0 : Number(d.total || 0)) : 0;
+        $('#costBudget').textContent = b?.confirmed && !boot.budget?.unmatched ? `Sisa sebelum biaya ini: ${rup(before)}${first && !rt ? '' : ' · Sisa setelah biaya disimpan: ' + rup(before - total)}` : 'Pemakaian awal atau rekening belum dipastikan admin.';
+        $('#costBudget').classList.toggle('budget-alert', !!b?.confirmed && (!first || !!rt) && total > before);
     }
 
     function detail() {
@@ -513,10 +550,10 @@
         let action = '';
         const tr = (l, to, cls = '') => btn(l, 'transition', `data-to="${to}"`, cls);
         if (d.status === 'DRAFT' && op) action = btn('Ubah draft', 'edit', '', 'ghost') + btn('Terbitkan SPD', 'issue');
-        if (d.status === 'SIAP_CETAK' && op) action = tr('Lanjut lengkapi berkas', 'SPJ');
-        if (d.status === 'SPJ' && op) action = tr('Tandai selesai', 'ARSIP');
+        if (d.status === 'SIAP_CETAK' && op && d.costsRecorded !== false) action = tr('Lanjut lengkapi berkas', 'SPJ');
+        if (d.status === 'SPJ' && op && d.costsRecorded !== false) action = tr('Tandai selesai', 'ARSIP');
         if (['DRAFT', 'SIAP_CETAK', 'SPJ'].includes(d.status) && has('ADMIN_OPD')) action += tr('Batalkan SPD', 'BATAL', 'danger');
-        return top(d.purpose, `${d.destination} · ${date(d.start)} — ${date(d.end)}`, btn('Kembali', 'list', '', 'ghost')) + `<div class="panel"><div class="section-title"><h2>Progres perjalanan</h2>${pill(d.status)}</div>${pipe(d.status)}${d.status === 'DRAFT' && !officeReady() ? preparationNotice() : ''}<p class="hint">${e(d.activity)} · ${e(d.account)} · Dibuat oleh ${e(d.createdBy || '—')}</p><div class="actions">${action}${['SIAP_CETAK', 'SPJ'].includes(d.status) && op ? btn('Sesuaikan biaya riil', 'adjustCosts', '', 'ghost') : ''}</div></div><div class="panel"><div class="section-title"><h2>Dokumen perjalanan</h2>${d.status !== 'BATAL' ? btn('Cetak semua / Simpan PDF', 'print', 'data-kind="all"') : ''}</div><p>${d.status === 'DRAFT' ? 'Pratinjau draft. Terbitkan nomor SPD sebelum menandatangani.' : 'Cetak dokumen, lalu lengkapi tanda tangan dan cap sesuai ketentuan.'}</p><div class="table-wrap"><table><thead><tr><th>Pegawai</th><th>Nomor SPD</th><th>Biaya</th><th>Dokumen</th></tr></thead><tbody>${d.participants.map(p => `<tr><td><b>${e(p.name)}</b><small>${e(p.nip)}</small></td><td>${e(p.number || 'Belum terbit')}</td><td>${rup(p.total)}</td><td><div class="actions">${(d.status === 'BATAL' ? [] : [['SPD', 'spd'], ['Kuitansi', 'receipt'], ['Rincian', 'detail']]).map(([l, k]) => btn(l, 'print', `data-kind="${k}" data-emp="${e(p.employeeId)}"`, 'ghost small')).join('')}</div></td></tr>`).join('')}</tbody></table></div><div class="total"><span>Total biaya perjalanan</span><strong>${rup(d.total)}</strong></div>${d.paymentNote ? `<p>Catatan pembayaran: ${e(d.paymentNote)}</p>` : ''}</div><div class="panel"><h2>Surat perintah & lampiran</h2><p class="hint">Boleh diunggah menyusul. Tidak menghalangi pembuatan SPD.</p><div class="files">${(d.files || []).map(f => `<div class="file"><span>${e(f.name)}</span>${btn('Unduh', 'download', `data-id="${e(f.id)}"`, 'ghost small')}</div>`).join('') || '<p>Belum ada berkas.</p>'}</div>${['DRAFT', 'SIAP_CETAK', 'SPJ', 'ARSIP'].includes(d.status) && op ? `<div class="actions" style="margin-top:15px"><input type="file" id="upload" accept="application/pdf" style="max-width:400px">${btn('Unggah PDF', 'upload')}</div><p class="hint">Surat perintah, SPD bertanda tangan, atau bukti pendukung. PDF maksimal 4 MB per file.</p>` : ''}</div><div class="panel"><h2>Riwayat proses</h2><div class="history">${(d.history || []).slice().reverse().map(h => `<div><b>${e(status[h.action] || h.action)}</b><small>${e(h.actor)} · ${e(h.at)}</small>${h.note ? `<p>${e(h.note)}</p>` : ''}</div>`).join('') || '<p>Belum ada riwayat.</p>'}</div></div>`;
+        return top(d.purpose, `${d.destination} · ${date(d.start)} — ${date(d.end)}`, btn('Kembali', 'list', '', 'ghost')) + `<div class="panel"><div class="section-title"><h2>Progres perjalanan</h2>${pill(d.status)}</div>${pipe(d.status)}${d.status === 'DRAFT' && !officeReady() ? preparationNotice() : ''}<p class="hint">${e(d.activity)} · ${e(d.account)} · Dibuat oleh ${e(d.createdBy || '—')}</p><div class="actions">${action}${['SIAP_CETAK', 'SPJ'].includes(d.status) && op ? btn(d.costsRecorded === false ? 'Buat kuitansi & rincian biaya' : 'Sesuaikan biaya riil', 'adjustCosts', '', d.costsRecorded === false ? '' : 'ghost') : ''}</div></div><div class="panel"><div class="section-title"><h2>Dokumen perjalanan</h2>${d.status !== 'BATAL' ? btn(d.costsRecorded === false || d.status === 'DRAFT' ? 'Cetak SPD / Simpan PDF' : 'Cetak semua / Simpan PDF', 'print', `data-kind="${d.costsRecorded === false || d.status === 'DRAFT' ? 'spd' : 'all'}"`) : ''}</div><p>${d.status === 'DRAFT' ? 'Pratinjau draft. Terbitkan nomor SPD sebelum menandatangani.' : 'Cetak dokumen, lalu lengkapi tanda tangan dan cap sesuai ketentuan.'}</p><div class="table-wrap"><table><thead><tr><th>Pegawai</th><th>Nomor SPD</th><th>Biaya</th><th>Dokumen</th></tr></thead><tbody>${d.participants.map(p => `<tr><td><b>${e(p.name)}</b><small>${e(p.nip)}</small></td><td>${e(p.number || 'Belum terbit')}</td><td>${d.costsRecorded === false ? 'Belum diisi' : rup(p.total)}</td><td><div class="actions">${(d.status === 'BATAL' ? [] : d.costsRecorded === false || d.status === 'DRAFT' ? [['SPD', 'spd']] : [['SPD', 'spd'], ['Kuitansi', 'receipt'], ['Rincian', 'detail']]).map(([l, k]) => btn(l, 'print', `data-kind="${k}" data-emp="${e(p.employeeId)}"`, 'ghost small')).join('')}</div></td></tr>`).join('')}</tbody></table></div><div class="total"><span>Total biaya perjalanan</span><strong>${d.costsRecorded === false ? 'Belum dicatat' : rup(d.total)}</strong></div>${d.paymentNote ? `<p>Catatan pembayaran: ${e(d.paymentNote)}</p>` : ''}</div><div class="panel"><h2>Surat perintah & lampiran</h2><p class="hint">Boleh diunggah menyusul. Tidak menghalangi pembuatan SPD.</p><div class="files">${(d.files || []).map(f => `<div class="file"><span>${e(f.name)}</span>${btn('Unduh', 'download', `data-id="${e(f.id)}"`, 'ghost small')}</div>`).join('') || '<p>Belum ada berkas.</p>'}</div>${['DRAFT', 'SIAP_CETAK', 'SPJ', 'ARSIP'].includes(d.status) && op ? `<div class="actions" style="margin-top:15px"><input type="file" id="upload" accept="application/pdf" style="max-width:400px">${btn('Unggah PDF', 'upload')}</div><p class="hint">Surat perintah, SPD bertanda tangan, atau bukti pendukung. PDF maksimal 4 MB per file.</p>` : ''}</div><div class="panel"><h2>Riwayat proses</h2><div class="history">${(d.history || []).slice().reverse().map(h => `<div><b>${e(status[h.action] || h.action)}</b><small>${e(h.actor)} · ${e(h.at)}</small>${h.note ? `<p>${e(h.note)}</p>` : ''}</div>`).join('') || '<p>Belum ada riwayat.</p>'}</div></div>`;
     }
 
     // Master OPD, pegawai dan SBU
@@ -614,8 +651,8 @@
     function render() {
         nav();
         main.innerHTML = view === 'home' ? home() : ['list', 'check'].includes(view) ? list() : view === 'new' ? form() : view === 'detail' ? detail() : view === 'adjust' ? adjustment() : view === 'master' ? master() : view === 'rates' ? rates() : view === 'addRate' ? addRateForm() : view === 'access' ? access() : view === 'budget' ? budgetPage() : view === 'register' ? register() : home();
-        if (view === 'new' && $('#people'))
-            people();
+        if (view === 'new' && $('#people')) people();
+        if (view === 'adjust') updateCostPreview();
         document.body.classList.remove('menu');
     }
 
@@ -641,6 +678,7 @@
             start: d.start,
             end: d.end,
             total: d.total,
+            costsRecorded: d.costsRecorded !== false,
             people: d.participants.length,
             year: d.year, budgetKey: d.budgetKey, createdBy: d.createdBy
         };
@@ -730,6 +768,7 @@
     // Event formulir
     main.addEventListener('input', ev => {
         const el = ev.target;
+        if (view === 'adjust') { updateCostPreview(); return; }
         if (el.dataset.searchSelect) {
             const target = document.getElementById(el.dataset.searchSelect);
             const q = el.value.trim().toLocaleLowerCase('id');
@@ -915,8 +954,15 @@
             return;
         }
         if (a === 'adjustCosts') {
-            view = 'adjust';
-            render();
+            if (String(current.year) !== year) {
+                work(b, 'Memuat tarif tahun perjalanan…', async () => {
+                    const nextYear = String(current.year);
+                    boot = await api('boot', { year: nextYear });
+                    year = nextYear;
+                    view = 'adjust';
+                    render();
+                });
+            } else { view = 'adjust'; render(); }
             return;
         }
         if (a === 'backDetail') {
@@ -990,7 +1036,10 @@
             }
             if (a === 'saveAdjustment') {
                 const x = formData('#adjustForm');
-                await api('reviseCosts', {
+                const first = current.costsRecorded === false;
+                await api(first ? 'recordCosts' : 'reviseCosts', {
+                    province: x.costProvince,
+                    category: x.costCategory,
                     id: current.id,
                     expectedUpdated: current.updated,
                     note: x.reason,
@@ -1002,12 +1051,16 @@
                 });
                 await loadDetail(current.id);
                 notify();
-                toast('Biaya riil disimpan. Cetak ulang rincian dan kuitansi yang sesuai.');
+                toast(first ? 'Biaya tersimpan. Kuitansi dan rincian siap dicetak.' : 'Biaya riil disimpan. Cetak ulang rincian dan kuitansi yang sesuai.');
                 return;
             }
             if (a === 'saveDraft') {
                 if (!draft.participants.length || draft.participants.some(p => !p.employeeId)) throw Error('Pilih peserta perjalanan terlebih dahulu.');
-                if (!ratesFor(draft).length) throw Error('Tarif SBU untuk tujuan dan jenis perjalanan belum tersedia.');
+                if (!draft.spdOnly) {
+                    const rt = ratesFor(draft)[0];
+                    if (!rt) throw Error('Tarif pada draft lama tidak tersedia.');
+                    draft.participants.forEach(p => { p.rateKey = rt.key; });
+                }
                 const file = $('#draftLetter')?.files[0];
                 if (file && (file.size > 4 * 1024 * 1024 || file.type !== 'application/pdf')) throw Error('Surat perintah harus PDF maksimal 4 MB.');
                 const d = await api('save', { id: draft.id, requestId: draft.requestId, expectedUpdated: draft.updated, data: draft });
@@ -1265,7 +1318,8 @@
                 if ((changed || result.budget) && ['home', 'list', 'budget'].includes(view))
                     render();
             }
-            if (view === 'new' && $('#grandTotal') && result.budget) totals();
+            if (view === 'new' && $('#budgetHint') && result.budget) totals();
+            if (view === 'adjust' && result.budget) updateCostPreview();
             synced();
             if (view === 'detail' && current) {
                 const item = boot.trips.find(x => x.id === current.id);

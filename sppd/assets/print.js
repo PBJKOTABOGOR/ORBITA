@@ -62,6 +62,10 @@
     window.printSPPD = (d, which = 'all', emp) => {
         const out = [];
         const draft = d.status === 'DRAFT';
+        if (draft || d.costsRecorded === false) {
+            if (which === 'receipt' || which === 'detail') return;
+            which = 'spd';
+        }
         for (const p of d.participants.filter(x => !emp || x.employeeId === emp)) {
             if (which === 'all' || which === 'spd')
                 out.push(page(front(d, p), draft), page(back(d), draft));
