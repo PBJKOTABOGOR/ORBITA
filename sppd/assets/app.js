@@ -20,6 +20,16 @@
         const options = { timeZone: 'Asia/Jakarta' };
         return d.toLocaleDateString('id-ID', { ...options, day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + d.toLocaleTimeString('id-ID', { ...options, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' WIB';
     };
+    const registerDate = value => {
+        const formatted = historyDate(value);
+        if (!value || formatted === 'Waktu tidak tercatat') return formatted;
+        const raw = String(value).trim();
+        const normalized = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(raw) && !/(Z|[+-]\d{2}:?\d{2})$/i.test(raw)
+            ? raw.replace(' ', 'T') + '+07:00' : raw;
+        const d = new Date(normalized);
+        const tz = { timeZone: 'Asia/Jakarta' };
+        return d.toLocaleDateString('id-ID', { ...tz, day: 'numeric', month: 'long', year: 'numeric' }) + ', ' + d.toLocaleTimeString('en-GB', { ...tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    };
     const displayActor = value => String(value || '—').replace(/\s*\(USR-[^)]+\)\s*$/i, '').trim() || '—';
     const status = {
         DRAFT: 'Draft',
@@ -73,6 +83,53 @@
     let rateQuery = '';
     let listQuery = '';
     let listStatus = '';
+    let employeeQuery = '';
+    let numberPreview = [];
+    const pages = {
+        rates: { page: 1, size: 10, sizes: [10, 20, 50, 100] },
+        list: { page: 1, size: 10, sizes: [10, 20, 50] },
+        employees: { page: 1, size: 10, sizes: [10, 20, 50, 100] }
+    };
+
+    // Satu kontrol halaman untuk semua daftar; filter selalu diterapkan sebelum paging.
+    function paged(key, rows, draw) {
+        const p = pages[key], count = rows.length, last = Math.max(1, Math.ceil(count / p.size));
+        p.page = Math.min(Math.max(1, p.page), last);
+        const start = (p.page - 1) * p.size, end = Math.min(start + p.size, count);
+        const controls = `<div class="paging"><label>Tampilkan <select data-page-size="${key}" aria-label="Jumlah baris ${key}">${p.sizes.map(n => `<option value="${n}" ${n === p.size ? 'selected' : ''}>${n}</option>`).join('')}</select> baris</label><span class="paging-count">${count ? start + 1 : 0}–${end} dari ${count.toLocaleString('id-ID')}</span><div class="paging-nav"><button type="button" class="ghost small" data-act="page" data-table="${key}" data-step="-1" ${p.page === 1 ? 'disabled' : ''}>‹ Sebelumnya</button><span>Halaman ${p.page} / ${last}</span><button type="button" class="ghost small" data-act="page" data-table="${key}" data-step="1" ${p.page === last ? 'disabled' : ''}>Berikutnya ›</button></div></div>`;
+        return draw(rows.slice(start, end)) + controls;
+    }
+
+    function updatePage(key) {
+        const target = $( { rates: '#rateList', list: '#listRows', employees: '#employeeRows' }[key] );
+        if (!target) return;
+        target.innerHTML = key === 'rates' ? ratePage() : key === 'list' ? listPage() : employeePage();
+        if (key === 'rates' && $('#rateCount')) $('#rateCount').textContent = filteredRates().length + ' dari ' + rateRows.length + ' item';
+    }
+
+    // Dialog aplikasi menggantikan confirm/prompt browser.
+    function dialogMessage(message, options = {}) {
+        const { title = 'Konfirmasi', input = false, value = '', accept = 'Lanjutkan', danger = false } = options;
+        const dialog = document.createElement('dialog');
+        dialog.className = 'orbita-dialog';
+        dialog.setAttribute('aria-labelledby', 'dialogTitle');
+        dialog.innerHTML = `<form method="dialog"><div class="dialog-head"><span class="dialog-symbol" aria-hidden="true">${danger ? '!' : 'i'}</span><h2 id="dialogTitle">${e(title)}</h2><button type="submit" value="cancel" class="ghost dialog-close" aria-label="Tutup">×</button></div><p>${e(message)}</p>${input ? `<label for="dialogValue">Isian</label><input id="dialogValue" value="${e(value)}" autocomplete="off">` : ''}<div class="dialog-actions"><button type="submit" value="cancel" class="ghost">Batal</button><button type="submit" value="ok" class="${danger ? 'danger' : ''}">${e(accept)}</button></div></form>`;
+        document.body.append(dialog);
+        return new Promise(resolve => {
+            dialog.addEventListener('close', () => {
+                const result = dialog.returnValue === 'ok' ? (input ? dialog.querySelector('input').value : true) : (input ? null : false);
+                dialog.remove();
+                resolve(result);
+            }, { once: true });
+            if (input) dialog.querySelector('input').addEventListener('keydown', event => {
+                if (event.key === 'Enter') { event.preventDefault(); dialog.close('ok'); }
+            });
+            dialog.showModal();
+            (input ? dialog.querySelector('input') : dialog.querySelector('.dialog-actions .ghost')).focus();
+        });
+    }
+    const ask = (message, value = '') => dialogMessage(message, { title: 'Isi keterangan', input: true, value, accept: 'Simpan' });
+    const confirmAction = message => dialogMessage(message, { danger: /hapus|pembatalan|tinggalkan/i.test(message) });
     let initialToken = session.restore();
     let openingSession = false;
     let initializing = false;
@@ -210,6 +267,9 @@
         boot = { trips: [], masters: { employees: [], office: null, number: [] }, rates: [] };
         current = null;
         detailCache.clear();
+        numberPreview = [];
+        employeeQuery = '';
+        Object.values(pages).forEach(p => p.page = 1);
         draft = null;
         formDirty = false;
         epoch++;
@@ -423,9 +483,16 @@
         return `<div class="welcome"><div class="eyebrow">${e(unitName)} · ${year}</div><div class="top"><div><h1>Perjalanan Dinas</h1><p>Siapkan SPD, kuitansi dan rincian biaya. Pantau sisa pagu di sini.</p></div>${btn('+ Buat SPPD', 'new')}</div></div><div class="cards">${cards.map(([l,n,c],i) => `<div class="card kpi kpi-${i}"><div class="kpi-head"><small>${l}</small><span class="kpi-icon">${uiIcon(['list','clock','check','done'][i])}</span></div><strong class="${c} budget-kpi">${n}</strong><span class="kpi-caption">${['KODE_REK · SIPD','Pemakaian awal + biaya tercatat','Belum termasuk SPD tanpa biaya','Termasuk draft'][i]}</span></div>`).join('')}</div><div class="panel"><div class="section-title"><h2>Anggaran per subkegiatan</h2>${btn('Lihat pagu', 'budget', '', 'ghost small')}</div>${budgetWarning()}${budgetTable()}</div><div class="panel"><div class="section-title"><h2>Perjalanan terbaru</h2>${btn('Lihat semua', 'list', '', 'ghost small')}</div>${tableRows(t.slice(0,8))}</div>`;
     }
 
+    function filteredTrips() {
+        return boot.trips.filter(r => (view !== 'check' || ['PERIKSA', 'SIAP_BAYAR', 'PERBAIKAN', 'DIBAYAR', 'ARSIP'].includes(r.status)) && (!listStatus || r.status === listStatus) && (!listQuery || (r.purpose + ' ' + r.destination).toLowerCase().includes(listQuery.toLowerCase())));
+    }
+
+    function listPage() {
+        return paged('list', filteredTrips(), tableRows);
+    }
+
     function list() {
-        const t = boot.trips.filter(r => (view !== 'check' || ['PERIKSA', 'SIAP_BAYAR', 'PERBAIKAN', 'DIBAYAR', 'ARSIP'].includes(r.status)) && (!listStatus || r.status === listStatus) && (!listQuery || (r.purpose + ' ' + r.destination).toLowerCase().includes(listQuery.toLowerCase())));
-        return top(view === 'check' ? 'Ruang bendahara' : 'Riwayat perjalanan', view === 'check' ? 'Periksa kelengkapan, beri catatan, dan pantau pembayaran.' : 'Lihat perkembangan setiap pengajuan.', has('OPERATOR', 'ADMIN_OPD') ? btn('+ Buat baru', 'new') : '') + `<div class="panel"><div class="toolbar"><input id="listQuery" placeholder="Cari kegiatan atau tujuan…" value="${e(listQuery)}"><select id="listStatus" style="max-width:220px"><option value="">Semua status</option>${Object.entries(status).filter(([k]) => stages.includes(k) || k === 'BATAL' || boot.trips.some(t => t.status === k)).map(([k, v]) => `<option value="${k}" ${listStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select>${btn('Perbarui', 'refresh', '', 'ghost small')}</div><div id="listRows">${tableRows(t)}</div></div>`;
+        return top(view === 'check' ? 'Ruang bendahara' : 'Riwayat perjalanan', view === 'check' ? 'Periksa kelengkapan, beri catatan, dan pantau pembayaran.' : 'Lihat perkembangan setiap pengajuan.', has('OPERATOR', 'ADMIN_OPD') ? btn('+ Buat baru', 'new') : '') + `<div class="panel"><div class="toolbar"><input id="listQuery" placeholder="Cari kegiatan atau tujuan…" value="${e(listQuery)}"><select id="listStatus" style="max-width:220px"><option value="">Semua status</option>${Object.entries(status).filter(([k]) => stages.includes(k) || k === 'BATAL' || boot.trips.some(t => t.status === k)).map(([k, v]) => `<option value="${k}" ${listStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select>${btn('Perbarui', 'refresh', '', 'ghost small')}</div><div id="listRows">${listPage()}</div></div>`;
     }
 
     // Formulir perjalanan dan perhitungan biaya
@@ -697,7 +764,7 @@
                 <div class="wide">${searchSelect('Rekening perjalanan dinas / subkegiatan', 'budgetKey', budgetRows().map(b => ({v:b.key,l:b.activity + ' · ' + b.account + ' · ' + b.fundName})), d.budgetKey || '', 'Cari subkegiatan atau kode rekening…')}<div class="notice info" id="budgetHint"></div></div>
             </div></div>
             <div class="panel"><div class="section-title"><h2>2. Peserta perjalanan dinas</h2>${legacy ? '' : btn('+ Tambah pegawai', 'addPerson', '', 'ghost')}</div><p>Pilih pegawai yang akan dibuatkan SPD.</p><div id="people"></div><div class="total"><div><small>Durasi dan peserta</small><div id="daysText"></div></div></div></div>
-            <div class="panel"><h2>3. Penomoran SPD</h2>${select('Cara penomoran', 'mode', [{ v: 'manual', l: 'Manual — dari register resmi' }, { v: 'auto', l: 'Otomatis — register OPD' }], d.mode)}<p>Nomor otomatis mengikuti nomor urut yang diatur admin. Draft belum memperoleh nomor resmi.</p></div>
+            <div class="panel"><h2>3. Penomoran SPD</h2>${select('Cara penomoran', 'mode', [{ v: 'manual', l: 'Manual — dari register resmi' }, { v: 'auto', l: 'Otomatis — register OPD' }], d.mode)}<div id="autoNumberBox"></div><p class="hint">Nomor resmi dicatat saat SPD diterbitkan.</p></div>
             <div class="panel"><h2>4. Surat perintah (opsional)</h2><p>Unggah PDF jika sudah ada. Jika belum, bisa menyusul dari riwayat SPPD.</p><input type="file" id="draftLetter" accept="application/pdf"></div>
             <div class="actions">${btn('Simpan draft SPD', 'saveDraft')}${btn('Batal', 'list', '', 'ghost')}</div>`;
     }
@@ -707,8 +774,10 @@
         $('#people').innerHTML = d.participants.length ? d.participants.map((p, i) =>
             `<div class="person"><div class="section-title"><h3>Peserta ${i + 1}</h3>${d.spdOnly ? btn('Hapus', 'removePerson', `data-i="${i}"`, 'danger small') : ''}</div><div class="grid">
                 ${d.spdOnly ? searchSelect('Pegawai', `employee-${i}`, boot.masters.employees.map(x => ({ v: x.id, l: x.name + ' · ' + x.nip })), p.employeeId, 'Cari nama atau NIP…') : field('Pegawai', `legacy-${i}`, boot.masters.employees.find(x => x.id === p.employeeId)?.name || p.employeeId, 'text', 'readonly')}
-                ${d.mode === 'manual' ? field('Nomor SPD (dapat diisi nanti)', `number-${i}`, p.number) : '<div class="field"><label>Nomor SPD</label><input readonly value="Diisi saat penerbitan"></div>'}
+                ${d.mode === 'manual' ? field('Nomor SPD (dapat diisi nanti)', `number-${i}`, p.number) : `<div class="field"><label>Nomor SPD (perkiraan)</label><input readonly value="${e(numberPreview[i] || 'Klik Ambil Nomor SPD')}"></div>`}
             </div></div>`).join('') : '<div class="empty">Belum ada peserta. Klik Tambah pegawai.</div>';
+        const box = $('#autoNumberBox');
+        if (box) box.innerHTML = d.mode === 'auto' ? `<div class="actions" style="margin-top:12px">${btn('Ambil Nomor SPD', 'previewNumbers', '', 'ghost')}</div><p class="hint">${numberPreview.length ? 'Perkiraan nomor: ' + numberPreview.map(e).join(', ') + '. ' : ''}Nomor belum dipesan; nomor resmi dapat berubah jika pengguna lain menerbitkan SPD lebih dulu.</p>` : '';
         totals();
     }
 
@@ -787,13 +856,18 @@
         }).join('');
     }
 
+    function employeePage() {
+        const rows = boot.masters.employees.filter(p => [p.name, p.nip, p.position].join(' ').toLowerCase().includes(employeeQuery.toLowerCase()));
+        return paged('employees', rows, items => `<div class="table-wrap" style="margin-top:15px"><table id="employeeTable"><thead><tr><th>Nama</th><th>NIP</th><th>Jabatan</th><th></th></tr></thead><tbody>${items.map(p => `<tr><td>${e(p.name)}</td><td>${e(p.nip)}</td><td>${e(p.position)}</td><td>${btn('Ubah', 'editEmp', `data-id="${e(p.id)}"`, 'ghost small')}</td></tr>`).join('')}</tbody></table></div>${items.length ? '' : '<div class="empty">Pegawai tidak ditemukan.</div>'}`);
+    }
+
     function master() {
         const o = boot.masters.office || {}, cfgNum = boot.masters.number.find(n => String(n.year) === year) || {};
         const [prefix, suffix = ''] = String(cfgNum.pattern || '{urut}').split('{urut}');
         const subs = [...new Map(budgetRows().map(b => [b.sub, b.activity])).entries()];
         const heading = top('Pegawai & pejabat', 'Isi identitas satu kali. Data dipakai kembali saat membuat dokumen. Tidak terkait akun pengguna.');
         const group = (prefix, title) => `<div class="wide master-group"><h3>${title}</h3></div>${officeFields.filter(([l,k]) => k.startsWith(prefix)).map(([l,k]) => field(l,k,o[k] || '')).join('')}`;
-        return heading + `<div class="panel"><h2>Identitas Bagian PBJ dan penandatangan</h2><div class="grid" id="officeForm">${field('Nama resmi OPD', 'name', o.name || 'SEKRETARIAT DAERAH')}${field('Unit / bagian', 'unit', unitName, 'text', 'readonly')}${field('Alamat / kontak kop surat', 'address', o.address || kopAddress)}${group('kpa','PA / KPA')}${pptkFields(o, subs)}${group('bend','Bendahara (identitas penandatangan saja)')}</div><div class="actions" style="margin-top:15px">${btn('Simpan identitas & pejabat', 'saveOffice')}</div></div>${opd ? `<div class="panel"><div class="section-title"><h2>Master pegawai (${boot.masters.employees.length})</h2>${btn('Ambil pegawai dari sheet', 'syncEmployees')}</div><p class="hint">Ambil pegawai Bagian PBJ dari sheet Pegawai. Data manual dan pegawai yang sudah tersimpan tidak ditimpa.</p><div class="grid" id="empForm">${field('Nama lengkap', 'name').replaceAll('f-name', 'f-emp-name')}${field('NIP', 'nip')}${field('Pangkat / golongan', 'rank')}${field('Jabatan', 'position')}<input name="id" type="hidden"></div><div class="actions" style="margin-top:15px">${btn('Simpan pegawai', 'saveEmp')}${btn('Kosongkan', 'clearEmp', '', 'ghost')}</div><input type="search" id="employeeSearch" placeholder="Cari nama, NIP atau jabatan pegawai…" style="margin-top:15px"><div class="table-wrap" style="margin-top:15px"><table id="employeeTable"><thead><tr><th>Nama</th><th>NIP</th><th>Jabatan</th><th></th></tr></thead><tbody>${boot.masters.employees.map(p => `<tr><td>${e(p.name)}</td><td>${e(p.nip)}</td><td>${e(p.position)}</td><td>${btn('Ubah', 'editEmp', `data-id="${e(p.id)}"`, 'ghost small')}</td></tr>`).join('')}</tbody></table></div></div><div class="panel"><h2>Register SPD otomatis</h2><div class="notice">Gunakan pola penomoran yang telah disetujui tata usaha. Jangan membuat register ganda dengan SRIKANDI. Nomor manual tetap dicatat.</div><div class="grid" id="numForm">${field('Tahun', 'year', year, 'number')}${field('Awalan nomor (opsional)', 'prefix', prefix)}${field('Akhiran nomor (opsional)', 'suffix', suffix)}${field('Nomor urut berikutnya', 'next', cfgNum.next || 1, 'number', 'min="1"')}<div class="wide notice info">Contoh nomor berikutnya: <b id="numberPreview">${e((prefix + (cfgNum.next || 1) + suffix).replaceAll('{tahun}', year))}</b><br>Kosongkan awalan dan akhiran jika nomor hanya 1, 2, 3, dst. Untuk nomor manual, tidak perlu mengisi pengaturan ini.</div>${select('Aktifkan penomoran otomatis', 'enabled', [{ v: 'false', l: 'Tidak, gunakan nomor manual' }, { v: 'true', l: 'Ya, gunakan nomor otomatis' }], String(cfgNum.enabled === true))}</div><div class="actions" style="margin-top:15px">${btn('Simpan register', 'saveNum')}</div></div>` : ''}`;
+        return heading + `<div class="panel"><h2>Identitas Bagian PBJ dan penandatangan</h2><div class="grid" id="officeForm">${field('Nama resmi OPD', 'name', o.name || 'SEKRETARIAT DAERAH')}${field('Unit / bagian', 'unit', unitName, 'text', 'readonly')}${field('Alamat / kontak kop surat', 'address', o.address || kopAddress)}${group('kpa','PA / KPA')}${pptkFields(o, subs)}${group('bend','Bendahara (identitas penandatangan saja)')}</div><div class="actions" style="margin-top:15px">${btn('Simpan identitas & pejabat', 'saveOffice')}</div></div>${opd ? `<div class="panel"><div class="section-title"><h2>Master pegawai (${boot.masters.employees.length})</h2>${btn('Ambil pegawai dari sheet', 'syncEmployees')}</div><p class="hint">Ambil pegawai Bagian PBJ dari sheet Pegawai. Data manual dan pegawai yang sudah tersimpan tidak ditimpa.</p><div class="grid" id="empForm">${field('Nama lengkap', 'name').replaceAll('f-name', 'f-emp-name')}${field('NIP', 'nip')}${field('Pangkat / golongan', 'rank')}${field('Jabatan', 'position')}<input name="id" type="hidden"></div><div class="actions" style="margin-top:15px">${btn('Simpan pegawai', 'saveEmp')}${btn('Kosongkan', 'clearEmp', '', 'ghost')}</div><input type="search" id="employeeSearch" placeholder="Cari nama, NIP atau jabatan pegawai…" value="${e(employeeQuery)}" style="margin-top:15px"><div id="employeeRows">${employeePage()}</div></div><div class="panel"><h2>Register SPD otomatis</h2><div class="notice">Gunakan pola penomoran yang telah disetujui tata usaha. Jangan membuat register ganda dengan SRIKANDI. Nomor manual tetap dicatat.</div><div class="grid" id="numForm">${field('Tahun', 'year', year, 'number')}${field('Awalan nomor (opsional)', 'prefix', prefix)}${field('Akhiran nomor (opsional)', 'suffix', suffix)}${field('Nomor urut berikutnya', 'next', cfgNum.next || 1, 'number', 'min="1"')}<div class="wide notice info">Contoh nomor berikutnya: <b id="numberPreview">${e((prefix + (cfgNum.next || 1) + suffix).replaceAll('{tahun}', year))}</b><br>Kosongkan awalan dan akhiran jika nomor hanya 1, 2, 3, dst. Untuk nomor manual, tidak perlu mengisi pengaturan ini.</div>${select('Aktifkan penomoran otomatis', 'enabled', [{ v: 'false', l: 'Tidak, gunakan nomor manual' }, { v: 'true', l: 'Ya, gunakan nomor otomatis' }], String(cfgNum.enabled === true))}</div><div class="actions" style="margin-top:15px">${btn('Simpan register', 'saveNum')}</div></div>` : ''}`;
     }
 
     function rates() {
@@ -803,7 +877,7 @@
         }));
         const selected = rateVersions.find(r => r.validFrom === rateVersion);
         const importForm = rateImportForm || { year: rateYear, validFrom: rateYear + '-01-01', source: '' };
-        const shown = rateRows.filter(r => !rateQuery || (r.name + ' ' + r.spec + ' ' + r.id).toLowerCase().includes(rateQuery.toLowerCase()));
+        const shown = filteredRates();
         const message = !rateCatalogLoaded ? 'Memuat daftar versi tarif…' : versions.length ? 'Pilih versi tarif untuk melihat daftar item dan pengaturannya.' : 'Belum ada tarif tersimpan. Isi dasar hukum sesuai SBU resmi, lalu klik Impor lampiran SBU.';
         return top('Standar biaya perjalanan dinas', 'Sumber tarif untuk perhitungan. Tarif aktif tidak ditimpa.') + `
             <div class="panel">
@@ -827,9 +901,9 @@
                     <p class="hint">Nama versi dapat diubah tanpa mengganti dasar hukum. Tanggal berlaku hanya boleh dikoreksi sesuai dokumen resmi apabila versi belum dipakai.</p>${selected.validFrom > today() ? `<div class="notice">Tarif baru berlaku ${date(selected.validFrom)}, bukan berlaku sampai tanggal itu.</div>` : ''}` : ''}
             </div>
             <div class="panel">
-                <div class="section-title"><h2>Daftar tarif</h2><span class="hint">${shown.length} dari ${rateRows.length} item</span></div>
+                <div class="section-title"><h2>Daftar tarif</h2><span class="hint" id="rateCount">${shown.length} dari ${rateRows.length} item</span></div>
                 <input id="rateQuery" placeholder="Cari provinsi, nama atau spesifikasi…" value="${e(rateQuery)}">
-                <div id="rateList">${ratesTable(shown)}</div>
+                <div id="rateList">${ratePage()}</div>
             </div>`;
     }
 
@@ -847,8 +921,16 @@
         return top('Tambah item SBU', 'Masukkan tarif sesuai dasar hukum resmi.', btn('Kembali', 'backRates', '', 'ghost')) + `<div class="panel"><div class="grid" id="newRateForm">${field('Tahun anggaran', 'year', year, 'number')}${field('Mulai berlaku', 'validFrom', year + '-01-01', 'date')}${field('Dasar hukum', 'source')}${field('ID item SBU (gunakan ID yang sama untuk versi baru)', 'id')}${field('Nama item', 'name')}${field('Spesifikasi', 'spec')}${field('Satuan', 'unit')}${field('Tarif (Rp)', 'rate', '', 'number', 'min="0"')}${field('Kelompok', 'group')}${field('Kode barang / jasa', 'code')}${field('Kode rekening', 'account')}</div><p>Uang harian luar daerah: nama item harus mengikuti pola pada lampiran SBU, misalnya Uang Harian Perjalanan Dinas Luar Daerah DKI Jakarta, spesifikasi Luar Kota atau Diklat.</p>${btn('Simpan sebagai tarif belum aktif', 'saveRate')}</div>`;
     }
 
+    function filteredRates() {
+        return rateRows.filter(r => (r.name + ' ' + r.spec + ' ' + r.id).toLowerCase().includes(rateQuery.toLowerCase()));
+    }
+
+    function ratePage() {
+        return paged('rates', filteredRates(), ratesTable);
+    }
+
     function ratesTable(rows) {
-        return `<div class="table-wrap"><table><thead><tr><th>Item / spesifikasi</th><th>Satuan</th><th>Tarif</th><th>Versi</th><th></th></tr></thead><tbody>${rows.slice(0, 120).map(r => `<tr><td><b>${e(r.name)}</b><small>${e(r.spec)} · ${e(r.id)}</small></td><td>${e(r.unit)}</td><td>${rup(r.rate)}</td><td>${e(r.validFrom)}<small>${r.active ? 'Aktif' : 'Belum aktif'}</small></td><td>${r.active ? '' : btn('Ubah tarif', 'editRate', `data-id="${e(r.key)}"`, 'ghost small')}</td></tr>`).join('')}</tbody></table></div><p class="hint">Maksimal 120 baris ditampilkan. Gunakan pencarian untuk item lainnya.</p>`;
+        return `<div class="table-wrap"><table><thead><tr><th>Item / spesifikasi</th><th>Satuan</th><th>Tarif</th><th>Versi</th><th></th></tr></thead><tbody>${rows.map(r => `<tr><td><b>${e(r.name)}</b><small>${e(r.spec)} · ${e(r.id)}</small></td><td>${e(r.unit)}</td><td>${rup(r.rate)}</td><td>${e(r.validFrom)}<small>${r.active ? 'Aktif' : 'Belum aktif'}</small></td><td>${r.active ? '' : btn('Ubah tarif', 'editRate', `data-id="${e(r.key)}"`, 'ghost small')}</td></tr>`).join('')}</tbody></table></div>${rows.length ? '' : '<div class="empty">Tarif tidak ditemukan.</div>'}`;
     }
 
     // Hak akses dan register
@@ -865,7 +947,7 @@
     }
 
     function register() {
-        return top('Register SPD', 'Nomor manual dan otomatis tercatat di sini.', btn('Unduh CSV', 'exportRegister')) + `<div class="panel"><div class="table-wrap"><table><thead><tr><th>Nomor SPD</th><th>Tahun</th><th>Cara penomoran</th><th>Dicatat</th></tr></thead><tbody>${registerRows.map(r => `<tr><td>${e(r.number)}</td><td>${e(r.year)}</td><td>${r.mode === 'auto' ? 'Otomatis' : 'Manual'}</td><td>${e(r.created)}</td></tr>`).join('')}</tbody></table></div></div>`;
+        return top('Register SPD', 'Nomor manual dan otomatis tercatat di sini.', btn('Unduh CSV', 'exportRegister')) + `<div class="panel"><div class="table-wrap"><table><thead><tr><th>Nomor SPD</th><th>Tahun</th><th>Cara penomoran</th><th>Dicatat</th></tr></thead><tbody>${registerRows.map(r => `<tr><td>${e(r.number)}</td><td>${e(r.year)}</td><td>${r.mode === 'auto' ? 'Otomatis' : 'Manual'}</td><td>${e(registerDate(r.created))}</td></tr>`).join('')}</tbody></table></div></div>`;
     }
 
     // Pembaruan tampilan
@@ -963,16 +1045,18 @@
 
     // Perpindahan halaman
     async function go(v) {
-        if (view === 'new' && formDirty && !confirm('Ada perubahan draft yang belum disimpan. Tinggalkan halaman?'))
+        if (view === 'new' && formDirty && !await confirmAction('Ada perubahan draft yang belum disimpan. Tinggalkan halaman?'))
             return;
         formDirty = false;
         if (v === 'new') {
+            numberPreview = [];
             draft = newDraft();
             view = 'new';
             render();
             return;
         }
         view = v;
+        if (listStatus || listQuery) pages.list.page = 1;
         listStatus = '';
         listQuery = '';
         if (v === 'access' && globalRole('SUPERADMIN') && !directory) {
@@ -1019,20 +1103,21 @@
             if (target) for (const option of target.options) option.hidden = !!option.value && !option.selected && !option.textContent.toLocaleLowerCase('id').includes(q);
             return;
         }
-        if (['employeeSearch', 'accessSearch'].includes(el.id)) {
-            const table = $(el.id === 'employeeSearch' ? '#employeeTable' : '#accessTable');
-            if (table) for (const row of table.querySelectorAll('tbody tr')) row.hidden = !row.textContent.toLowerCase().includes(el.value.toLowerCase());
+        if (el.id === 'employeeSearch') {
+            employeeQuery = el.value;
+            pages.employees.page = 1;
+            updatePage('employees');
             return;
         }
-        if (el.id === 'listQuery') {
-            listQuery = el.value;
-            const focus = el.selectionStart;
-            $('#listRows').innerHTML = tableRows(boot.trips.filter(r => (view !== 'check' || ['PERIKSA', 'SIAP_BAYAR', 'PERBAIKAN', 'DIBAYAR', 'ARSIP'].includes(r.status)) && (!listStatus || r.status === listStatus) && (r.purpose + ' ' + r.destination).toLowerCase().includes(listQuery.toLowerCase())));
+        if (el.id === 'accessSearch') {
+            for (const row of $('#accessTable')?.querySelectorAll('tbody tr') || []) row.hidden = !row.textContent.toLowerCase().includes(el.value.toLowerCase());
             return;
         }
-        if (el.id === 'rateQuery') {
-            rateQuery = el.value;
-            $('#rateList').innerHTML = ratesTable(rateRows.filter(r => (r.name + ' ' + r.spec + ' ' + r.id).toLowerCase().includes(rateQuery.toLowerCase())));
+        if (el.id === 'listQuery' || el.id === 'rateQuery') {
+            const key = el.id === 'listQuery' ? 'list' : 'rates';
+            if (key === 'list') listQuery = el.value; else rateQuery = el.value;
+            pages[key].page = 1;
+            updatePage(key);
             return;
         }
         if (view === 'master' && ['prefix', 'suffix', 'next'].includes(el.name)) {
@@ -1042,12 +1127,15 @@
         if (view !== 'new' || !el.name)
             return;
         const k = el.name, v = el.value;
-        formDirty = true;
         const m = k.match(/^(employee|number|advance|cost|note)-(\d+)(?:-(\d+))?$/);
         if (m) {
             const p = draft.participants[+m[2]];
-            if (m[1] === 'employee')
+            if (!p) return;
+            formDirty = true;
+            if (m[1] === 'employee') {
                 p.employeeId = v;
+                if (numberPreview.length) { numberPreview = []; people(); }
+            }
             else if (m[1] === 'cost')
                 p.costs[+m[3]].amount = v;
             else if (m[1] === 'note')
@@ -1057,6 +1145,8 @@
             totals();
         }
         else {
+            if (draft[k] !== v) formDirty = true;
+            if (['mode', 'start'].includes(k) && draft[k] !== v) numberPreview = [];
             draft[k] = v;
             if (['province', 'category', 'start', 'mode'].includes(k)) {
                 if (k === 'start' && v.slice(0, 4) !== year) {
@@ -1077,6 +1167,12 @@
     });
     main.addEventListener('change', ev => {
         const el = ev.target;
+        if (view === 'new' && el.id === 'draftLetter') formDirty = !!el.files.length || formDirty;
+        if (el.dataset.pageSize) {
+            const key = el.dataset.pageSize, p = pages[key], size = Number(el.value);
+            if (p && p.sizes.includes(size)) { p.size = size; p.page = 1; updatePage(key); }
+            return;
+        }
         if (view === 'adjust' && ['costProvince', 'costCity', 'costCategory'].includes(el.name)) {
             if (el.name === 'costProvince') $('#costCityField').innerHTML = cityField(el.value, initialCity(current, el.value));
             updateCostPreview();
@@ -1091,6 +1187,7 @@
                 try {
                     await loadRateCatalog(rateYear, chosen);
                     rateQuery = '';
+                    pages.rates.page = 1;
                     render();
                 } catch (err) {
                     el.value = previous;
@@ -1133,7 +1230,8 @@
         }
         if (ev.target.id === 'listStatus') {
             listStatus = ev.target.value;
-            render();
+            pages.list.page = 1;
+            updatePage('list');
         }
     });
     $('#nav').addEventListener('click', ev => {
@@ -1150,8 +1248,8 @@
         }
     };
     try { if (localStorage.getItem('orbita_sppd_sidebar') === '1') document.body.classList.add('sidebar-hidden'); } catch (_) {}
-    $('#office').onchange = ev => {
-        if (formDirty && !confirm('Tinggalkan draft yang belum disimpan?')) {
+    $('#office').onchange = async ev => {
+        if (formDirty && !await confirmAction('Tinggalkan draft yang belum disimpan?')) {
             ev.target.value = opd;
             return;
         }
@@ -1165,13 +1263,18 @@
         if (!b || pending)
             return;
         const a = b.dataset.act, id = b.dataset.id;
+        if (a === 'page') {
+            const key = b.dataset.table;
+            if (pages[key]) { pages[key].page += Number(b.dataset.step); updatePage(key); }
+            return;
+        }
         if (a === 'connectSession') {
             connectSession(b);
             return;
         }
         if (a === 'copyAddress') {
             const address = new URL(location.pathname, location.origin).href;
-            navigator.clipboard.writeText(address).then(() => toast('Alamat disalin. Tempel di tab ORBITA yang sudah login.')).catch(() => prompt('Salin alamat SPPD:', address));
+            navigator.clipboard.writeText(address).then(() => toast('Alamat disalin. Tempel di tab ORBITA yang sudah login.')).catch(() => ask('Salin alamat SPPD:', address));
             return;
         }
         if (a === 'retry') {
@@ -1191,12 +1294,14 @@
             if (!boot.masters.employees.length) return toast('Tambahkan pegawai di menu Pegawai & pejabat terlebih dahulu.', true);
             if (draft.participants.length >= 30)
                 return toast('Maksimal 30 peserta per pengajuan.', true);
+            numberPreview = [];
             draft.participants.push({ employeeId: '', number: '', costs: costLabels.map(label => ({ label, amount: 0, note: '' })), advance: 0 });
             formDirty = true;
             people();
             return;
         }
         if (a === 'removePerson') {
+            numberPreview = [];
             draft.participants.splice(+b.dataset.i, 1);
             formDirty = true;
             people();
@@ -1220,6 +1325,7 @@
             return;
         }
         if (a === 'edit') {
+            numberPreview = [];
             draft = makeDraft(current);
             formDirty = false;
             view = 'new';
@@ -1233,7 +1339,7 @@
                     t = "'" + t;
                 return '"' + t.replace(/"/g, '""') + '"';
             };
-            const csv = ['Nomor SPD,Tahun,Cara,Dicatat', ...registerRows.map(r => [r.number, r.year, r.mode, r.created].map(quote).join(','))].join('\n');
+            const csv = ['Nomor SPD,Tahun,Cara,Dicatat', ...registerRows.map(r => [r.number, r.year, r.mode === 'auto' ? 'Otomatis' : 'Manual', registerDate(r.created)].map(quote).join(','))].join('\n');
             const url = URL.createObjectURL(new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8' }));
             const link = document.createElement('a');
             link.href = url;
@@ -1265,14 +1371,22 @@
             return;
         }
         work(b, 'Memproses…', async () => {
+            if (a === 'previewNumbers') {
+                const ids = draft.participants.map(p => p.employeeId);
+                if (!ids.length || ids.some(x => !x) || new Set(ids).size !== ids.length) throw Error('Pilih pegawai yang berbeda terlebih dahulu.');
+                const requestedYear = draft.start.slice(0, 4);
+                const result = await api('previewNumbers', { year: requestedYear, count: ids.length });
+                if (view === 'new' && draft.mode === 'auto' && draft.start.slice(0, 4) === requestedYear && JSON.stringify(ids) === JSON.stringify(draft.participants.map(p => p.employeeId))) { numberPreview = result.numbers; people(); toast('Perkiraan nomor SPD tersedia.'); }
+                return;
+            }
             if (a === 'openingBudget') {
                 const item = budgetRows().find(x => x.key === id);
                 if (!item) return;
-                const amount = prompt('Pemakaian sebelum aplikasi (rupiah, isi 0 bila belum ada):', String(item.opening));
+                const amount = await ask('Pemakaian sebelum aplikasi (rupiah, isi 0 bila belum ada):', String(item.opening));
                 if (amount === null) return;
                 if (!/^\d+$/.test(amount.trim())) throw Error('Isi angka rupiah tanpa titik atau koma.');
-                const note = prompt('Keterangan / tanggal posisi pemakaian:', item.openingNote || '');
-                if (!note?.trim() || !confirm('Simpan pemakaian awal? Jangan hitung ulang SPD yang sudah tercatat di aplikasi.')) return;
+                const note = await ask('Keterangan / tanggal posisi pemakaian:', item.openingNote || '');
+                if (!note?.trim() || !await confirmAction('Simpan pemakaian awal? Jangan hitung ulang SPD yang sudah tercatat di aplikasi.')) return;
                 await api('openingBudget', { key: id, amount: Number(amount), note, confirm: true });
                 await refreshBoot();
                 notify();
@@ -1337,7 +1451,7 @@
                 return;
             }
             if (a === 'issue') {
-                if (!confirm('Terbitkan nomor SPD? Nomor resmi akan tercatat dan draft dikunci.'))
+                if (!await confirmAction('Terbitkan nomor SPD? Nomor resmi akan tercatat dan draft dikunci.'))
                     return;
                 await api('issue', { id: current.id });
                 await loadDetail(current.id, true);
@@ -1349,16 +1463,16 @@
                 const to = b.dataset.to;
                 let note = '', confirmValue = false;
                 if (to === 'BATAL') {
-                    note = prompt('Alasan pembatalan SPD:') || '';
+                    note = (await ask('Alasan pembatalan SPD:')) || '';
                     if (!note.trim())
                         return;
                 }
                 if (to === 'ARSIP') {
-                    confirmValue = confirm('Tandai dokumen selesai? Ini bukan pencatatan pembayaran.');
+                    confirmValue = await confirmAction('Tandai dokumen selesai? Ini bukan pencatatan pembayaran.');
                     if (!confirmValue)
                         return;
                 }
-                else if (to !== 'BATAL' && !confirm('Lanjut ke tahap ' + status[to] + '?'))
+                else if (to !== 'BATAL' && !await confirmAction('Lanjut ke tahap ' + status[to] + '?'))
                     return;
                 await api('transition', { id: current.id, to, note, confirm: confirmValue, expectedStatus: current.status });
                 await loadDetail(current.id, true);
@@ -1433,7 +1547,7 @@
                 return;
             }
             if (a === 'syncEmployees') {
-                if (!confirm('Ambil pegawai Bagian PBJ dari sheet? Simpan dulu perubahan identitas atau pejabat yang belum tersimpan.')) return;
+                if (!await confirmAction('Ambil pegawai Bagian PBJ dari sheet? Simpan dulu perubahan identitas atau pejabat yang belum tersimpan.')) return;
                 const result = await api('syncEmployees');
                 await refreshBoot();
                 toast(`${result.added} pegawai ditambahkan; ${result.existing} sudah terdaftar; ${result.skipped} data perlu diperiksa.`);
@@ -1471,6 +1585,7 @@
                 rateImportForm = d;
                 await loadRateCatalog(d.year, d.validFrom);
                 rateQuery = '';
+                pages.rates.page = 1;
                 render();
                 toast('Daftar tarif diperbarui.');
                 return;
@@ -1480,7 +1595,7 @@
                 rateImportForm = d;
                 if (!d.source.trim())
                     throw Error('Isi dasar hukum SBU terlebih dahulu.');
-                if (!confirm('Impor 2.129 item sebagai tarif belum aktif?'))
+                if (!await confirmAction('Impor 2.129 item sebagai tarif belum aktif?'))
                     return;
                 const r = await fetch('data/sbu-kota-bogor.json');
                 if (!r.ok)
@@ -1498,7 +1613,7 @@
                 const payload = { year: rateYear, validFrom: selected.validFrom };
                 rateImportForm = formData('#rateForm');
                 if (a === 'renameRateVersion') {
-                    const name = prompt('Nama baru versi tarif:', selected.name);
+                    const name = await ask('Nama baru versi tarif:', selected.name);
                     if (name === null) return;
                     if (!name.trim()) throw Error('Nama versi tarif tidak boleh kosong.');
                     await api(a, { ...payload, name: name.trim() });
@@ -1511,7 +1626,7 @@
                     const newValidFrom = $('#f-correctRateDate').value;
                     if (newValidFrom === selected.validFrom) { toast('Tanggal berlaku masih sama.'); return; }
                     if (!/^\d{4}-\d{2}-\d{2}$/.test(newValidFrom)) throw Error('Gunakan format tahun-bulan-tanggal, misalnya 2026-01-01.');
-                    if (!confirm('Koreksi tanggal berlaku versi ini sesuai dokumen resmi?')) return;
+                    if (!await confirmAction('Koreksi tanggal berlaku versi ini sesuai dokumen resmi?')) return;
                     const result = await api(a, { ...payload, newValidFrom, confirm: true });
                     await loadRateCatalog(payload.year, result.validFrom);
                     if (opd && payload.year === year) boot.rates = (await api('boot')).rates;
@@ -1521,17 +1636,18 @@
                     return;
                 }
                 if (a === 'deleteRateVersion') {
-                    if (!confirm(`Hapus versi "${selected.name}" tanggal ${selected.validFrom} beserta ${selected.count.toLocaleString('id-ID')} item? Versi yang sudah dipakai pada SPPD tidak dapat dihapus.`)) return;
+                    if (!await confirmAction(`Hapus versi "${selected.name}" tanggal ${selected.validFrom} beserta ${selected.count.toLocaleString('id-ID')} item? Versi yang sudah dipakai pada SPPD tidak dapat dihapus.`)) return;
                     const result = await api(a, { ...payload, confirm: true });
                     await loadRateCatalog(payload.year, '');
                     rateQuery = '';
+                    pages.rates.page = 1;
                     if (opd && payload.year === year) boot.rates = (await api('boot')).rates;
                     render();
                     notify();
                     toast(`${result.deleted.toLocaleString('id-ID')} item tarif dihapus.`);
                     return;
                 }
-                if (!confirm('Pastikan tahun, tanggal berlaku, tarif, dan dasar hukumnya sudah sesuai. Aktifkan versi ini?')) return;
+                if (!await confirmAction('Pastikan tahun, tanggal berlaku, tarif, dan dasar hukumnya sudah sesuai. Aktifkan versi ini?')) return;
                 await api(a, { ...payload, confirm: true });
                 await loadRateCatalog(payload.year, payload.validFrom);
                 if (opd && payload.year === year) boot.rates = (await api('boot')).rates;
@@ -1542,12 +1658,12 @@
             }
             if (a === 'editRate') {
                 const row = rateRows.find(r => r.key === id);
-                const v = prompt('Tarif baru (angka rupiah):', String(row.rate));
+                const v = await ask('Tarif baru (angka rupiah):', String(row.rate));
                 if (v === null)
                     return;
                 await api('rateEdit', { key: id, rate: v });
                 row.rate = Number(v);
-                $('#rateList').innerHTML = ratesTable(rateRows.filter(r => (r.name + ' ' + r.spec + ' ' + r.id).toLowerCase().includes(rateQuery.toLowerCase())));
+                updatePage('rates');
                 toast('Tarif draft diperbarui.');
                 return;
             }

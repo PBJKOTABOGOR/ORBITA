@@ -1917,3 +1917,57 @@ td small {
 .setup-notice { display: grid; gap: 10px; margin-bottom: 16px; }
 .setup-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .setup-item + .setup-item { border-top: 1px solid currentColor; padding-top: 10px; }
+
+/* Navigasi halaman tabel dan dialog konfirmasi */
+@media screen {
+    .paging {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 12px;
+    }
+    .paging label, .paging-nav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        white-space: nowrap;
+    }
+    .paging select { width: auto; min-width: 64px; padding: 6px 8px; }
+    .paging-count { flex: 1; }
+    .paging-nav { margin-left: auto; flex-wrap: wrap; }
+    .orbita-dialog {
+        width: min(460px, calc(100vw - 32px));
+        max-height: calc(100vh - 32px);
+        padding: 22px;
+        border: 1px solid var(--line);
+        border-radius: 17px;
+        background: var(--white);
+        color: var(--ink);
+        box-shadow: 0 18px 65px rgba(15, 39, 63, .24);
+    }
+    .orbita-dialog::backdrop { background: rgba(14, 35, 55, .48); }
+    .dialog-head, .dialog-actions { display: flex; align-items: center; gap: 10px; }
+    .dialog-head h2 { margin: 0; flex: 1; }
+    .dialog-symbol {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        flex: 0 0 32px;
+        border-radius: 10px;
+        background: #e7f2fa;
+        color: #087bb7;
+        font-weight: 800;
+    }
+    .dialog-close { padding: 6px 10px; font-size: 18px; }
+    .orbita-dialog p { margin: 16px 0; line-height: 1.6; }
+    .dialog-actions { justify-content: flex-end; margin-top: 20px; }
+    @media (max-width: 560px) {
+        .paging-nav { width: 100%; margin-left: 0; justify-content: space-between; }
+    }
+}
+@media print { .orbita-dialog { display: none !important; } }
