@@ -1,1 +1,0 @@
-V1.1.3: Sintaks, backend, direktori, hak akses, cetak, sesi Node, browser inline dengan API simulasi lulus. Navigasi asli terblokir; deployment produksi belum diuji.
