@@ -51,6 +51,9 @@
     let epoch = 0;
     let toastTimer;
     let rateRows = [];
+    let rateVersions = [];
+    let rateVersion = '';
+    let rateCatalogLoaded = false;
     let rateYear = '2026';
     let rateImportForm = null;
     let accessRows = [];
@@ -533,14 +536,53 @@
         const subs = [...new Map(budgetRows().map(b => [b.sub, b.activity])).entries()];
         const heading = top('Pegawai & pejabat', 'Isi identitas satu kali. Data dipakai kembali saat membuat dokumen. Tidak terkait akun pengguna.');
         const group = (prefix, title) => `<div class="wide master-group"><h3>${title}</h3></div>${officeFields.filter(([l,k]) => k.startsWith(prefix)).map(([l,k]) => field(l,k,o[k] || '')).join('')}`;
-        return heading + `<div class="panel"><h2>Identitas Bagian PBJ dan penandatangan</h2><div class="grid" id="officeForm">${field('Nama resmi OPD', 'name', o.name || 'SEKRETARIAT DAERAH')}${field('Unit / bagian', 'unit', unitName, 'text', 'readonly')}${field('Alamat / kontak kop surat', 'address', o.address || kopAddress)}${group('kpa','PA / KPA')}${pptkFields(o, subs)}${group('bend','Bendahara (identitas penandatangan saja)')}</div><div class="actions" style="margin-top:15px">${btn('Simpan identitas & pejabat', 'saveOffice')}</div></div>${opd ? `<div class="panel"><div class="section-title"><h2>Master pegawai (${boot.masters.employees.length})</h2>${btn('Ambil pegawai dari sheet', 'syncEmployees')}</div><p class="hint">Ambil pegawai Bagian PBJ dari sheet Pegawai. Data manual dan pegawai yang sudah tersimpan tidak ditimpa.</p><div class="grid" id="empForm">${field('Nama lengkap', 'name').replaceAll('f-name', 'f-emp-name')}${field('NIP', 'nip')}${field('Pangkat / golongan', 'rank')}${field('Jabatan', 'position')}${field('Tingkat biaya perjalanan', 'level')}<input name="id" type="hidden"></div><div class="actions" style="margin-top:15px">${btn('Simpan pegawai', 'saveEmp')}${btn('Kosongkan', 'clearEmp', '', 'ghost')}</div><input type="search" id="employeeSearch" placeholder="Cari nama, NIP atau jabatan pegawai…" style="margin-top:15px"><div class="table-wrap" style="margin-top:15px"><table id="employeeTable"><thead><tr><th>Nama</th><th>NIP</th><th>Jabatan</th><th></th></tr></thead><tbody>${boot.masters.employees.map(p => `<tr><td>${e(p.name)}</td><td>${e(p.nip)}</td><td>${e(p.position)}</td><td>${btn('Ubah', 'editEmp', `data-id="${e(p.id)}"`, 'ghost small')}</td></tr>`).join('')}</tbody></table></div></div><div class="panel"><h2>Register SPD otomatis</h2><div class="notice">Gunakan pola penomoran yang telah disetujui tata usaha. Jangan membuat register ganda dengan SRIKANDI. Nomor manual tetap dicatat.</div><div class="grid" id="numForm">${field('Tahun', 'year', year, 'number')}${field('Awalan nomor (opsional)', 'prefix', prefix)}${field('Akhiran nomor (opsional)', 'suffix', suffix)}${field('Nomor urut berikutnya', 'next', cfgNum.next || 1, 'number', 'min="1"')}<div class="wide notice info">Contoh nomor berikutnya: <b id="numberPreview">${e((prefix + (cfgNum.next || 1) + suffix).replaceAll('{tahun}', year))}</b><br>Kosongkan awalan dan akhiran jika nomor hanya 1, 2, 3, dst. Untuk nomor manual, tidak perlu mengisi pengaturan ini.</div>${select('Aktifkan penomoran otomatis', 'enabled', [{ v: 'false', l: 'Tidak, gunakan nomor manual' }, { v: 'true', l: 'Ya, gunakan nomor otomatis' }], String(cfgNum.enabled === true))}</div><div class="actions" style="margin-top:15px">${btn('Simpan register', 'saveNum')}</div></div>` : ''}`;
+        return heading + `<div class="panel"><h2>Identitas Bagian PBJ dan penandatangan</h2><div class="grid" id="officeForm">${field('Nama resmi OPD', 'name', o.name || 'SEKRETARIAT DAERAH')}${field('Unit / bagian', 'unit', unitName, 'text', 'readonly')}${field('Alamat / kontak kop surat', 'address', o.address || kopAddress)}${group('kpa','PA / KPA')}${pptkFields(o, subs)}${group('bend','Bendahara (identitas penandatangan saja)')}</div><div class="actions" style="margin-top:15px">${btn('Simpan identitas & pejabat', 'saveOffice')}</div></div>${opd ? `<div class="panel"><div class="section-title"><h2>Master pegawai (${boot.masters.employees.length})</h2>${btn('Ambil pegawai dari sheet', 'syncEmployees')}</div><p class="hint">Ambil pegawai Bagian PBJ dari sheet Pegawai. Data manual dan pegawai yang sudah tersimpan tidak ditimpa.</p><div class="grid" id="empForm">${field('Nama lengkap', 'name').replaceAll('f-name', 'f-emp-name')}${field('NIP', 'nip')}${field('Pangkat / golongan', 'rank')}${field('Jabatan', 'position')}<input name="id" type="hidden"></div><div class="actions" style="margin-top:15px">${btn('Simpan pegawai', 'saveEmp')}${btn('Kosongkan', 'clearEmp', '', 'ghost')}</div><input type="search" id="employeeSearch" placeholder="Cari nama, NIP atau jabatan pegawai…" style="margin-top:15px"><div class="table-wrap" style="margin-top:15px"><table id="employeeTable"><thead><tr><th>Nama</th><th>NIP</th><th>Jabatan</th><th></th></tr></thead><tbody>${boot.masters.employees.map(p => `<tr><td>${e(p.name)}</td><td>${e(p.nip)}</td><td>${e(p.position)}</td><td>${btn('Ubah', 'editEmp', `data-id="${e(p.id)}"`, 'ghost small')}</td></tr>`).join('')}</tbody></table></div></div><div class="panel"><h2>Register SPD otomatis</h2><div class="notice">Gunakan pola penomoran yang telah disetujui tata usaha. Jangan membuat register ganda dengan SRIKANDI. Nomor manual tetap dicatat.</div><div class="grid" id="numForm">${field('Tahun', 'year', year, 'number')}${field('Awalan nomor (opsional)', 'prefix', prefix)}${field('Akhiran nomor (opsional)', 'suffix', suffix)}${field('Nomor urut berikutnya', 'next', cfgNum.next || 1, 'number', 'min="1"')}<div class="wide notice info">Contoh nomor berikutnya: <b id="numberPreview">${e((prefix + (cfgNum.next || 1) + suffix).replaceAll('{tahun}', year))}</b><br>Kosongkan awalan dan akhiran jika nomor hanya 1, 2, 3, dst. Untuk nomor manual, tidak perlu mengisi pengaturan ini.</div>${select('Aktifkan penomoran otomatis', 'enabled', [{ v: 'false', l: 'Tidak, gunakan nomor manual' }, { v: 'true', l: 'Ya, gunakan nomor otomatis' }], String(cfgNum.enabled === true))}</div><div class="actions" style="margin-top:15px">${btn('Simpan register', 'saveNum')}</div></div>` : ''}`;
     }
 
     function rates() {
-        const versions = [...new Map(rateRows.map(r => [String(r.validFrom).slice(0, 10), { v: String(r.validFrom).slice(0, 10), l: String(r.validFrom).slice(0, 10) + ' — ' + r.source }])).values()];
+        const versions = rateVersions.map(r => ({
+            v: r.validFrom,
+            l: `${r.name} — ${r.validFrom} (${r.active === r.count ? 'Aktif' : r.active ? 'Sebagian aktif' : 'Belum aktif'})`
+        }));
+        const selected = rateVersions.find(r => r.validFrom === rateVersion);
         const importForm = rateImportForm || { year: rateYear, validFrom: rateYear + '-01-01', source: '' };
         const shown = rateRows.filter(r => !rateQuery || (r.name + ' ' + r.spec + ' ' + r.id).toLowerCase().includes(rateQuery.toLowerCase()));
-        return top('Standar biaya perjalanan dinas', 'Sumber tarif untuk perhitungan. Tarif aktif tidak ditimpa.') + `<div class="panel"><h2>Impor SBU Kota Bogor</h2><p>2.129 item dari lampiran SBU disiapkan sebagai data awal. Tentukan tahun dan tanggal berlaku serta dasar hukum yang benar sebelum diaktifkan.</p><div class="grid" id="rateForm">${field('Tahun anggaran', 'year', importForm.year, 'number')}${field('Mulai berlaku', 'validFrom', importForm.validFrom, 'date')}${field('Nomor / judul dasar hukum', 'source', importForm.source, 'text', 'placeholder="Isi sesuai dokumen resmi"')}</div><div class="actions" style="margin-top:15px">${btn('Impor lampiran SBU', 'importRates')}${btn('Muat daftar tarif', 'loadRates', '', 'ghost')}${btn('+ Tambah item SBU', 'addRate', '', 'ghost')}</div><div class="notice info" style="margin-top:12px">${versions.length ? 'Impor selesai. Pilih versi yang sudah diperiksa di bawah untuk mengaktifkannya.' : 'Belum ada tarif tersimpan. Isi dasar hukum sesuai SBU resmi, lalu klik Impor lampiran SBU.'}</div>${versions.length ? `<div id="rateVersionForm" class="grid">${select('Versi tarif tersimpan', 'version', versions, versions[versions.length-1].v)}</div>${btn('Aktifkan tarif terpilih', 'activateRates')}` : ''}</div><div class="panel"><div class="section-title"><h2>Daftar tarif</h2><span class="hint">${shown.length} dari ${rateRows.length} item</span></div><input id="rateQuery" placeholder="Cari provinsi, nama atau spesifikasi…" value="${e(rateQuery)}"><div id="rateList">${ratesTable(shown)}</div></div>`;
+        const message = !rateCatalogLoaded ? 'Memuat daftar versi tarif…' : versions.length ? 'Pilih versi tarif untuk melihat daftar item dan pengaturannya.' : 'Belum ada tarif tersimpan. Isi dasar hukum sesuai SBU resmi, lalu klik Impor lampiran SBU.';
+        return top('Standar biaya perjalanan dinas', 'Sumber tarif untuk perhitungan. Tarif aktif tidak ditimpa.') + `
+            <div class="panel">
+                <h2>Impor SBU Kota Bogor</h2>
+                <p>2.129 item dari lampiran SBU disiapkan sebagai data awal. Tentukan tahun dan tanggal berlaku serta dasar hukum yang benar sebelum diaktifkan.</p>
+                <div class="grid" id="rateForm">
+                    ${field('Tahun anggaran', 'year', importForm.year, 'number')}
+                    ${field('Mulai berlaku', 'validFrom', importForm.validFrom, 'date')}
+                    ${field('Nomor / judul dasar hukum', 'source', importForm.source, 'text', 'placeholder="Isi sesuai dokumen resmi"')}
+                </div>
+                <div class="actions" style="margin-top:15px">${btn('Impor lampiran SBU', 'importRates')}${btn('Muat daftar tarif', 'loadRates', '', 'ghost')}${btn('+ Tambah item SBU', 'addRate', '', 'ghost')}</div>
+                <div class="notice info" style="margin-top:12px">${message}</div>
+                ${selected ? `<div id="rateVersionForm" class="grid">${select('Versi tarif tersimpan', 'version', versions, rateVersion)}</div>
+                    <p class="hint">${e(selected.source)} · ${selected.count.toLocaleString('id-ID')} item · Tahun ${e(rateYear)}</p>
+                    <div class="actions" style="margin-top:10px">
+                        ${selected.active < selected.count ? btn('Aktifkan tarif terpilih', 'activateRates') : '<span class="hint">Tarif sudah aktif</span>'}
+                        ${btn('Ubah nama versi', 'renameRateVersion', '', 'ghost')}
+                        ${btn('Hapus versi tarif', 'deleteRateVersion', '', 'ghost danger')}
+                    </div>
+                    <p class="hint">Nama versi dapat diubah tanpa mengganti dasar hukum. Versi yang sudah dipakai pada SPPD atau draft tidak dapat dihapus.</p>` : ''}
+            </div>
+            <div class="panel">
+                <div class="section-title"><h2>Daftar tarif</h2><span class="hint">${shown.length} dari ${rateRows.length} item</span></div>
+                <input id="rateQuery" placeholder="Cari provinsi, nama atau spesifikasi…" value="${e(rateQuery)}">
+                <div id="rateList">${ratesTable(shown)}</div>
+            </div>`;
+    }
+
+    // Muat satu versi saja; pencarian item tetap dilakukan di browser.
+    async function loadRateCatalog(y = rateYear, from = rateVersion) {
+        const result = await api('rateCatalog', { year: y, validFrom: from });
+        rateYear = String(result.year);
+        rateVersions = result.versions;
+        rateVersion = result.validFrom;
+        rateRows = result.rows;
+        rateCatalogLoaded = true;
     }
 
     function addRateForm() {
@@ -675,7 +717,7 @@
         }
         if (v === 'rates') {
             try {
-                rateRows = await api('rates', { year: rateYear, admin: true });
+                await loadRateCatalog();
                 if (view === v)
                     render();
             }
@@ -752,6 +794,23 @@
     });
     main.addEventListener('change', ev => {
         const el = ev.target;
+        if (view === 'rates' && el.id === 'f-version') {
+            if (pending) { el.value = rateVersion; return; }
+            rateImportForm = formData('#rateForm');
+            const previous = rateVersion;
+            const chosen = el.value;
+            work(null, 'Memuat versi tarif…', async () => {
+                try {
+                    await loadRateCatalog(rateYear, chosen);
+                    rateQuery = '';
+                    render();
+                } catch (err) {
+                    el.value = previous;
+                    throw err;
+                }
+            });
+            return;
+        }
         if (view === 'master' && /^pptkPick-/.test(el.name)) {
             const person = boot.masters.employees.find(x => x.id === el.value);
             const group = el.closest('[data-pptk-sub]');
@@ -1093,6 +1152,9 @@
                 const r = await api('importRates', { ...d, items: [d] });
                 if (!r.added)
                     throw Error('ID dan tanggal versi sudah terdaftar. Gunakan versi baru.');
+                rateYear = String(d.year);
+                rateVersion = d.validFrom;
+                rateImportForm = { year: d.year, validFrom: d.validFrom, source: d.source };
                 await go('rates');
                 toast('Tarif baru disimpan, belum aktif.');
                 return;
@@ -1100,8 +1162,7 @@
             if (a === 'loadRates') {
                 const d = formData('#rateForm');
                 rateImportForm = d;
-                rateYear = d.year;
-                rateRows = await api('rates', { year: d.year, admin: true });
+                await loadRateCatalog(d.year, d.validFrom);
                 rateQuery = '';
                 render();
                 toast('Daftar tarif diperbarui.');
@@ -1110,7 +1171,6 @@
             if (a === 'importRates') {
                 const d = formData('#rateForm');
                 rateImportForm = d;
-                rateYear = d.year;
                 if (!d.source.trim())
                     throw Error('Isi dasar hukum SBU terlebih dahulu.');
                 if (!confirm('Impor 2.129 item sebagai tarif belum aktif?'))
@@ -1120,24 +1180,43 @@
                     throw Error('Lampiran SBU belum tersedia.');
                 const items = await r.json();
                 const result = await api('importRates', { ...d, items });
-                rateRows = await api('rates', { year: d.year, admin: true });
+                await loadRateCatalog(d.year, d.validFrom);
                 render();
                 toast(result.added + ' item ditambahkan. Pilih versi di bawah untuk mengaktifkan.');
                 return;
             }
-            if (a === 'activateRates') {
-                const d = formData('#rateForm');
-                d.validFrom = $('#f-version')?.value || '';
-                const selected = rateRows.find(r => String(r.validFrom).slice(0, 10) === d.validFrom);
-                if (!selected) throw Error('Impor tarif dahulu, lalu pilih versi yang tersedia.');
-                d.year = String(selected.year);
-                if (!confirm('Pastikan tahun, tanggal berlaku, tarif, dan dasar hukumnya sudah sesuai. Aktifkan versi ini?'))
+            if (['activateRates', 'renameRateVersion', 'deleteRateVersion'].includes(a)) {
+                const selected = rateVersions.find(r => r.validFrom === rateVersion);
+                if (!selected) throw Error('Pilih versi tarif terlebih dahulu.');
+                const payload = { year: rateYear, validFrom: selected.validFrom };
+                rateImportForm = formData('#rateForm');
+                if (a === 'renameRateVersion') {
+                    const name = prompt('Nama baru versi tarif:', selected.name);
+                    if (name === null) return;
+                    if (!name.trim()) throw Error('Nama versi tarif tidak boleh kosong.');
+                    await api(a, { ...payload, name: name.trim() });
+                    await loadRateCatalog(payload.year, payload.validFrom);
+                    render();
+                    toast('Nama versi tarif diperbarui.');
                     return;
-                await api('activateRates', { ...d, confirm: true });
-                rateRows = await api('rates', { year: d.year, admin: true });
-                if (opd && d.year === year)
-                    boot.rates = (await api('boot')).rates;
+                }
+                if (a === 'deleteRateVersion') {
+                    if (!confirm(`Hapus versi "${selected.name}" tanggal ${selected.validFrom} beserta ${selected.count.toLocaleString('id-ID')} item? Versi yang sudah dipakai pada SPPD tidak dapat dihapus.`)) return;
+                    const result = await api(a, { ...payload, confirm: true });
+                    await loadRateCatalog(payload.year, '');
+                    rateQuery = '';
+                    if (opd && payload.year === year) boot.rates = (await api('boot')).rates;
+                    render();
+                    notify();
+                    toast(`${result.deleted.toLocaleString('id-ID')} item tarif dihapus.`);
+                    return;
+                }
+                if (!confirm('Pastikan tahun, tanggal berlaku, tarif, dan dasar hukumnya sudah sesuai. Aktifkan versi ini?')) return;
+                await api(a, { ...payload, confirm: true });
+                await loadRateCatalog(payload.year, payload.validFrom);
+                if (opd && payload.year === year) boot.rates = (await api('boot')).rates;
                 render();
+                notify();
                 toast('Versi tarif diaktifkan.');
                 return;
             }
