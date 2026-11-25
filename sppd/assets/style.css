@@ -1892,3 +1892,9 @@ td small {
         line-height: 1;
     }
 }
+
+/* Pilihan master dan akun */
+.picker input[type="search"] { margin-bottom: 5px; }
+.master-group { border-top: 1px solid var(--line, #dce8ee); padding-top: 13px; margin-top: 8px; }
+.master-group h3 { margin: 0; font-size: 14px; }
+#employeeTable tr[hidden], #accessTable tr[hidden] { display: none; }

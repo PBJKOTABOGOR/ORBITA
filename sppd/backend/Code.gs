@@ -126,7 +126,7 @@ function json_(x) {
 }
 
 function doGet() {
-    return json_({ ok: true, service: 'ORBITA SPPD', version: '1.0-pilot' });
+    return json_({ ok: true, service: 'ORBITA SPPD', version: '1.1.3' });
 }
 
 function doPost(e) {
@@ -163,7 +163,35 @@ function identity_(token) {
     const grants = rows_('M_AKSES').filter(x => String(x.user_id) === String(u.user_id) && yes_(x.active)).map(x => ({ opd: String(x.opd), roles: String(x.roles).split(',').map(y => y.trim()).filter(y => ROLES.includes(y)) }));
     if (!grants.length)
         throw Error('Akun belum diberi akses Perjalanan Dinas. Hubungi admin.');
-    return { id: String(u.user_id), name: u.nama, opd: u.opd, grants };
+    // Akun Bendahara murni tidak boleh memperoleh kewenangan di luar OPD asal.
+    const scoped = u.role === 'BENDAHARA'
+        ? grants.filter(g => g.opd === String(u.opd || '')).map(g => ({ opd: g.opd, roles: g.roles.filter(r => r === 'BENDAHARA') })).filter(g => g.roles.length)
+        : grants;
+    if (!scoped.length) throw Error('Akun belum diberi akses Perjalanan Dinas. Hubungi admin.');
+    return { id: String(u.user_id), name: u.nama, opd: u.opd, centralRole: u.role, grants: scoped };
+}
+
+// Daftar akun dan OPD dibaca hanya oleh admin yang berwenang, saat diperlukan.
+function directory_(u, token) {
+    global_(u, ['SUPERADMIN']);
+    if (u.centralRole !== 'ADMIN') throw Error('Daftar akun ORBITA khusus Admin ORBITA.');
+    function request(action) {
+        const response = UrlFetchApp.fetch(ORBITA_URL, {
+            method: 'post', contentType: 'text/plain',
+            payload: JSON.stringify({ action, token }), muteHttpExceptions: true
+        });
+        return JSON.parse(response.getContentText());
+    }
+    let result = request('sppdDirectory');
+    // Kompatibilitas dengan backend ORBITA sebelum penambahan direktori ringan.
+    if (!result.ok && /aksi tidak dikenal/i.test(String(result.error || result.message || ''))) result = request('adminList');
+    if (!result.ok || !result.data) throw Error('Daftar akun ORBITA belum dapat dimuat.');
+    const data = result.data;
+    return {
+        opds: [...new Set((data.opds || data.opdMaster || []).map(o => typeof o === 'string' ? o : o.nama_opd).filter(Boolean))].sort(),
+        users: (data.users || []).filter(x => yes_(x.active)).map(x => ({ id: String(x.user_id || x.id), name: x.nama || x.name, username: x.username, opd: x.opd || '', role: x.role })),
+        access: rows_('M_AKSES').map(({ _row, ...row }) => row)
+    };
 }
 
 function can_(u, opd, roles) {
@@ -388,6 +416,7 @@ function issue_(u, r, d) {
 // Penanganan permintaan frontend
 function route_(u, p) {
     const a = p.action, opd = txt_(p.opd);
+    if (a === 'directory') return directory_(u, p.token);
     if (a === 'init') {
         const offices = rows_('M_OPD').map(o => o.opd);
         const allowed = [...new Set([...u.grants.filter(g => g.roles.some(r => TRIP_ROLES.includes(r) || r === 'SUPERADMIN')).map(g => g.opd).filter(o => o !== '*'), ...offices.filter(o => can_(u, o, TRIP_ROLES))])];
@@ -488,9 +517,11 @@ function route_(u, p) {
         if (a === 'office') {
             require_(u, opd, ['ADMIN_OPD']);
             const x = p.data || {}, v = {};
-            ['name', 'unit', 'address', 'kpaName', 'kpaNip', 'kpaRank', 'kpaTitle', 'pptkName', 'pptkNip', 'bendName', 'bendNip', 'bendTitle'].forEach(k => v[k] = txt_(x[k]));
+            ['name', 'unit', 'address', 'kpaName', 'kpaNip', 'kpaRank', 'kpaTitle', 'pptkName', 'pptkNip', 'bendName', 'bendNip', 'bendTitle', 'bendUserId'].forEach(k => v[k] = txt_(x[k]));
             if (!v.name || !v.unit || !v.kpaName || !v.pptkName || !v.bendName)
                 throw Error('Lengkapi OPD, KPA, PPTK dan bendahara.');
+            if (v.bendUserId && !rows_('M_AKSES').some(r => String(r.user_id) === v.bendUserId && r.opd === opd && yes_(r.active) && String(r.roles).split(',').includes('BENDAHARA')))
+                throw Error('Akun bendahara belum memiliki akses Bendahara pada OPD ini. Atur melalui Hak akses.');
             const old = rows_('M_OPD').find(r => r.opd === opd);
             write_('M_OPD', { opd, json: JSON.stringify(v) }, old && old._row);
             return true;

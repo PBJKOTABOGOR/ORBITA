@@ -153,3 +153,35 @@ tr(bend, 'ARSIP', 'DIBAYAR');
 assert.equal(call(bend, { action: 'detail', id: d.id }).status, 'ARSIP');
 assert.equal(call(op, { action: 'register', opd: 'PBJ', year: '2026' }).length, 1);
 console.log('PASS: setup, impor 2129 SBU, versi, tarif Jakarta, NIP, akses lintas OPD, simpan idempoten, register, SPJ, perbaikan, pembayaran, arsip');
+
+// Direktori akun dan isolasi role Bendahara ORBITA.
+let central = { user_id: 'admin', nama: 'Admin', role: 'ADMIN', active: true, opd: '' };
+let actions = [];
+ctx.UrlFetchApp = { fetch: (_, opts) => {
+    const a = JSON.parse(opts.payload).action;
+    actions.push(a);
+    const response = a === 'me' ? {ok:true,data:central} : a === 'sppdDirectory' ? {ok:false,error:'Aksi tidak dikenal: sppdDirectory'} : {
+        ok:true,data:{opdMaster:[{nama_opd:'PBJ'},{nama_opd:'DINKES'}],users:[{user_id:'bend',nama:'Bendahara Uji',username:'bend',opd:'PBJ',role:'BENDAHARA',active:true,password_hash:'JANGAN DIBAGIKAN'}]}
+    };
+    return {getContentText:()=>JSON.stringify(response)};
+} };
+const realAdmin = run("identity_('token-admin')");
+const directory = call(realAdmin,{action:'directory',token:'token-admin'});
+assert.equal(directory.opds.length,2);
+assert.equal(directory.users[0].id,'bend');
+assert.equal(directory.users[0].password_hash,undefined);
+assert.deepEqual(actions,['me','sppdDirectory','adminList']);
+throws(()=>call(op,{action:'directory',token:'token'}),/khusus admin/);
+call(admin,{action:'grant',userId:'bend',opd:'PBJ',roles:'BENDAHARA'});
+call(admin,{action:'grant',userId:'bend',opd:'OTHER',roles:'BENDAHARA'});
+central = {user_id:'bend',nama:'Bendahara',role:'BENDAHARA',active:true,opd:'PBJ'};
+const scoped = run("identity_('token-bend')");
+assert.equal(scoped.grants.length,1);
+assert.equal(scoped.grants[0].opd,'PBJ');
+throws(()=>call(scoped,{action:'boot',opd:'OTHER',year:'2026'}),/Akses/);
+throws(()=>call(scoped,{action:'office',opd:'PBJ',data:{}}),/Akses/);
+const official={name:'Setda',unit:'PBJ',kpaName:'KPA',pptkName:'PPTK',bendName:'Bendahara',bendUserId:'bend'};
+call(admin,{action:'office',opd:'PBJ',data:official});
+assert.equal(call(admin,{action:'masters',opd:'PBJ'}).office.bendUserId,'bend');
+throws(()=>call(admin,{action:'office',opd:'PBJ',data:{...official,bendUserId:'unknown'}}),/belum memiliki akses/);
+console.log('PASS: direktori admin, fallback API, minimisasi data akun, Bendahara hanya OPD asal, tautan akun terverifikasi');

@@ -1,6 +1,22 @@
-# ORBITA – Perjalanan Dinas | v1.1.1
+# ORBITA – Perjalanan Dinas | v1.1.3
 
-Pembaruan pemeliharaan kode. Tidak mengubah alur kerja, kontrak API, struktur sheet, role, tema, tarif, atau interval sinkronisasi. URL Exec tetap terpasang.
+## Update dari v1.1.2 (tanpa reset database)
+1. Backup Code.gs SPPD yang sedang digunakan. Buka Apps Script khusus spreadsheet SPPD ONLINE, bukan Apps Script Pemilihan ORBITA.
+2. Ganti isi Code.gs dengan `sppd/backend/Code.gs`. Simpan. Deploy > Manage deployments > Edit > New version > Deploy. Pertahankan deployment yang sama agar URL Exec tetap. Tidak perlu menjalankan setupSPPD atau grantFirstAdmin lagi. Tidak ada perubahan header spreadsheet.
+3. Upload hanya folder `sppd` dalam ZIP GITHUB_READY ke root GitHub ORBITA. URL Exec sudah terisi. Tunggu deployment GitHub Pages selesai, lalu Ctrl+F5 di SPPD.
+4. Masuk sebagai Admin ORBITA yang sudah mempunyai SUPERADMIN SPPD. Buka Data OPD & pegawai. Pilih OPD dari master ORBITA, klik Buka data OPD. Tambahkan pegawai pada master, lalu pilih PA/KPA, PPTK dan bendahara. Nama/NIP/pangkat/jabatan yang tersedia diisi otomatis. Tidak semua pegawai otomatis tersedia dari ORBITA; master akun bukan master kepegawaian.
+5. Menu Hak akses: pilih akun dari daftar, OPD dan kewenangan. Hubungkan akun bendahara pada master OPD setelah memberi akses Bendahara pada OPD yang sama. Tautan identitas tidak memberikan hak akses otomatis.
+6. Untuk role BENDAHARA baru di ORBITA induk, gunakan paket PATCH_ROLE_BENDAHARA terpisah setelah membandingkan versi produksi dan menguji. SPPD v1.1.3 bisa diuji dengan akun lama sebelum patch induk. Tidak ada menu SPPD baru di portal.
+
+Direktori diambil saat membuka menu master/hak akses dan disimpan di memori tab. Pencarian berlangsung lokal. Jika API direktori ringan ORBITA belum tersedia, backend mencoba adminList yang telah ada. Daftar hanya diberikan kepada Admin ORBITA yang juga SUPERADMIN SPPD. Sinkronisasi perjalanan tetap 15 detik. Data pegawai yang belum tersedia perlu diisi; tidak dibuat secara fiktif. Akun BENDAHARA baru hanya dapat memperoleh role Bendahara pada OPD asal dan tetap perlu pemberian akses eksplisit pada M_AKSES.
+
+### Riwayat (3 versi terakhir)
+- v1.1.3 — Direktori OPD dan akun, pencarian pilihan, pengisian pejabat dari master pegawai, tautan Bendahara, pembatasan role baru.
+- v1.1.2 — Sesi login, pemulihan akses, pesan koneksi.
+- v1.1.1 — Perapihan kode dan dokumentasi.
+
+### Hasil uji
+Sintaks, backend, cetak, sesi Node dan browser dengan halaman inline/transport simulasi lulus. Navigasi browser ke alamat asli diblokir lingkungan pengujian. Belum diuji dengan deployment produksi. Jangan membuka akses pilot ke publik. Menu disembunyikan bukan pengganti otorisasi.
 
 ## Panduan pemeliharaan
 
@@ -8,7 +24,8 @@ Pembaruan pemeliharaan kode. Tidak mengubah alur kerja, kontrak API, struktur sh
 | --- | --- |
 | `index.html` | Kerangka halaman, sidebar, header, pemuatan aset |
 | `assets/style.css` | Gaya dasar, cetak, tema ORBITA, responsif |
-| `assets/app.js` | Sesi, API, halaman, pipeline, formulir, event, sinkronisasi |
+| `assets/session.js` | Pemulihan sesi, jendela login, klasifikasi kesalahan |
+| `assets/app.js` | API, halaman, pipeline, formulir, event, sinkronisasi |
 | `assets/print.js` | SPD depan, visum, kuitansi, rincian dan perhitungan rampung |
 | `assets/config.js` | URL Exec, interval sinkronisasi dan tautan portal |
 | `backend/Code.gs` | Setup, autentikasi, hak akses, validasi, register, transaksi |
@@ -22,39 +39,17 @@ Pembaruan pemeliharaan kode. Tidak mengubah alur kerja, kontrak API, struktur sh
 - Jangan menyimpan password, token login, NIP pegawai, atau dokumen SPJ ke GitHub. URL Web App bukan pengganti autentikasi.
 - Ubah hanya modul yang diperlukan. Jangan menjalankan setup ulang untuk perubahan tampilan. Jangan mengubah CSS portal induk.
 - Jalankan `node tests/backend.test.cjs` dan `node tests/print.test.cjs` dari folder `sppd` setelah mengubah kode. Uji dengan akun dan data simulasi sebelum deployment produksi.
-- Frontend: unggah folder `sppd` dari paket GITHUB_READY, timpa file modul versi sebelumnya saja. Backend yang sudah terpasang tidak perlu dideploy ulang karena logikanya sama. Gunakan Code.gs yang dirapikan saat melakukan pemeliharaan backend berikutnya.
+- Frontend: unggah folder `sppd` dari paket GITHUB_READY, timpa file modul versi sebelumnya saja. Jika Code.gs berubah, deploy versi baru pada deployment yang sama.
 - Perbarui versi cache pada index.html ketika aset frontend berubah. Jangan menambahkan framework/CDN tanpa kebutuhan yang jelas.
 
-### Riwayat pembaruan (3 terakhir)
 
-- v1.1.1 — Perapihan kode, penanda bagian, panduan pemeliharaan, dan versi cache aset. Uji backend dan cetak dengan mock lulus.
-- v1.1 — Penyesuaian desain dengan ORBITA dan konfigurasi URL Exec.
-- v1.0 — Modul pilot perjalanan dinas, SBU, register dan SPJ.
-
----
-
-# Konfigurasi deployment siap pakai
-
-URL Exec SPPD sudah diisi pada `assets/config.js`. Gunakan paket GITHUB_READY untuk upload folder frontend `sppd/` saja. Backend tidak perlu deploy ulang bila setup sudah selesai.
-
-# Pembaruan V1.1 — Tampilan ORBITA
-
-- Desain mengikuti CSS asli `assets/css/profile.css` dan `assets/css/selection.css` v29.02 pada ORBITA-main (20 November 2026). Palet, logo, sidebar terang, menu aktif per kategori, kartu, tombol dan pipeline diselaraskan. Seluruh aset tetap lokal di dalam `sppd/`.
-- Jika V1.0 sudah dipasang, cukup salin `index.html`, `assets/style.css`, `assets/app.js`, `assets/traxpbj-logo.png`, dan `assets/favicon.png` ke folder `sppd/` yang sama. Pertahankan `assets/config.js` milik deployment Anda. Tidak perlu deploy Apps Script ulang atau setup spreadsheet lagi.
-- Backend, manifest, konfigurasi bawaan, data SBU dan generator cetak identik dengan V1.0. Tidak ada perubahan API, hak akses, penyimpanan, atau interval sinkronisasi 15 detik.
-- Uji browser Chromium dengan API simulasi: ringkasan, navigasi, tambah peserta, kalkulasi, detail pipeline, tampilan mobile. Belum diuji pada deployment produksi.
-
----
-
-# ORBITA – Perjalanan Dinas | v1.0 Pilot
-
-Modul mandiri untuk mengurangi pengisian berulang SPD dan SPJ perjalanan dinas. **Uji dengan akun dan data simulasi sebelum produksi.** Folder ini tidak mengganti file ORBITA yang telah berjalan.
+## Panduan pemasangan baru dan batasan pilot
 
 ## 1. Sebelum pemasangan
 - Backup spreadsheet SPPD ONLINE. Backend menunjuk ke ID yang diberikan: `1TwmlYnZmrauteciEnr6vN8CbiMma7uypg6ZfxvItWlw`. Jika pengujian menggunakan spreadsheet salinan, ganti `DB_ID` pada Code.gs. Jangan gunakan data pribadi pada pengujian.
 - Pastikan hanya pengelola yang berwenang mempunyai akses langsung ke spreadsheet dan folder Drive. Operator/bendahara bekerja melalui aplikasi. Jangan membuat folder arsip dapat diakses publik.
 - Modul menggunakan akun PBJ ORBITA yang sudah ada, dengan token `traxpbj_selection_token` di sessionStorage. Akses SPPD dipisahkan dalam M_AKSES. Admin konten ORBITA (provider content) bukan akun PBJ dan tidak dapat masuk ke modul ini.
-- Untuk pilot, gunakan akun ORBITA yang sudah memiliki kewenangan PBJ yang sah. Jangan membuat akun bendahara baru dengan role PPK/ADMIN hanya agar dapat login. Akun khusus SPPD tanpa akses PBJ membutuhkan penambahan role login tersendiri dan pembatasan API pada backend ORBITA, diuji terpisah. Paket ini sengaja tidak menerapkan perubahan tersebut ke sistem produksi.
+- Akun khusus Bendahara memerlukan patch ORBITA induk terpisah. Jangan menggunakan role PPK/ADMIN untuk akun Bendahara murni.
 
 ## 2. Apps Script khusus SPPD
 1. Buka spreadsheet SPPD ONLINE → Extensions / Ekstensi → Apps Script. Buat project baru/terpisah. Jangan menempel kode ke Apps Script ORBITA lama.
@@ -65,13 +60,13 @@ Modul mandiri untuk mengurangi pengisian berulang SPD dan SPJ perjalanan dinas. 
 6. Salin URL `/exec` hasil deployment ke `assets/config.js` (`apiUrl`). URL Exec ORBITA lama tetap dipakai untuk validasi `me`, tidak diganti.
 
 ## 3. GitHub
-Upload **folder `sppd/`** ke root repository ORBITA, sejajar `profil-pbj/`, `assets/`, dan `admin/`. Jangan mengganti file-file tersebut. Modul dapat dibuka dari `.../ORBITA/sppd/` dalam **tab yang sama** setelah login ORBITA. Bila diminta login, kembali ke portal, masuk dengan akun PBJ, lalu buka modul.
+Upload **folder `sppd/`** ke root repository ORBITA, sejajar `profil-pbj/`, `assets/`, dan `admin/`. Jangan mengganti file-file tersebut. Modul dapat dibuka dari `.../ORBITA/sppd/` dalam **tab yang sama** setelah login ORBITA. Jika tab tidak memiliki sesi, ikuti alur sambung akun di atas.
 
-Opsional: ikuti `integrasi/MENU-ORBITA.md` untuk menambah tautan dari Akses Cepat. Ini satu perubahan kecil pada HTML portal yang terpisah dari modul. Tidak perlu mengunggah ulang repository. Backend Code.gs disalin ke Apps Script, bukan dijalankan oleh GitHub. Tidak ada data pegawai dari Excel contoh yang dibundel di GitHub. Hanya data tarif SBU dan kode aplikasi.
+Selama pilot, jangan tambahkan tautan ke Akses Cepat atau menu portal lain. Backend Code.gs disalin ke Apps Script, bukan dijalankan oleh GitHub. Tidak ada data pegawai dari Excel contoh yang dibundel di GitHub. Hanya data tarif SBU dan kode aplikasi.
 
 ## 4. Penyiapan oleh admin
-- Masuk dengan akun admin yang telah diberi akses. Di Data OPD & pegawai, buat identitas OPD dengan kode/nama yang disepakati (persis sama pada M_AKSES), nama pejabat PA/KPA, PPTK, Bendahara, NIP, alamat dan unit. Isi pegawai; NIP disimpan sebagai teks dalam JSON.
-- Menu Hak akses: masukkan user_id ORBITA, OPD, pilih OPERATOR, BENDAHARA, ADMIN_OPD, ADMIN_SHS, PEMERIKSA sesuai tugas. SUPERADMIN global menggunakan `*`. Admin SHS yang tidak diberi role perjalanan tidak mendapatkan data perjalanan. Satu user dapat memiliki beberapa OPD/role. Jangan beri role superadmin pada akun bendahara biasa.
+- Masuk dengan akun admin yang telah diberi akses. Di Data OPD & pegawai, pilih OPD dari master ORBITA, tambahkan pegawai, pilih penandatangan dari master pegawai dan simpan identitas resmi. Tautkan akun Bendahara setelah aksesnya diberikan. NIP disimpan sebagai teks.
+- Menu Hak akses: pilih akun ORBITA dan OPD, pilih OPERATOR, BENDAHARA, ADMIN_OPD, ADMIN_SHS, PEMERIKSA sesuai tugas. SUPERADMIN global menggunakan `*`. Admin SHS yang tidak diberi role perjalanan tidak mendapatkan data perjalanan. Satu user dapat memiliki beberapa OPD/role. Jangan beri role superadmin pada akun bendahara biasa.
 - Menu Standar biaya: isi tahun, tanggal mulai berlaku dan dasar hukum resmi; impor 2.129 item dari lampiran SBU. Semua masuk sebagai BELUM AKTIF. Periksa dan sesuaikan tarif draft, lalu aktifkan kelompok versi. Dapat menambah item sendiri. Versi sebelumnya tidak dihapus; tarif yang efektif pada tanggal mulai perjalanan yang digunakan. Tarif yang sudah terbit tersimpan di dokumen. SBU lampiran tidak mengidentifikasi dasar hukum/tahun efektif secara eksplisit pada data yang diolah; konfirmasi BKAD sebelum aktivasi. Nama tarif harian luar daerah mengikuti provinsi, bukan membuat tarif per kota tanpa dasar.
 - Register SPD: gunakan nomor manual dari tata usaha/SRIKANDI. Jika tata usaha mengizinkan register internal otomatis, masukkan pola resmi yang memuat `{urut}` dan opsional `{tahun}` serta nomor awal. Tidak ada pola atau klasifikasi surat yang dianggap resmi secara otomatis. Jangan gunakan dua register resmi bersamaan.
 

@@ -1,7 +1,1 @@
-v1.1.1 — Pemeliharaan
-PASS: pemeriksaan sintaks JavaScript dan Code.gs.
-PASS: perbandingan struktur sintaks JS/GS dengan v1.1 (abaikan komentar, format, pemisahan deklarasi identik).
-PASS: selector, deklarasi dan urutan CSS sama; HTML sama kecuali spasi dan versi cache.
-PASS: setup, impor 2129 SBU, versi, tarif Jakarta, NIP, akses lintas OPD, simpan idempoten, register, SPJ, perbaikan, pembayaran, arsip (mock).
-PASS: terbilang, 4 halaman logis, escape teks, rincian rampung (mock).
-Belum diuji ulang di browser atau deployment produksi pada v1.1.1.
+V1.1.3: Sintaks, backend, direktori, hak akses, cetak, sesi Node, browser inline dengan API simulasi lulus. Navigasi asli terblokir; deployment produksi belum diuji.

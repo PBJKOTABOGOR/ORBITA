@@ -34,6 +34,9 @@
     let user;
     let opd = '';
     let offices = [];
+    let directory = null;
+    let directoryError = '';
+    let directoryLoad = null;
     let registerRows = [];
     let boot = { trips: [], masters: { employees: [], office: null, number: [] }, rates: [] };
     let view = 'home';
@@ -178,6 +181,10 @@
         user = null;
         opd = '';
         offices = [];
+        directory = null;
+        directoryError = '';
+        directoryLoad = null;
+        accessRows = [];
         boot = { trips: [], masters: { employees: [], office: null, number: [] }, rates: [] };
         current = null;
         draft = null;
@@ -225,6 +232,31 @@
             let o = typeof x === 'object' ? x : { v: x, l: x };
             return `<option value="${e(o.v)}" ${String(o.v) === String(val) ? 'selected' : ''}>${e(o.l)}</option>`;
         }).join('')}</select></div>`;
+    }
+
+    function searchSelect(label, key, values, value, placeholder = 'Cari nama…') {
+        const options = values.map(x => typeof x === 'object' ? x : { v: x, l: x });
+        return `<div class="field picker"><label for="f-${key}">${e(label)}</label>
+            <input type="search" data-search-select="f-${key}" placeholder="${e(placeholder)}" aria-label="Cari ${e(label)}" autocomplete="off">
+            <select id="f-${key}" name="${key}"><option value="">Pilih ${e(label.toLowerCase())}</option>${options.map(o => `<option value="${e(o.v)}" ${String(o.v) === String(value) ? 'selected' : ''}>${e(o.l)}</option>`).join('')}</select></div>`;
+    }
+
+    function officeChoices() {
+        return [...new Set([...offices, ...(directory?.opds || [])])].sort((a, b) => a.localeCompare(b, 'id'));
+    }
+
+    async function loadDirectory(force = false) {
+        if (!globalRole('SUPERADMIN')) return;
+        if (directory && !force) return;
+        if (directoryLoad) return directoryLoad;
+        const account = user?.id, sessionToken = token();
+        directoryError = '';
+        directoryLoad = api('directory').then(data => {
+            if (user?.id !== account || token() !== sessionToken) return;
+            directory = data;
+            accessRows = data.access || [];
+        }).catch(err => { directoryError = err.message; }).finally(() => { directoryLoad = null; });
+        return directoryLoad;
     }
 
     function btn(text, act, extra = '', cls = '') {
@@ -301,11 +333,11 @@
         }
     }
 
-    async function switchOffice(x) {
+    async function switchOffice(x, targetView = 'home') {
         opd = x;
         epoch++;
         sessionStorage.setItem('orbita_sppd_opd', x);
-        view = 'home';
+        view = targetView;
         current = null;
         draft = null;
         boot = { trips: [], masters: { employees: [], office: null, number: [] }, rates: [] };
@@ -386,7 +418,7 @@
 
     function people() {
         const d = draft, rt = ratesFor(d)[0];
-        $('#people').innerHTML = d.participants.length ? d.participants.map((p, i) => `<div class="person"><div class="section-title"><h3>Peserta ${i + 1}</h3>${btn('Hapus', 'removePerson', `data-i="${i}"`, 'danger small')}</div><div class="grid">${select('Pegawai', `employee-${i}`, boot.masters.employees.map(x => ({ v: x.id, l: x.name + ' · ' + x.nip })), p.employeeId)}${d.mode === 'manual' ? field('Nomor SPD (dapat diisi nanti)', `number-${i}`, p.number) : '<div class="field"><label>Nomor SPD</label><input readonly value="Diisi saat penerbitan"></div>'}<div class="field"><label>Uang harian per hari</label><input readonly value="${rt ? rup(rt.rate) : 'Tarif belum tersedia'}"></div>${field('Uang muka (Rp)', `advance-${i}`, p.advance, 'number', 'min="0" step="1"')}</div><details ${p.costs.some(c => +c.amount > 0) ? 'open' : ''}><summary style="cursor:pointer;margin-top:12px;font-weight:650">Biaya transportasi, penginapan, dan lainnya</summary><div class="grid" style="margin-top:12px">${p.costs.map((c, j) => field(c.label + ' (Rp)', `cost-${i}-${j}`, c.amount, 'number', 'min="0" step="1"') + field('Keterangan / dasar biaya', `note-${i}-${j}`, c.note)).join('')}</div></details><div class="between" style="margin-top:12px"><span class="muted">Subtotal peserta</span><b id="sub-${i}">Rp 0</b></div></div>`).join('') : '<div class="empty">Belum ada peserta. Klik Tambah pegawai.</div>';
+        $('#people').innerHTML = d.participants.length ? d.participants.map((p, i) => `<div class="person"><div class="section-title"><h3>Peserta ${i + 1}</h3>${btn('Hapus', 'removePerson', `data-i="${i}"`, 'danger small')}</div><div class="grid">${searchSelect('Pegawai', `employee-${i}`, boot.masters.employees.map(x => ({ v: x.id, l: x.name + ' · ' + x.nip })), p.employeeId, 'Cari nama atau NIP…')}${d.mode === 'manual' ? field('Nomor SPD (dapat diisi nanti)', `number-${i}`, p.number) : '<div class="field"><label>Nomor SPD</label><input readonly value="Diisi saat penerbitan"></div>'}<div class="field"><label>Uang harian per hari</label><input readonly value="${rt ? rup(rt.rate) : 'Tarif belum tersedia'}"></div>${field('Uang muka (Rp)', `advance-${i}`, p.advance, 'number', 'min="0" step="1"')}</div><details ${p.costs.some(c => +c.amount > 0) ? 'open' : ''}><summary style="cursor:pointer;margin-top:12px;font-weight:650">Biaya transportasi, penginapan, dan lainnya</summary><div class="grid" style="margin-top:12px">${p.costs.map((c, j) => field(c.label + ' (Rp)', `cost-${i}-${j}`, c.amount, 'number', 'min="0" step="1"') + field('Keterangan / dasar biaya', `note-${i}-${j}`, c.note)).join('')}</div></details><div class="between" style="margin-top:12px"><span class="muted">Subtotal peserta</span><b id="sub-${i}">Rp 0</b></div></div>`).join('') : '<div class="empty">Belum ada peserta. Klik Tambah pegawai.</div>';
         totals();
     }
 
@@ -435,7 +467,26 @@
 
     function master() {
         const o = boot.masters.office || {}, cfgNum = boot.masters.number.find(n => String(n.year) === year) || {};
-        return top('Data OPD & pegawai', 'Isi sekali untuk dipakai di seluruh dokumen.') + `<div class="panel"><h2>Identitas OPD dan penandatangan</h2><div class="grid" id="officeForm">${globalRole('SUPERADMIN') ? field('Tambah OPD (isi jika ingin membuat OPD baru)', 'newOpd') : ''}${officeFields.map(([l, k]) => field(l, k, o[k] || '')).join('')}</div><div class="actions" style="margin-top:15px">${btn('Simpan data OPD', 'saveOffice')}</div></div>${opd ? `<div class="panel"><h2>Master pegawai</h2><div class="grid" id="empForm">${field('Nama lengkap', 'name')}${field('NIP', 'nip')}${field('Pangkat / golongan', 'rank')}${field('Jabatan', 'position')}${field('Tingkat biaya perjalanan', 'level')}<input name="id" type="hidden"></div><div class="actions" style="margin-top:15px">${btn('Simpan pegawai', 'saveEmp')}${btn('Kosongkan', 'clearEmp', '', 'ghost')}</div><div class="table-wrap" style="margin-top:15px"><table><thead><tr><th>Nama</th><th>NIP</th><th>Jabatan</th><th></th></tr></thead><tbody>${boot.masters.employees.map(p => `<tr><td>${e(p.name)}</td><td>${e(p.nip)}</td><td>${e(p.position)}</td><td>${btn('Ubah', 'editEmp', `data-id="${e(p.id)}"`, 'ghost small')}</td></tr>`).join('')}</tbody></table></div></div><div class="panel"><h2>Register SPD otomatis</h2><div class="notice">Gunakan pola penomoran yang telah disetujui tata usaha. Jangan membuat register ganda dengan SRIKANDI. Nomor manual tetap dicatat.</div><div class="grid" id="numForm">${field('Tahun', 'year', year, 'number')}${field('Pola nomor (wajib memuat {urut})', 'pattern', cfgNum.pattern || '')}${field('Nomor urut berikutnya', 'next', cfgNum.next || 1, 'number', 'min="1"')}${select('Aktifkan penomoran otomatis', 'enabled', [{ v: 'false', l: 'Tidak, gunakan nomor manual' }, { v: 'true', l: 'Ya, pola telah disahkan' }], String(cfgNum.enabled === true))}</div><div class="actions" style="margin-top:15px">${btn('Simpan register', 'saveNum')}</div></div>` : ''}`;
+        const admin = globalRole('SUPERADMIN');
+        const heading = top('Data OPD & pegawai', 'Pilih OPD, lengkapi pegawai dan penandatangan. Data dipakai kembali di seluruh dokumen.');
+        const chooser = admin ? `<div class="panel"><div class="section-title"><h2>Pilih perangkat daerah</h2>${btn('Perbarui daftar ORBITA', 'reloadDirectory', '', 'ghost small')}</div>
+            <p class="hint">Daftar OPD bersumber dari ORBITA. Pilih OPD untuk membuka atau melengkapi datanya.</p>
+            ${directoryError ? `<p class="notice">${e(directoryError)}</p>` : ''}
+            <div class="grid">${searchSelect('OPD', 'masterOpd', officeChoices(), opd, 'Cari perangkat daerah…')}</div>
+            <div class="actions">${btn('Buka data OPD', 'openMasterOpd')}</div></div>` : '';
+        if (!opd) return heading + chooser + '<div class="panel"><p>Pilih OPD terlebih dahulu untuk menyiapkan data perjalanan dinas.</p></div>';
+        const employees = boot.masters.employees.map(x => ({ v: x.id, l: x.name + ' · ' + x.nip }));
+        const officialPicker = (label, key) => searchSelect(label, key + 'Employee', employees, '', 'Cari pegawai atau NIP…');
+        const eligible = (directory?.users || []).filter(x => x.opd === opd && (x.role === 'BENDAHARA' || (directory.access || []).some(g => String(g.user_id) === x.id && g.opd === opd && (g.active === true || String(g.active).toLowerCase() === 'true') && String(g.roles).split(',').includes('BENDAHARA'))));
+        const linked = eligible.map(x => ({ v: x.id, l: x.name + ' · ' + x.username }));
+        if (o.bendUserId && !linked.some(x => x.v === o.bendUserId)) linked.push({ v: o.bendUserId, l: (o.bendName || 'Akun tersimpan') + ' (tersimpan)' });
+        const group = (prefix, title) => `<div class="wide master-group"><h3>${title}</h3></div>${officialPicker('Pilih ' + title, prefix)}${officeFields.filter(([l,k]) => k.startsWith(prefix)).map(([l,k]) => field(l,k,o[k] || '')).join('')}`;
+        return heading + chooser + `<div class="panel"><h2>Identitas OPD dan penandatangan</h2><p class="hint">Gunakan master pegawai untuk mengisi identitas otomatis. Jika belum ada, lengkapi master pegawai atau isi identitas sesuai data resmi.</p>
+            <div class="grid" id="officeForm">${officeFields.slice(0,3).map(([l,k]) => field(l,k,o[k] || (k === 'name' ? opd : ''))).join('')}
+            ${group('kpa','PA / KPA')}${group('pptk','PPTK')}${group('bend','Bendahara')}
+            ${admin ? searchSelect('Akun ORBITA Bendahara', 'bendUserId', linked, o.bendUserId || '', 'Cari nama atau username…') : `<input type="hidden" name="bendUserId" value="${e(o.bendUserId || '')}">`}
+            <p class="hint wide">Hubungkan akun melalui menu Hak akses terlebih dahulu. Akun yang ditautkan tidak otomatis mendapat akses tambahan.</p></div>
+            <div class="actions" style="margin-top:15px">${btn('Simpan data OPD', 'saveOffice')}</div></div>${opd ? `<div class="panel"><h2>Master pegawai</h2><p class="hint">Tambahkan pegawai sekali. Nama, NIP, pangkat dan jabatan dapat dipilih kembali untuk setiap dokumen.</p><div class="grid" id="empForm">${field('Nama lengkap', 'name').replaceAll('f-name', 'f-emp-name')}${field('NIP', 'nip')}${field('Pangkat / golongan', 'rank')}${field('Jabatan', 'position')}${field('Tingkat biaya perjalanan', 'level')}<input name="id" type="hidden"></div><div class="actions" style="margin-top:15px">${btn('Simpan pegawai', 'saveEmp')}${btn('Kosongkan', 'clearEmp', '', 'ghost')}</div><input type="search" id="employeeSearch" placeholder="Cari nama, NIP atau jabatan pegawai…" style="margin-top:15px"><div class="table-wrap" style="margin-top:15px"><table id="employeeTable"><thead><tr><th>Nama</th><th>NIP</th><th>Jabatan</th><th></th></tr></thead><tbody>${boot.masters.employees.map(p => `<tr><td>${e(p.name)}</td><td>${e(p.nip)}</td><td>${e(p.position)}</td><td>${btn('Ubah', 'editEmp', `data-id="${e(p.id)}"`, 'ghost small')}</td></tr>`).join('')}</tbody></table></div></div><div class="panel"><h2>Register SPD otomatis</h2><div class="notice">Gunakan pola penomoran yang telah disetujui tata usaha. Jangan membuat register ganda dengan SRIKANDI. Nomor manual tetap dicatat.</div><div class="grid" id="numForm">${field('Tahun', 'year', year, 'number')}${field('Pola nomor (wajib memuat {urut})', 'pattern', cfgNum.pattern || '')}${field('Nomor urut berikutnya', 'next', cfgNum.next || 1, 'number', 'min="1"')}${select('Aktifkan penomoran otomatis', 'enabled', [{ v: 'false', l: 'Tidak, gunakan nomor manual' }, { v: 'true', l: 'Ya, pola telah disahkan' }], String(cfgNum.enabled === true))}</div><div class="actions" style="margin-top:15px">${btn('Simpan register', 'saveNum')}</div></div>` : ''}`;
     }
 
     function rates() {
@@ -453,7 +504,15 @@
 
     // Hak akses dan register
     function access() {
-        return top('Hak akses SPPD', 'Gunakan user ID akun ORBITA. Akses pengadaan tidak berubah.') + `<div class="panel"><h2>Tambah atau ubah akses</h2><div class="grid" id="grantForm">${field('User ID ORBITA', 'userId')}${field('OPD (atau * khusus superadmin)', 'opd', opd)}<div class="wide"><label>Pilih kewenangan</label><div class="actions">${roles.map(r => `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto" name="roles" value="${r}">${roleLabels[r]}</label>`).join('')}</div></div>${select('Status akses', 'active', [{ v: 'true', l: 'Aktif' }, { v: 'false', l: 'Nonaktif' }], 'true')}</div>${btn('Simpan hak akses', 'grant')}</div><div class="panel"><h2>Daftar akses</h2><div class="table-wrap"><table><thead><tr><th>User ID</th><th>OPD</th><th>Hak akses</th><th>Status</th></tr></thead><tbody>${accessRows.map(r => `<tr><td>${e(r.user_id)}</td><td>${e(r.opd)}</td><td>${e(r.roles)}</td><td>${r.active ? 'Aktif' : 'Nonaktif'}</td></tr>`).join('')}</tbody></table></div></div>`;
+        const names = new Map((directory?.users || []).map(x => [x.id, x]));
+        const accounts = (directory?.users || []).map(x => ({ v: x.id, l: `${x.name} · ${x.username} · ${x.opd || 'Tanpa OPD'} · ${roleLabels[x.role] || x.role}` }));
+        const choices = [{ v: '*', l: 'Seluruh OPD (khusus superadmin)' }, ...officeChoices()];
+        return top('Hak akses SPPD', 'Pilih akun yang sudah terdaftar di ORBITA, lalu tentukan kewenangannya.', btn('Perbarui daftar ORBITA', 'reloadDirectory', '', 'ghost')) +
+            `<div class="panel"><h2>Tambah atau ubah akses</h2>${directoryError ? `<p class="notice">${e(directoryError)}</p>` : ''}<div class="grid" id="grantForm">
+            ${searchSelect('Akun ORBITA', 'userId', accounts, '', 'Cari nama atau username…')}${searchSelect('OPD', 'opd', choices, opd, 'Cari OPD…')}
+            <div class="wide"><label>Pilih kewenangan</label><div class="actions">${roles.map(r => `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto" name="roles" value="${r}">${roleLabels[r]}</label>`).join('')}</div></div>
+            ${select('Status akses', 'active', [{v:'true',l:'Aktif'},{v:'false',l:'Nonaktif'}], 'true')}</div>${btn('Simpan hak akses', 'grant')}</div>
+            <div class="panel"><h2>Daftar akses</h2><input type="search" id="accessSearch" placeholder="Cari nama, OPD atau role…"><div class="table-wrap"><table id="accessTable"><thead><tr><th>Akun</th><th>OPD</th><th>Hak akses</th><th>Status</th><th></th></tr></thead><tbody>${accessRows.map(r => `<tr><td><b>${e(names.get(String(r.user_id))?.name || r.user_id)}</b><small>${e(names.get(String(r.user_id))?.username || '')}</small></td><td>${e(r.opd)}</td><td>${e(String(r.roles).split(',').map(x => roleLabels[x] || x).join(', '))}</td><td>${r.active === true || String(r.active).toLowerCase() === 'true' ? 'Aktif' : 'Nonaktif'}</td><td>${btn('Ubah', 'editGrant', `data-user="${e(r.user_id)}" data-opd="${e(r.opd)}"`, 'ghost small')}</td></tr>`).join('')}</tbody></table></div></div>`;
     }
 
     function register() {
@@ -540,7 +599,10 @@
         view = v;
         listStatus = '';
         listQuery = '';
-        render();
+        if (['master', 'access'].includes(v) && globalRole('SUPERADMIN') && !directory) {
+            nav();
+            main.innerHTML = '<div class="panel"><p>Memuat daftar OPD dan akun ORBITA…</p><div class="loading-line"><i></i></div></div>';
+        } else render();
         if (v === 'register') {
             try {
                 registerRows = await api('register');
@@ -551,14 +613,12 @@
                 toast(err.message, true);
             }
         }
-        if (v === 'access') {
-            try {
-                accessRows = await api('accessList');
-                if (view === v)
-                    render();
-            }
-            catch (err) {
-                toast(err.message, true);
+        if (['master', 'access'].includes(v) && globalRole('SUPERADMIN')) {
+            if (!directory) {
+                sync('Memuat daftar ORBITA…', true);
+                await loadDirectory();
+                if (view === v) render();
+                if (directory) synced(); else sync('Daftar ORBITA belum dimuat', true);
             }
         }
         if (v === 'rates') {
@@ -576,6 +636,17 @@
     // Event formulir
     main.addEventListener('input', ev => {
         const el = ev.target;
+        if (el.dataset.searchSelect) {
+            const target = document.getElementById(el.dataset.searchSelect);
+            const q = el.value.trim().toLocaleLowerCase('id');
+            if (target) for (const option of target.options) option.hidden = !!option.value && !option.selected && !option.textContent.toLocaleLowerCase('id').includes(q);
+            return;
+        }
+        if (['employeeSearch', 'accessSearch'].includes(el.id)) {
+            const table = $(el.id === 'employeeSearch' ? '#employeeTable' : '#accessTable');
+            if (table) for (const row of table.querySelectorAll('tbody tr')) row.hidden = !row.textContent.toLowerCase().includes(el.value.toLowerCase());
+            return;
+        }
         if (el.id === 'listQuery') {
             listQuery = el.value;
             const focus = el.selectionStart;
@@ -623,6 +694,26 @@
         }
     });
     main.addEventListener('change', ev => {
+        const el = ev.target;
+        if (view === 'master' && /^(kpa|pptk|bend)Employee$/.test(el.name)) {
+            const prefix = el.name.replace('Employee','');
+            const person = boot.masters.employees.find(x => x.id === el.value);
+            if (person) for (const [key, value] of Object.entries({Name:person.name,Nip:person.nip,Rank:person.rank,Title:person.position})) {
+                const field = $('#f-' + prefix + key);
+                if (field) field.value = value || '';
+            }
+        }
+        if (view === 'master' && el.name === 'bendUserId' && el.value) {
+            const account = directory?.users.find(x => x.id === el.value);
+            if (account) $('#f-bendName').value = account.name;
+        }
+        if (view === 'access' && el.name === 'userId') {
+            const account = directory?.users.find(x => x.id === el.value);
+            if (account) {
+                if (account.opd) $('#f-opd').value = account.opd;
+                $('#grantForm').querySelectorAll('input[name="roles"]').forEach(x => x.checked = account.role === 'BENDAHARA' && x.value === 'BENDAHARA');
+            }
+        }
         if (ev.target.id === 'listStatus') {
             listStatus = ev.target.value;
             render();
@@ -823,8 +914,34 @@
                 setTimeout(() => URL.revokeObjectURL(u), 1000);
                 return;
             }
+            if (a === 'reloadDirectory') {
+                await loadDirectory(true);
+                render();
+                if (directoryError) throw Error(directoryError);
+                toast('Daftar ORBITA diperbarui.');
+                return;
+            }
+            if (a === 'openMasterOpd') {
+                const target = $('#f-masterOpd').value;
+                if (!target || !officeChoices().includes(target)) throw Error('Pilih OPD dari daftar.');
+                if (!offices.includes(target)) offices.push(target);
+                await switchOffice(target, 'master');
+                return;
+            }
+            if (a === 'editGrant') {
+                const row = accessRows.find(r => String(r.user_id) === b.dataset.user && r.opd === b.dataset.opd);
+                if (!row) return;
+                if (![...$('#f-userId').options].some(x => x.value === String(row.user_id))) $('#f-userId').add(new Option(String(row.user_id) + ' (akun tersimpan)', String(row.user_id)));
+                if (![...$('#f-opd').options].some(x => x.value === row.opd)) $('#f-opd').add(new Option(row.opd, row.opd));
+                $('#f-userId').value = String(row.user_id);
+                $('#f-opd').value = row.opd;
+                $('#f-active').value = row.active === true || String(row.active).toLowerCase() === 'true' ? 'true' : 'false';
+                $('#grantForm').querySelectorAll('input[name="roles"]').forEach(x => x.checked = String(row.roles).split(',').includes(x.value));
+                $('#grantForm').scrollIntoView({block:'center',behavior:'smooth'});
+                return;
+            }
             if (a === 'saveOffice') {
-                const d = formData('#officeForm'), target = d.newOpd || opd;
+                const d = formData('#officeForm'), target = opd;
                 if (!target)
                     throw Error('Isi identitas OPD.');
                 await api('office', { opd: target, data: d });
@@ -908,8 +1025,12 @@
             }
             if (a === 'grant') {
                 const d = formData('#grantForm'), rs = [...$('#grantForm').querySelectorAll('input[name="roles"]:checked')].map(x => x.value);
+                const account = directory?.users.find(x => x.id === d.userId);
+                if (!d.userId || !d.opd || !rs.length) throw Error('Pilih akun, OPD dan kewenangan.');
+                if (account?.role === 'BENDAHARA' && (d.opd !== account.opd || rs.some(x => x !== 'BENDAHARA'))) throw Error('Akun Bendahara hanya dapat diberi akses Bendahara pada OPD asalnya.');
                 await api('grant', { ...d, roles: rs.join(','), active: d.active === 'true' });
                 accessRows = await api('accessList');
+                if (directory) directory.access = accessRows;
                 render();
                 toast('Hak akses tersimpan.');
                 return;
