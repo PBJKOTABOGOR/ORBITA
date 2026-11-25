@@ -1912,3 +1912,8 @@ td small {
     .budget-meter i { display: block; height: 100%; background: #168b83; border-radius: inherit; }
     .budget-alert { color: #a33131; background: #fff1f0; border-color: #f4b8b2; }
 }
+
+/* Petunjuk persiapan formulir */
+.setup-notice { display: grid; gap: 10px; margin-bottom: 16px; }
+.setup-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.setup-item + .setup-item { border-top: 1px solid currentColor; padding-top: 10px; }

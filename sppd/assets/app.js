@@ -441,13 +441,23 @@
             })) };
     }
 
+    function officeReady() {
+        const office = boot.masters.office;
+        return !!office && ['name', 'kpaName', 'pptkName', 'bendName'].every(key => String(office[key] || '').trim());
+    }
+
+    function preparationNotice() {
+        const items = [];
+        const masterLink = has('ADMIN_OPD') ? btn('Buka Pegawai & pejabat', 'master', '', 'ghost small') : '';
+        if (!officeReady()) items.push(`<div>Nama pejabat belum lengkap. Draft boleh disimpan, tetapi lengkapi pejabat sebelum menerbitkan SPD.</div>${masterLink}`);
+        if (!boot.masters.employees.length) items.push(`<div>Belum ada pegawai. Tambahkan pegawai terlebih dahulu untuk memilih peserta.</div>${masterLink}`);
+        if (!boot.rates.length) items.push(`<div>Tarif SBU tahun ${e(year)} belum aktif. Aktifkan tarif agar biaya dapat dihitung.</div>${globalRole('ADMIN_SHS') ? btn('Buka Standar biaya (SBU)', 'rates', '', 'ghost small') : ''}`);
+        return items.length ? `<div class="notice setup-notice">${items.map(item => `<div class="setup-item">${item}</div>`).join('')}</div>` : '';
+    }
+
     function form() {
-        if (!boot.masters.office)
-            return top('Buat perjalanan dinas', 'Lengkapi master OPD terlebih dahulu.') + '<div class="notice">Identitas OPD dan pejabat belum diatur. Hubungi Admin OPD.</div>';
-        if (!boot.masters.employees.length)
-            return top('Buat perjalanan dinas', 'Master pegawai belum tersedia.') + '<div class="notice">Minta admin menambahkan pegawai terlebih dahulu.</div>';
         const d = draft, provs = [...new Set(boot.rates.map(r => r.name.replace('Uang Harian Perjalanan Dinas Luar Daerah ', '')))].sort();
-        return top(d.id ? 'Ubah draft' : 'Buat perjalanan dinas', 'Isi data sekali. SPD, kuitansi dan rincian biaya disiapkan otomatis.', btn('Kembali', 'list', '', 'ghost')) + `<div class="panel"><h2>1. Informasi perjalanan</h2><div class="grid">${field('Tempat berangkat', 'origin', d.origin)}${field('Kota / kabupaten tujuan', 'destination', d.destination)}${select('Provinsi tujuan', 'province', provs, d.province)}${select('Jenis perjalanan', 'category', ['Luar Kota', 'Diklat'], d.category)}${field('Tanggal berangkat', 'start', d.start, 'date')}${field('Tanggal kembali', 'end', d.end, 'date')}${field('Tanggal SPD', 'issued', d.issued, 'date')}${field('Alat angkutan', 'transport', d.transport)}<div class="wide"><label>Maksud dan tujuan perjalanan</label><textarea name="purpose">${e(d.purpose)}</textarea></div><div class="wide">${searchSelect('Rekening perjalanan dinas / subkegiatan', 'budgetKey', budgetRows().map(b => ({v:b.key,l:b.activity + ' · ' + b.account + ' · ' + b.fundName})), d.budgetKey || '', 'Cari subkegiatan atau kode rekening…')}<div class="notice info" id="budgetHint"></div></div></div><div class="notice info" id="rateHint"></div></div><div class="panel"><div class="section-title"><h2>2. Peserta & rincian biaya</h2>${btn('+ Tambah pegawai', 'addPerson', '', 'ghost')}</div><p>Masukkan biaya per peserta. Biaya kendaraan bersama dicatat pada satu peserta yang bertanggung jawab, jangan digandakan.</p><div id="people"></div><div class="total"><div><small>Total perjalanan</small><div id="daysText"></div></div><strong id="grandTotal">Rp 0</strong></div></div><div class="panel"><h2>3. Penomoran SPD</h2>${select('Cara penomoran', 'mode', [{ v: 'manual', l: 'Manual — dari register resmi' }, { v: 'auto', l: 'Otomatis — register OPD' }], d.mode)}<p>Nomor otomatis hanya tersedia setelah admin mengesahkan pola dan nomor awal. Draft belum memperoleh nomor resmi.</p></div><div class="panel"><h2>4. Surat perintah (opsional)</h2><p>Unggah PDF jika sudah ada. Jika belum, bisa menyusul dari riwayat SPPD.</p><input type="file" id="draftLetter" accept="application/pdf"></div><div class="actions">${btn('Simpan draft', 'saveDraft')}${btn('Batal', 'list', '', 'ghost')}</div>`;
+        return top(d.id ? 'Ubah draft' : 'Buat perjalanan dinas', 'Isi data sekali. SPD, kuitansi dan rincian biaya disiapkan otomatis.', btn('Kembali', 'list', '', 'ghost')) + preparationNotice() + `<div class="panel"><h2>1. Informasi perjalanan</h2><div class="grid">${field('Tempat berangkat', 'origin', d.origin)}${field('Kota / kabupaten tujuan', 'destination', d.destination)}${select('Provinsi tujuan', 'province', provs, d.province)}${select('Jenis perjalanan', 'category', ['Luar Kota', 'Diklat'], d.category)}${field('Tanggal berangkat', 'start', d.start, 'date')}${field('Tanggal kembali', 'end', d.end, 'date')}${field('Tanggal SPD', 'issued', d.issued, 'date')}${field('Alat angkutan', 'transport', d.transport)}<div class="wide"><label>Maksud dan tujuan perjalanan</label><textarea name="purpose">${e(d.purpose)}</textarea></div><div class="wide">${searchSelect('Rekening perjalanan dinas / subkegiatan', 'budgetKey', budgetRows().map(b => ({v:b.key,l:b.activity + ' · ' + b.account + ' · ' + b.fundName})), d.budgetKey || '', 'Cari subkegiatan atau kode rekening…')}<div class="notice info" id="budgetHint"></div></div></div><div class="notice info" id="rateHint"></div></div><div class="panel"><div class="section-title"><h2>2. Peserta & rincian biaya</h2>${btn('+ Tambah pegawai', 'addPerson', '', 'ghost')}</div><p>Masukkan biaya per peserta. Biaya kendaraan bersama dicatat pada satu peserta yang bertanggung jawab, jangan digandakan.</p><div id="people"></div><div class="total"><div><small>Total perjalanan</small><div id="daysText"></div></div><strong id="grandTotal">Rp 0</strong></div></div><div class="panel"><h2>3. Penomoran SPD</h2>${select('Cara penomoran', 'mode', [{ v: 'manual', l: 'Manual — dari register resmi' }, { v: 'auto', l: 'Otomatis — register OPD' }], d.mode)}<p>Nomor otomatis hanya tersedia setelah admin mengesahkan pola dan nomor awal. Draft belum memperoleh nomor resmi.</p></div><div class="panel"><h2>4. Surat perintah (opsional)</h2><p>Unggah PDF jika sudah ada. Jika belum, bisa menyusul dari riwayat SPPD.</p><input type="file" id="draftLetter" accept="application/pdf"></div><div class="actions">${btn('Simpan draft', 'saveDraft')}${btn('Batal', 'list', '', 'ghost')}</div>`;
     }
 
     function people() {
@@ -493,7 +503,7 @@
         if (d.status === 'SIAP_CETAK' && op) action = tr('Lanjut lengkapi berkas', 'SPJ');
         if (d.status === 'SPJ' && op) action = tr('Tandai selesai', 'ARSIP');
         if (['DRAFT', 'SIAP_CETAK', 'SPJ'].includes(d.status) && has('ADMIN_OPD')) action += tr('Batalkan SPD', 'BATAL', 'danger');
-        return top(d.purpose, `${d.destination} · ${date(d.start)} — ${date(d.end)}`, btn('Kembali', 'list', '', 'ghost')) + `<div class="panel"><div class="section-title"><h2>Progres perjalanan</h2>${pill(d.status)}</div>${pipe(d.status)}<p class="hint">${e(d.activity)} · ${e(d.account)} · Dibuat oleh ${e(d.createdBy || '—')}</p><div class="actions">${action}${['SIAP_CETAK', 'SPJ'].includes(d.status) && op ? btn('Sesuaikan biaya riil', 'adjustCosts', '', 'ghost') : ''}</div></div><div class="panel"><div class="section-title"><h2>Dokumen perjalanan</h2>${d.status !== 'BATAL' ? btn('Cetak semua / Simpan PDF', 'print', 'data-kind="all"') : ''}</div><p>${d.status === 'DRAFT' ? 'Pratinjau draft. Terbitkan nomor SPD sebelum menandatangani.' : 'Cetak dokumen, lalu lengkapi tanda tangan dan cap sesuai ketentuan.'}</p><div class="table-wrap"><table><thead><tr><th>Pegawai</th><th>Nomor SPD</th><th>Biaya</th><th>Dokumen</th></tr></thead><tbody>${d.participants.map(p => `<tr><td><b>${e(p.name)}</b><small>${e(p.nip)}</small></td><td>${e(p.number || 'Belum terbit')}</td><td>${rup(p.total)}</td><td><div class="actions">${(d.status === 'BATAL' ? [] : [['SPD', 'spd'], ['Kuitansi', 'receipt'], ['Rincian', 'detail']]).map(([l, k]) => btn(l, 'print', `data-kind="${k}" data-emp="${e(p.employeeId)}"`, 'ghost small')).join('')}</div></td></tr>`).join('')}</tbody></table></div><div class="total"><span>Total biaya perjalanan</span><strong>${rup(d.total)}</strong></div>${d.paymentNote ? `<p>Catatan pembayaran: ${e(d.paymentNote)}</p>` : ''}</div><div class="panel"><h2>Surat perintah & lampiran</h2><p class="hint">Boleh diunggah menyusul. Tidak menghalangi pembuatan SPD.</p><div class="files">${(d.files || []).map(f => `<div class="file"><span>${e(f.name)}</span>${btn('Unduh', 'download', `data-id="${e(f.id)}"`, 'ghost small')}</div>`).join('') || '<p>Belum ada berkas.</p>'}</div>${['DRAFT', 'SIAP_CETAK', 'SPJ', 'ARSIP'].includes(d.status) && op ? `<div class="actions" style="margin-top:15px"><input type="file" id="upload" accept="application/pdf" style="max-width:400px">${btn('Unggah PDF', 'upload')}</div><p class="hint">Surat perintah, SPD bertanda tangan, atau bukti pendukung. PDF maksimal 4 MB per file.</p>` : ''}</div><div class="panel"><h2>Riwayat proses</h2><div class="history">${(d.history || []).slice().reverse().map(h => `<div><b>${e(status[h.action] || h.action)}</b><small>${e(h.actor)} · ${e(h.at)}</small>${h.note ? `<p>${e(h.note)}</p>` : ''}</div>`).join('') || '<p>Belum ada riwayat.</p>'}</div></div>`;
+        return top(d.purpose, `${d.destination} · ${date(d.start)} — ${date(d.end)}`, btn('Kembali', 'list', '', 'ghost')) + `<div class="panel"><div class="section-title"><h2>Progres perjalanan</h2>${pill(d.status)}</div>${pipe(d.status)}${d.status === 'DRAFT' && !officeReady() ? preparationNotice() : ''}<p class="hint">${e(d.activity)} · ${e(d.account)} · Dibuat oleh ${e(d.createdBy || '—')}</p><div class="actions">${action}${['SIAP_CETAK', 'SPJ'].includes(d.status) && op ? btn('Sesuaikan biaya riil', 'adjustCosts', '', 'ghost') : ''}</div></div><div class="panel"><div class="section-title"><h2>Dokumen perjalanan</h2>${d.status !== 'BATAL' ? btn('Cetak semua / Simpan PDF', 'print', 'data-kind="all"') : ''}</div><p>${d.status === 'DRAFT' ? 'Pratinjau draft. Terbitkan nomor SPD sebelum menandatangani.' : 'Cetak dokumen, lalu lengkapi tanda tangan dan cap sesuai ketentuan.'}</p><div class="table-wrap"><table><thead><tr><th>Pegawai</th><th>Nomor SPD</th><th>Biaya</th><th>Dokumen</th></tr></thead><tbody>${d.participants.map(p => `<tr><td><b>${e(p.name)}</b><small>${e(p.nip)}</small></td><td>${e(p.number || 'Belum terbit')}</td><td>${rup(p.total)}</td><td><div class="actions">${(d.status === 'BATAL' ? [] : [['SPD', 'spd'], ['Kuitansi', 'receipt'], ['Rincian', 'detail']]).map(([l, k]) => btn(l, 'print', `data-kind="${k}" data-emp="${e(p.employeeId)}"`, 'ghost small')).join('')}</div></td></tr>`).join('')}</tbody></table></div><div class="total"><span>Total biaya perjalanan</span><strong>${rup(d.total)}</strong></div>${d.paymentNote ? `<p>Catatan pembayaran: ${e(d.paymentNote)}</p>` : ''}</div><div class="panel"><h2>Surat perintah & lampiran</h2><p class="hint">Boleh diunggah menyusul. Tidak menghalangi pembuatan SPD.</p><div class="files">${(d.files || []).map(f => `<div class="file"><span>${e(f.name)}</span>${btn('Unduh', 'download', `data-id="${e(f.id)}"`, 'ghost small')}</div>`).join('') || '<p>Belum ada berkas.</p>'}</div>${['DRAFT', 'SIAP_CETAK', 'SPJ', 'ARSIP'].includes(d.status) && op ? `<div class="actions" style="margin-top:15px"><input type="file" id="upload" accept="application/pdf" style="max-width:400px">${btn('Unggah PDF', 'upload')}</div><p class="hint">Surat perintah, SPD bertanda tangan, atau bukti pendukung. PDF maksimal 4 MB per file.</p>` : ''}</div><div class="panel"><h2>Riwayat proses</h2><div class="history">${(d.history || []).slice().reverse().map(h => `<div><b>${e(status[h.action] || h.action)}</b><small>${e(h.actor)} · ${e(h.at)}</small>${h.note ? `<p>${e(h.note)}</p>` : ''}</div>`).join('') || '<p>Belum ada riwayat.</p>'}</div></div>`;
     }
 
     // Master OPD, pegawai dan SBU
@@ -787,7 +797,7 @@
             if (!openingSession) init();
             return;
         }
-        if (['new', 'list', 'budget'].includes(a)) {
+        if (['new', 'list', 'budget', 'master', 'rates'].includes(a)) {
             go(a);
             return;
         }
@@ -797,6 +807,7 @@
             return;
         }
         if (a === 'addPerson') {
+            if (!boot.masters.employees.length) return toast('Tambahkan pegawai di menu Pegawai & pejabat terlebih dahulu.', true);
             if (draft.participants.length >= 30)
                 return toast('Maksimal 30 peserta per pengajuan.', true);
             draft.participants.push({ employeeId: '', number: '', costs: costLabels.map(label => ({ label, amount: 0, note: '' })), advance: 0 });
@@ -902,6 +913,8 @@
                 return;
             }
             if (a === 'saveDraft') {
+                if (!draft.participants.length || draft.participants.some(p => !p.employeeId)) throw Error('Pilih peserta perjalanan terlebih dahulu.');
+                if (!ratesFor(draft).length) throw Error('Tarif SBU untuk tujuan dan jenis perjalanan belum tersedia.');
                 const file = $('#draftLetter')?.files[0];
                 if (file && (file.size > 4 * 1024 * 1024 || file.type !== 'application/pdf')) throw Error('Surat perintah harus PDF maksimal 4 MB.');
                 const d = await api('save', { id: draft.id, requestId: draft.requestId, expectedUpdated: draft.updated, data: draft });
@@ -1012,7 +1025,7 @@
                     offices.push(target);
                 opd = target;
                 await refreshBoot();
-                toast('Data OPD tersimpan.');
+                toast('Identitas Bagian PBJ dan pejabat tersimpan.');
                 return;
             }
             if (a === 'saveEmp') {
