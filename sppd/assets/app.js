@@ -10,6 +10,17 @@
     const rup = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
     const today = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Jakarta' }).format(new Date());
     const date = s => s ? new Date(s.slice(0, 10) + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+    const historyDate = value => {
+        if (!value) return '—';
+        const raw = String(value).trim();
+        const normalized = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(raw) && !/(Z|[+-]\d{2}:?\d{2})$/i.test(raw)
+            ? raw.replace(' ', 'T') + '+07:00' : raw;
+        const d = new Date(normalized);
+        if (Number.isNaN(d.getTime())) return 'Waktu tidak tercatat';
+        const options = { timeZone: 'Asia/Jakarta' };
+        return d.toLocaleDateString('id-ID', { ...options, day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + d.toLocaleTimeString('id-ID', { ...options, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' WIB';
+    };
+    const displayActor = value => String(value || '—').replace(/\s*\(USR-[^)]+\)\s*$/i, '').trim() || '—';
     const status = {
         DRAFT: 'Draft',
         SIAP_CETAK: 'SPD terbit',
@@ -45,6 +56,8 @@
     let view = 'home';
     let current = null;
     let draft = null;
+    const detailCache = new Map();
+    const DETAIL_CACHE_LIMIT = 40;
     let year = '2026';
     let pending = 0;
     let refreshing = false;
@@ -196,6 +209,7 @@
         accessRows = [];
         boot = { trips: [], masters: { employees: [], office: null, number: [] }, rates: [] };
         current = null;
+        detailCache.clear();
         draft = null;
         formDirty = false;
         epoch++;
@@ -326,7 +340,9 @@
     // Sesi dan ruang kerja OPD
     async function init() {
         if (initializing) return;
-        initialToken = session.restore();
+        const nextToken = session.restore();
+        if (nextToken !== initialToken) detailCache.clear();
+        initialToken = nextToken;
         if (!initialToken) {
             clearWorkspace();
             return fail('Belum ada sesi akun PBJ di tab ini.', 'login');
@@ -357,6 +373,7 @@
         sessionStorage.setItem('orbita_sppd_opd', x);
         view = targetView;
         current = null;
+        detailCache.clear();
         draft = null;
         boot = { trips: [], masters: { employees: [], office: null, number: [] }, rates: [] };
         nav();
@@ -424,11 +441,191 @@
         return { rate: null, message: province ? `Belum ada tarif aktif ${province} untuk ${category || 'jenis perjalanan ini'} pada ${date(d.start)}.` : 'Pilih provinsi tujuan untuk melihat tarif SBU.' };
     }
 
+    // Daftar kota/kabupaten yang sering dipakai. Tarif tetap mengikuti provinsi pada SBU.
+    const destinationRegions = {
+        "DKI Jakarta": [
+            "Jakarta",
+            "Jakarta Pusat",
+            "Jakarta Utara",
+            "Jakarta Barat",
+            "Jakarta Selatan",
+            "Jakarta Timur",
+            "Kabupaten Kepulauan Seribu"
+        ],
+        "Jawa Barat": [
+            "Kota Bandung",
+            "Kota Banjar",
+            "Kota Bekasi",
+            "Kota Bogor",
+            "Kota Cimahi",
+            "Kota Cirebon",
+            "Kota Depok",
+            "Kota Sukabumi",
+            "Kota Tasikmalaya",
+            "Kabupaten Bandung",
+            "Kabupaten Bandung Barat",
+            "Kabupaten Bekasi",
+            "Kabupaten Bogor",
+            "Kabupaten Ciamis",
+            "Kabupaten Cianjur",
+            "Kabupaten Cirebon",
+            "Kabupaten Garut",
+            "Kabupaten Indramayu",
+            "Kabupaten Karawang",
+            "Kabupaten Kuningan",
+            "Kabupaten Majalengka",
+            "Kabupaten Pangandaran",
+            "Kabupaten Purwakarta",
+            "Kabupaten Subang",
+            "Kabupaten Sukabumi",
+            "Kabupaten Sumedang",
+            "Kabupaten Tasikmalaya"
+        ],
+        "Banten": [
+            "Kota Cilegon",
+            "Kota Serang",
+            "Kota Tangerang",
+            "Kota Tangerang Selatan",
+            "Kabupaten Lebak",
+            "Kabupaten Pandeglang",
+            "Kabupaten Serang",
+            "Kabupaten Tangerang"
+        ],
+        "D.I Yogyakarta": [
+            "Kota Yogyakarta",
+            "Kabupaten Bantul",
+            "Kabupaten Gunungkidul",
+            "Kabupaten Kulon Progo",
+            "Kabupaten Sleman"
+        ],
+        "Jawa Tengah": [
+            "Kota Magelang",
+            "Kota Pekalongan",
+            "Kota Salatiga",
+            "Kota Semarang",
+            "Kota Surakarta",
+            "Kota Tegal",
+            "Kabupaten Banjarnegara",
+            "Kabupaten Banyumas",
+            "Kabupaten Batang",
+            "Kabupaten Blora",
+            "Kabupaten Boyolali",
+            "Kabupaten Brebes",
+            "Kabupaten Cilacap",
+            "Kabupaten Demak",
+            "Kabupaten Grobogan",
+            "Kabupaten Jepara",
+            "Kabupaten Karanganyar",
+            "Kabupaten Kebumen",
+            "Kabupaten Kendal",
+            "Kabupaten Klaten",
+            "Kabupaten Kudus",
+            "Kabupaten Magelang",
+            "Kabupaten Pati",
+            "Kabupaten Pekalongan",
+            "Kabupaten Pemalang",
+            "Kabupaten Purbalingga",
+            "Kabupaten Purworejo",
+            "Kabupaten Rembang",
+            "Kabupaten Semarang",
+            "Kabupaten Sragen",
+            "Kabupaten Sukoharjo",
+            "Kabupaten Tegal",
+            "Kabupaten Temanggung",
+            "Kabupaten Wonogiri",
+            "Kabupaten Wonosobo"
+        ],
+        "Jawa Timur": [
+            "Kota Batu",
+            "Kota Blitar",
+            "Kota Kediri",
+            "Kota Madiun",
+            "Kota Malang",
+            "Kota Mojokerto",
+            "Kota Pasuruan",
+            "Kota Probolinggo",
+            "Kota Surabaya",
+            "Kabupaten Bangkalan",
+            "Kabupaten Banyuwangi",
+            "Kabupaten Blitar",
+            "Kabupaten Bojonegoro",
+            "Kabupaten Bondowoso",
+            "Kabupaten Gresik",
+            "Kabupaten Jember",
+            "Kabupaten Jombang",
+            "Kabupaten Kediri",
+            "Kabupaten Lamongan",
+            "Kabupaten Lumajang",
+            "Kabupaten Madiun",
+            "Kabupaten Magetan",
+            "Kabupaten Malang",
+            "Kabupaten Mojokerto",
+            "Kabupaten Nganjuk",
+            "Kabupaten Ngawi",
+            "Kabupaten Pacitan",
+            "Kabupaten Pamekasan",
+            "Kabupaten Pasuruan",
+            "Kabupaten Ponorogo",
+            "Kabupaten Probolinggo",
+            "Kabupaten Sampang",
+            "Kabupaten Sidoarjo",
+            "Kabupaten Situbondo",
+            "Kabupaten Sumenep",
+            "Kabupaten Trenggalek",
+            "Kabupaten Tuban",
+            "Kabupaten Tulungagung"
+        ],
+        "Bali": [
+            "Kota Denpasar",
+            "Kabupaten Badung",
+            "Kabupaten Bangli",
+            "Kabupaten Buleleng",
+            "Kabupaten Gianyar",
+            "Kabupaten Jembrana",
+            "Kabupaten Karangasem",
+            "Kabupaten Klungkung",
+            "Kabupaten Tabanan"
+        ]
+    };
+    function normalizePlace(value) {
+        return String(value || '').trim().toLocaleLowerCase('id').replace(/\s+/g, ' ');
+    }
+    function knownProvince(value) {
+        const name = normalizePlace(value);
+        if (/^(dki jakarta|jakarta|kota jakarta)( |$)/.test(name)) return 'DKI Jakarta';
+        const exact = Object.entries(destinationRegions).filter(([p, cities]) => cities.some(city => normalizePlace(city) === name || normalizePlace(city).replace(/^(kota|kabupaten) /, '') === name));
+        return exact.length === 1 ? exact[0][0] : '';
+    }
     function initialProvince(d, provinces) {
         if (provinces.includes(d.province)) return d.province;
-        const name = String(d.destination || '').trim().toLowerCase();
-        // Hanya cocokkan nama provinsi atau alias Jakarta yang jelas. Tujuan lain dipilih pengguna.
-        return provinces.find(p => p.toLowerCase() === name) || (name === 'jakarta' && provinces.includes('DKI Jakarta') ? 'DKI Jakarta' : '');
+        const inferred = knownProvince(d.destination);
+        return provinces.find(p => normalizePlace(p) === normalizePlace(d.destination)) || (provinces.includes(inferred) ? inferred : '');
+    }
+    function cityOptions(province) {
+        return destinationRegions[province] || [];
+    }
+    function initialCity(d, province) {
+        const name = normalizePlace(d.costCity || d.destination);
+        const cities = cityOptions(province);
+        if (!province) return '';
+        if (!cities.length) return d.costCity || d.destination || '';
+        const exact = cities.find(city => normalizePlace(city) === name);
+        if (exact) return exact;
+        const matches = cities.filter(city => normalizePlace(city).replace(/^(kota|kabupaten) /, '') === name);
+        return matches.length === 1 ? matches[0] : '';
+    }
+    function cityField(province, value) {
+        if (!province) return field('Kota / kabupaten tujuan', 'costCity', '', 'text', 'disabled placeholder="Pilih provinsi dahulu"');
+        const cities = cityOptions(province);
+        if (cities.length) return select('Kota / kabupaten tujuan', 'costCity', cities, value);
+        return field('Kota / kabupaten tujuan', 'costCity', value, 'text', 'placeholder="Isi kota atau kabupaten sesuai SPD"');
+    }
+    function costSelection(d, x) {
+        if (!x.costProvince || !x.costCity?.trim() || !x.costCategory) return { rate: null, message: 'Pilih provinsi, kota/kabupaten dan jenis perjalanan.' };
+        const known = knownProvince(d.destination);
+        const selected = knownProvince(x.costCity);
+        if ((known && known !== x.costProvince) || (selected && selected !== x.costProvince)) return { rate: null, message: 'Provinsi tujuan harus sesuai dengan kota/kabupaten pada SPD. Periksa kembali tujuan perjalanan.' };
+        return dailyRateStatus(d, x.costProvince, x.costCategory);
     }
 
     const costLabels = ['Bensin', 'Tol dan parkir', 'Sewa kendaraan', 'Tiket pesawat', 'Penginapan', 'Lainnya'];
@@ -536,11 +733,9 @@
         const provs = [...new Set(boot.rates.filter(r => String(r.year) === String(d.year)).map(r => r.name.replace('Uang Harian Perjalanan Dinas Luar Daerah ', '')))].sort();
         const province = initialProvince(d, provs);
         const category = d.category || 'Luar Kota';
-        const options = provs.map(p => {
-            const rate = dailyRateStatus(d, p, category).rate;
-            return { v: p, l: p + (rate ? ' · ' + rup(rate.rate) + '/hari' : '') };
-        });
-        const rateFields = first ? `<div class="grid">${select('Provinsi tujuan', 'costProvince', options, province)}${select('Jenis perjalanan', 'costCategory', ['Luar Kota', 'Diklat'], category)}</div><div id="costRateHint" class="notice info"></div>${globalRole('ADMIN_SHS') ? btn('Periksa Standar biaya (SBU)', 'rates', '', 'ghost small') : ''}` : '';
+        const options = provs;
+        const city = initialCity(d, province);
+        const rateFields = first ? `<div class="grid">${select('Provinsi tujuan', 'costProvince', options, province)}<div id="costCityField">${cityField(province, city)}</div>${select('Jenis perjalanan', 'costCategory', ['Luar Kota', 'Diklat'], category)}</div><div id="costRateHint" class="notice info"></div>${globalRole('ADMIN_SHS') ? btn('Periksa Standar biaya (SBU)', 'rates', '', 'ghost small') : ''}` : '';
         return top(first ? 'Buat kuitansi & rincian biaya' : 'Sesuaikan biaya riil', first ? 'SPD sudah terbit. Isi biaya perjalanan untuk setiap peserta.' : 'Nomor SPD dan tarif uang harian tetap. Catat alasan perubahan.', btn('Kembali', 'backDetail', '', 'ghost')) +
             `<div class="panel" id="adjustForm"><h2>${e(d.destination)} · ${d.days} hari</h2>${rateFields}<p>Biaya bersama cukup dicatat pada satu peserta. Isi keterangan untuk setiap biaya tambahan.</p>
             ${d.participants.map((p, i) => `<div class="person"><h3>${e(p.name)} · SPD ${e(p.number)}</h3><p>Uang harian: <b id="daily-${i}">${first ? 'Pilih tarif' : rup(p.daily)}</b></p><div class="grid">${p.costs.map((c, j) => field(c.label + ' (Rp)', `adj-${i}-${j}`, c.amount, 'number', 'min="0" step="1"') + field('Keterangan', `adjNote-${i}-${j}`, c.note)).join('')}${field('Uang muka (Rp)', `adv-${i}`, p.advance, 'number', 'min="0" step="1"')}</div><p>Subtotal: <b id="costSub-${i}">${rup(p.total)}</b></p></div>`).join('')}
@@ -550,15 +745,10 @@
     function updateCostPreview() {
         if (view !== 'adjust' || !$('#adjustForm')) return;
         const d = current, x = formData('#adjustForm'), first = d.costsRecorded === false;
-        const result = first ? dailyRateStatus(d, x.costProvince, x.costCategory) : null;
+        const result = first ? costSelection(d, x) : null;
         const rt = result?.rate;
         if (first) {
             $('#costRateHint').textContent = result.message;
-            for (const option of $('#f-costProvince').options) {
-                if (!option.value) continue;
-                const available = dailyRateStatus(d, option.value, x.costCategory).rate;
-                option.textContent = option.value + (available ? ' · ' + rup(available.rate) + '/hari' : '');
-            }
         }
         let total = 0;
         d.participants.forEach((p, i) => {
@@ -583,7 +773,7 @@
         if (d.status === 'SIAP_CETAK' && op && d.costsRecorded !== false) action = tr('Lanjut lengkapi berkas', 'SPJ');
         if (d.status === 'SPJ' && op && d.costsRecorded !== false) action = tr('Tandai selesai', 'ARSIP');
         if (['DRAFT', 'SIAP_CETAK', 'SPJ'].includes(d.status) && has('ADMIN_OPD')) action += tr('Batalkan SPD', 'BATAL', 'danger');
-        return top(d.purpose, `${d.destination} · ${date(d.start)} — ${date(d.end)}`, btn('Kembali', 'list', '', 'ghost')) + `<div class="panel"><div class="section-title"><h2>Progres perjalanan</h2>${pill(d.status)}</div>${pipe(d.status)}${d.status === 'DRAFT' && !officeReady() ? preparationNotice() : ''}<p class="hint">${e(d.activity)} · ${e(d.account)} · Dibuat oleh ${e(d.createdBy || '—')}</p><div class="actions">${action}${['SIAP_CETAK', 'SPJ'].includes(d.status) && op ? btn(d.costsRecorded === false ? 'Buat kuitansi & rincian biaya' : 'Sesuaikan biaya riil', 'adjustCosts', '', d.costsRecorded === false ? '' : 'ghost') : ''}</div></div><div class="panel"><div class="section-title"><h2>Dokumen perjalanan</h2>${d.status !== 'BATAL' ? btn(d.costsRecorded === false || d.status === 'DRAFT' ? 'Cetak SPD / Simpan PDF' : 'Cetak semua / Simpan PDF', 'print', `data-kind="${d.costsRecorded === false || d.status === 'DRAFT' ? 'spd' : 'all'}"`) : ''}</div><p>${d.status === 'DRAFT' ? 'Pratinjau draft. Terbitkan nomor SPD sebelum menandatangani.' : 'Cetak dokumen, lalu lengkapi tanda tangan dan cap sesuai ketentuan.'}</p><div class="table-wrap"><table><thead><tr><th>Pegawai</th><th>Nomor SPD</th><th>Biaya</th><th>Dokumen</th></tr></thead><tbody>${d.participants.map(p => `<tr><td><b>${e(p.name)}</b><small>${e(p.nip)}</small></td><td>${e(p.number || 'Belum terbit')}</td><td>${d.costsRecorded === false ? 'Belum diisi' : rup(p.total)}</td><td><div class="actions">${(d.status === 'BATAL' ? [] : d.costsRecorded === false || d.status === 'DRAFT' ? [['SPD', 'spd']] : [['SPD', 'spd'], ['Kuitansi', 'receipt'], ['Rincian', 'detail']]).map(([l, k]) => btn(l, 'print', `data-kind="${k}" data-emp="${e(p.employeeId)}"`, 'ghost small')).join('')}</div></td></tr>`).join('')}</tbody></table></div><div class="total"><span>Total biaya perjalanan</span><strong>${d.costsRecorded === false ? 'Belum dicatat' : rup(d.total)}</strong></div>${d.paymentNote ? `<p>Catatan pembayaran: ${e(d.paymentNote)}</p>` : ''}</div><div class="panel"><h2>Surat perintah & lampiran</h2><p class="hint">Boleh diunggah menyusul. Tidak menghalangi pembuatan SPD.</p><div class="files">${(d.files || []).map(f => `<div class="file"><span>${e(f.name)}</span>${btn('Unduh', 'download', `data-id="${e(f.id)}"`, 'ghost small')}</div>`).join('') || '<p>Belum ada berkas.</p>'}</div>${['DRAFT', 'SIAP_CETAK', 'SPJ', 'ARSIP'].includes(d.status) && op ? `<div class="actions" style="margin-top:15px"><input type="file" id="upload" accept="application/pdf" style="max-width:400px">${btn('Unggah PDF', 'upload')}</div><p class="hint">Surat perintah, SPD bertanda tangan, atau bukti pendukung. PDF maksimal 4 MB per file.</p>` : ''}</div><div class="panel"><h2>Riwayat proses</h2><div class="history">${(d.history || []).slice().reverse().map(h => `<div><b>${e(status[h.action] || h.action)}</b><small>${e(h.actor)} · ${e(h.at)}</small>${h.note ? `<p>${e(h.note)}</p>` : ''}</div>`).join('') || '<p>Belum ada riwayat.</p>'}</div></div>`;
+        return top(d.purpose, `${d.destination} · ${date(d.start)} — ${date(d.end)}`, btn('Kembali', 'list', '', 'ghost')) + `<div class="panel"><div class="section-title"><h2>Progres perjalanan</h2>${pill(d.status)}</div>${pipe(d.status)}${d.status === 'DRAFT' && !officeReady() ? preparationNotice() : ''}<p class="hint">${e(d.activity)} · ${e(d.account)} · Dibuat oleh ${e(d.createdBy || '—')}</p><div class="actions">${action}${['SIAP_CETAK', 'SPJ'].includes(d.status) && op ? btn(d.costsRecorded === false ? 'Buat kuitansi & rincian biaya' : 'Sesuaikan biaya riil', 'adjustCosts', '', d.costsRecorded === false ? '' : 'ghost') : ''}</div></div><div class="panel"><div class="section-title"><h2>Dokumen perjalanan</h2>${d.status !== 'BATAL' ? btn(d.costsRecorded === false || d.status === 'DRAFT' ? 'Cetak SPD / Simpan PDF' : 'Cetak semua / Simpan PDF', 'print', `data-kind="${d.costsRecorded === false || d.status === 'DRAFT' ? 'spd' : 'all'}"`) : ''}</div><p>${d.status === 'DRAFT' ? 'Pratinjau draft. Terbitkan nomor SPD sebelum menandatangani.' : 'Cetak dokumen, lalu lengkapi tanda tangan dan cap sesuai ketentuan.'}</p><div class="table-wrap"><table><thead><tr><th>Pegawai</th><th>Nomor SPD</th><th>Biaya</th><th>Dokumen</th></tr></thead><tbody>${d.participants.map(p => `<tr><td><b>${e(p.name)}</b><small>${e(p.nip)}</small></td><td>${e(p.number || 'Belum terbit')}</td><td>${d.costsRecorded === false ? 'Belum diisi' : rup(p.total)}</td><td><div class="actions">${(d.status === 'BATAL' ? [] : d.costsRecorded === false || d.status === 'DRAFT' ? [['SPD', 'spd']] : [['SPD', 'spd'], ['Kuitansi', 'receipt'], ['Rincian', 'detail']]).map(([l, k]) => btn(l, 'print', `data-kind="${k}" data-emp="${e(p.employeeId)}"`, 'ghost small')).join('')}</div></td></tr>`).join('')}</tbody></table></div><div class="total"><span>Total biaya perjalanan</span><strong>${d.costsRecorded === false ? 'Belum dicatat' : rup(d.total)}</strong></div>${d.paymentNote ? `<p>Catatan pembayaran: ${e(d.paymentNote)}</p>` : ''}</div><div class="panel"><h2>Surat perintah & lampiran</h2><p class="hint">Boleh diunggah menyusul. Tidak menghalangi pembuatan SPD.</p><div class="files">${(d.files || []).map(f => `<div class="file"><span>${e(f.name)}</span>${btn('Unduh', 'download', `data-id="${e(f.id)}"`, 'ghost small')}</div>`).join('') || '<p>Belum ada berkas.</p>'}</div>${['DRAFT', 'SIAP_CETAK', 'SPJ', 'ARSIP'].includes(d.status) && op ? `<div class="actions" style="margin-top:15px"><input type="file" id="upload" accept="application/pdf" style="max-width:400px">${btn('Unggah PDF', 'upload')}</div><p class="hint">Surat perintah, SPD bertanda tangan, atau bukti pendukung. PDF maksimal 4 MB per file.</p>` : ''}</div><div class="panel"><h2>Riwayat proses</h2><div class="history">${(d.history || []).slice().reverse().map(h => `<div><b>${e(status[h.action] || h.action)}</b><small>${e(displayActor(h.actor))} · ${e(historyDate(h.at))}</small>${h.note ? `<p>${e(h.note)}</p>` : ''}</div>`).join('') || '<p>Belum ada riwayat.</p>'}</div></div>`;
     }
 
     // Master OPD, pegawai dan SBU
@@ -697,8 +887,29 @@
     }
 
     // Pembacaan dan sinkronisasi data
-    async function loadDetail(id) {
-        const d = await api('detail', { id });
+    function rememberDetail(d) {
+        detailCache.delete(d.id);
+        detailCache.set(d.id, d);
+        if (detailCache.size > DETAIL_CACHE_LIMIT) detailCache.delete(detailCache.keys().next().value);
+    }
+
+    function pruneDetails() {
+        for (const [id, d] of detailCache) {
+            const row = boot.trips.find(x => x.id === id);
+            if (!row || row.updated !== d.updated || row.status !== d.status) detailCache.delete(id);
+        }
+    }
+
+    async function loadDetail(id, force = false) {
+        if (!token() || token() !== initialToken) {
+            detailCache.clear();
+            throw Error('Sesi berganti. Buka kembali dari ORBITA.');
+        }
+        const cached = detailCache.get(id);
+        const summaryRow = boot.trips.find(x => x.id === id);
+        const d = !force && cached && summaryRow?.updated === cached.updated && summaryRow.status === cached.status
+            ? cached : await api('detail', { id });
+        rememberDetail(d);
         current = d;
         const summary = {
             id: d.id,
@@ -729,6 +940,7 @@
             return;
         const changed = JSON.stringify(t) !== JSON.stringify(boot.trips);
         boot.trips = t;
+        pruneDetails();
         if ((changed || response.budget) && ['home', 'list', 'budget'].includes(view))
             render();
         synced();
@@ -736,6 +948,7 @@
 
     async function refreshBoot() {
         boot = await api('boot');
+        pruneDetails();
         render();
         synced();
     }
@@ -864,7 +1077,11 @@
     });
     main.addEventListener('change', ev => {
         const el = ev.target;
-        if (view === 'adjust' && ['costProvince', 'costCategory'].includes(el.name)) { updateCostPreview(); return; }
+        if (view === 'adjust' && ['costProvince', 'costCity', 'costCategory'].includes(el.name)) {
+            if (el.name === 'costProvince') $('#costCityField').innerHTML = cityField(el.value, initialCity(current, el.value));
+            updateCostPreview();
+            return;
+        }
         if (view === 'rates' && el.id === 'f-version') {
             if (pending) { el.value = rateVersion; return; }
             rateImportForm = formData('#rateForm');
@@ -1070,11 +1287,12 @@
                 const x = formData('#adjustForm');
                 const first = current.costsRecorded === false;
                 if (first) {
-                    const result = dailyRateStatus(current, x.costProvince, x.costCategory);
+                    const result = costSelection(current, x);
                     if (!result.rate) throw Error(result.message);
                 }
                 await api(first ? 'recordCosts' : 'reviseCosts', {
                     province: x.costProvince,
+                    costCity: x.costCity,
                     category: x.costCategory,
                     id: current.id,
                     expectedUpdated: current.updated,
@@ -1085,7 +1303,7 @@
                         costs: p.costs.map((c, j) => ({ label: c.label, amount: x['adj-' + i + '-' + j], note: x['adjNote-' + i + '-' + j] }))
                     }))
                 });
-                await loadDetail(current.id);
+                await loadDetail(current.id, true);
                 notify();
                 toast(first ? 'Biaya tersimpan. Kuitansi dan rincian siap dicetak.' : 'Biaya riil disimpan. Cetak ulang rincian dan kuitansi yang sesuai.');
                 return;
@@ -1113,7 +1331,7 @@
                         await api('upload', { id: d.id, name: file.name, mime: 'application/pdf', base64 });
                     } catch (err) { uploadError = 'Draft tersimpan. Surat perintah belum terunggah; coba dari detail.'; }
                 }
-                await loadDetail(d.id);
+                await loadDetail(d.id, true);
                 notify();
                 toast(uploadError || 'Draft tersimpan.', !!uploadError);
                 return;
@@ -1122,7 +1340,7 @@
                 if (!confirm('Terbitkan nomor SPD? Nomor resmi akan tercatat dan draft dikunci.'))
                     return;
                 await api('issue', { id: current.id });
-                await loadDetail(current.id);
+                await loadDetail(current.id, true);
                 notify();
                 toast('Nomor SPD tercatat. Dokumen siap dicetak.');
                 return;
@@ -1143,7 +1361,7 @@
                 else if (to !== 'BATAL' && !confirm('Lanjut ke tahap ' + status[to] + '?'))
                     return;
                 await api('transition', { id: current.id, to, note, confirm: confirmValue, expectedStatus: current.status });
-                await loadDetail(current.id);
+                await loadDetail(current.id, true);
                 notify();
                 toast('Status diperbarui.');
                 return;
@@ -1159,7 +1377,7 @@
                     r.readAsDataURL(f);
                 });
                 await api('upload', { id: current.id, name: f.name, mime: 'application/pdf', base64 });
-                await loadDetail(current.id);
+                await loadDetail(current.id, true);
                 notify();
                 toast('Berkas tersimpan.');
                 return;
@@ -1364,6 +1582,7 @@
             if (result.trips) {
                 const changed = JSON.stringify(result.trips) !== JSON.stringify(boot.trips);
                 boot.trips = result.trips;
+                pruneDetails();
                 if ((changed || result.budget) && ['home', 'list', 'budget'].includes(view))
                     render();
             }
@@ -1372,9 +1591,10 @@
             synced();
             if (view === 'detail' && current) {
                 const item = boot.trips.find(x => x.id === current.id);
-                if (item && item.updated !== current.updated) {
+                if (item && (item.updated !== current.updated || item.status !== current.status)) {
                     const id = current.id, at = epoch, d = await api('detail', { id });
-                    if (view === 'detail' && current.id === id && epoch === at) {
+                    if (view === 'detail' && current.id === id && epoch === at && !pending) {
+                        rememberDetail(d);
                         current = d;
                         render();
                     }
