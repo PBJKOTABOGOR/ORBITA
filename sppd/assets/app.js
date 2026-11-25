@@ -7,6 +7,8 @@
     const token = session.token;
     const escape = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const e = escape;
+    const moneyText = n => String(n ?? '').replace(/\D/g, '').replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const moneyValue = n => String(n ?? '').replace(/\./g, '') || '0';
     const rup = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
     const today = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Jakarta' }).format(new Date());
     const date = s => s ? new Date(s.slice(0, 10) + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -109,18 +111,19 @@
 
     // Dialog aplikasi menggantikan confirm/prompt browser.
     function dialogMessage(message, options = {}) {
-        const { title = 'Konfirmasi', input = false, value = '', accept = 'Lanjutkan', danger = false } = options;
+        const { title = 'Konfirmasi', input = false, value = '', accept = 'Lanjutkan', danger = false, money = false } = options;
         const dialog = document.createElement('dialog');
         dialog.className = 'orbita-dialog';
         dialog.setAttribute('aria-labelledby', 'dialogTitle');
-        dialog.innerHTML = `<form method="dialog"><div class="dialog-head"><span class="dialog-symbol" aria-hidden="true">${danger ? '!' : 'i'}</span><h2 id="dialogTitle">${e(title)}</h2><button type="submit" value="cancel" class="ghost dialog-close" aria-label="Tutup">×</button></div><p>${e(message)}</p>${input ? `<label for="dialogValue">Isian</label><input id="dialogValue" value="${e(value)}" autocomplete="off">` : ''}<div class="dialog-actions"><button type="submit" value="cancel" class="ghost">Batal</button><button type="submit" value="ok" class="${danger ? 'danger' : ''}">${e(accept)}</button></div></form>`;
+        dialog.innerHTML = `<form method="dialog"><div class="dialog-head"><span class="dialog-symbol" aria-hidden="true">${danger ? '!' : 'i'}</span><h2 id="dialogTitle">${e(title)}</h2><button type="submit" value="cancel" class="ghost dialog-close" aria-label="Tutup">×</button></div><p>${e(message)}</p>${input ? `<label for="dialogValue">Isian</label><input id="dialogValue" value="${e(money ? moneyText(value) : value)}" ${money ? 'inputmode="numeric" data-money="1"' : ''} autocomplete="off">` : ''}<div class="dialog-actions"><button type="submit" value="cancel" class="ghost">Batal</button><button type="submit" value="ok" class="${danger ? 'danger' : ''}">${e(accept)}</button></div></form>`;
         document.body.append(dialog);
         return new Promise(resolve => {
             dialog.addEventListener('close', () => {
-                const result = dialog.returnValue === 'ok' ? (input ? dialog.querySelector('input').value : true) : (input ? null : false);
+                const result = dialog.returnValue === 'ok' ? (input ? (money ? moneyValue(dialog.querySelector('input').value) : dialog.querySelector('input').value) : true) : (input ? null : false);
                 dialog.remove();
                 resolve(result);
             }, { once: true });
+            if (money) dialog.querySelector('input').addEventListener('input', ev => formatMoneyInput(ev.target));
             if (input) dialog.querySelector('input').addEventListener('keydown', event => {
                 if (event.key === 'Enter') { event.preventDefault(); dialog.close('ok'); }
             });
@@ -128,7 +131,7 @@
             (input ? dialog.querySelector('input') : dialog.querySelector('.dialog-actions .ghost')).focus();
         });
     }
-    const ask = (message, value = '') => dialogMessage(message, { title: 'Isi keterangan', input: true, value, accept: 'Simpan' });
+    const ask = (message, value = '', money = false) => dialogMessage(message, { title: 'Isi keterangan', input: true, value, money, accept: 'Simpan' });
     const confirmAction = message => dialogMessage(message, { danger: /hapus|pembatalan|tinggalkan/i.test(message) });
     let initialToken = session.restore();
     let openingSession = false;
@@ -242,6 +245,7 @@
                 btn.disabled = false;
                 btn.textContent = old;
             }
+            if (view === 'adjust') updateCostPreview();
         }
     }
 
@@ -307,7 +311,19 @@
     }
 
     function field(label, key, val = '', type = 'text', extra = '') {
-        return `<div class="field"><label for="f-${key}">${e(label)}</label><input id="f-${key}" name="${key}" type="${type}" value="${e(val)}" ${extra}></div>`;
+        const monetary = type === 'number' && /\(Rp\)/i.test(label);
+        return `<div class="field"><label for="f-${key}">${e(label)}</label><input id="f-${key}" name="${key}" type="${monetary ? 'text' : type}" value="${e(monetary ? moneyText(val) : val)}" ${monetary ? 'inputmode="numeric" data-money="1" autocomplete="off"' : extra}></div>`;
+    }
+
+    function formatMoneyInput(el) {
+        const digitsRight = el.value.slice(el.selectionStart ?? el.value.length).replace(/\D/g, '').length;
+        // Nominal rupiah bulat; jangan ubah input negatif atau desimal menjadi nilai lain.
+        if (!/^[\d.]*$/.test(el.value)) { el.value = el.dataset.lastMoney ?? ''; return; }
+        el.value = moneyText(el.value);
+        el.dataset.lastMoney = el.value;
+        let cursor = el.value.length, remaining = digitsRight;
+        while (cursor > 0 && remaining > 0) { if (/\d/.test(el.value[--cursor])) remaining--; }
+        el.setSelectionRange(cursor, cursor);
     }
 
     function select(label, key, vals, val) {
@@ -692,6 +708,8 @@
         const known = knownProvince(d.destination);
         const selected = knownProvince(x.costCity);
         if ((known && known !== x.costProvince) || (selected && selected !== x.costProvince)) return { rate: null, message: 'Provinsi tujuan harus sesuai dengan kota/kabupaten pada SPD. Periksa kembali tujuan perjalanan.' };
+        const exactCity = (cityOptions(x.costProvince)).find(c => normalizePlace(c) === normalizePlace(d.destination));
+        if (exactCity && x.costProvince !== 'DKI Jakarta' && normalizePlace(exactCity) !== normalizePlace(x.costCity)) return { rate: null, message: 'Kota/kabupaten tarif harus sesuai tujuan SPD.' };
         return dailyRateStatus(d, x.costProvince, x.costCategory);
     }
 
@@ -797,17 +815,59 @@
     }
 
     // Detail perjalanan dan penyesuaian biaya
+    const roadCosts = ['Bensin', 'Tol dan parkir', 'Sewa kendaraan'];
+    const roadPrefix = 'biaya transportasi dari kota bogor dengan kendaraan ke ';
+    const flightPrefix = 'Satuan Biaya Tiket Pesawat Perjalanan Dinas Dalam Negeri PP';
+    function eligibleRates(d) {
+        return boot.rates.filter(r => String(r.year) === String(d.year) && r.validFrom && String(r.validFrom).slice(0, 10) <= d.start);
+    }
+    function roadLimit(d, x) {
+        if (d.costsRecorded !== false && d.transportRates?.road) return d.transportRates.road;
+        if (!['bogor', 'kota bogor'].includes(normalizePlace(d.origin))) return null;
+        const city = normalizePlace(x.costCity || d.costCity || d.destination);
+        const province = x.costProvince || d.province || knownProvince(city);
+        const dest = province === 'DKI Jakarta' ? 'dki jakarta' : province === 'Banten' ? 'banten' : city;
+        const r = eligibleRates(d).filter(r => normalizePlace(r.name).startsWith(roadPrefix) && normalizePlace(r.unit) === 'kendaraan' && normalizePlace(r.spec) === dest).sort((a,b) => String(b.validFrom).localeCompare(String(a.validFrom)))[0];
+        return r ? { key:r.key, name:r.name, amount:Number(r.rate), unit:r.unit } : null;
+    }
+    function flightOptions(d) {
+        const newest = new Map();
+        for (const r of eligibleRates(d).filter(r => r.name.startsWith(flightPrefix) && /orang\s*\/\s*pp/i.test(r.unit)).sort((a,b) => String(b.validFrom).localeCompare(String(a.validFrom)))) {
+            const k = r.name + '|' + r.spec;
+            if (!newest.has(k)) newest.set(k,r);
+        }
+        const previous = d.transportRates?.flight;
+        const items = [...newest.values()].map(r => ({v:r.key,l:r.name.replace(flightPrefix,'').trim()+' · '+r.spec+' · '+rup(r.rate)}));
+        if (previous && !items.some(o=>o.v===previous.key)) items.unshift({v:previous.key,l:previous.name.replace(flightPrefix,'').trim()+' · '+previous.spec+' · '+rup(previous.amount)+' (tersimpan)'});
+        return items;
+    }
+    function flightLimit(d,key) {
+        if (d.transportRates?.flight && d.transportRates.flight.key === key) return d.transportRates.flight.amount;
+        const rate = eligibleRates(d).find(r => r.key === key && r.name.startsWith(flightPrefix) && /orang\s*\/\s*pp/i.test(r.unit));
+        return rate ? Number(rate.rate) : null;
+    }
+    function transportPreview(d,x) {
+        const ref = roadLimit(d,x), flight = flightLimit(d,x.flightRateKey), participants = d.participants.map((p,i) => {
+            const costs = p.costs.map((c,j)=>({label:c.label,amount:Math.max(0,Number(x[`adj-${i}-${j}`])||0)}));
+            const road = costs.filter(c=>roadCosts.includes(c.label)).reduce((n,c)=>n+c.amount,0);
+            const ticket = costs.find(c=>c.label==='Tiket pesawat')?.amount || 0;
+            return {road,ticket,flightBad:ticket>0&&(flight===null||ticket>flight)};
+        });
+        const used = participants.reduce((n,p)=>n+p.road,0), roadBad = used>0&&(!ref||used>ref.amount);
+        return {ref,used,roadBad,flight,participants,bad:roadBad||participants.some(p=>p.flightBad)};
+    }
+
     function adjustment() {
         const d = current, first = d.costsRecorded === false;
-        const provs = [...new Set(boot.rates.filter(r => String(r.year) === String(d.year)).map(r => r.name.replace('Uang Harian Perjalanan Dinas Luar Daerah ', '')))].sort();
+        const provs = [...new Set(boot.rates.filter(r => String(r.year) === String(d.year) && r.name.startsWith('Uang Harian Perjalanan Dinas Luar Daerah ')).map(r => r.name.replace('Uang Harian Perjalanan Dinas Luar Daerah ', '')))].sort();
         const province = initialProvince(d, provs);
         const category = d.category || 'Luar Kota';
         const options = provs;
         const city = initialCity(d, province);
         const rateFields = first ? `<div class="grid">${select('Provinsi tujuan', 'costProvince', options, province)}<div id="costCityField">${cityField(province, city)}</div>${select('Jenis perjalanan', 'costCategory', ['Luar Kota', 'Diklat'], category)}</div><div id="costRateHint" class="notice info"></div>${globalRole('ADMIN_SHS') ? btn('Periksa Standar biaya (SBU)', 'rates', '', 'ghost small') : ''}` : '';
         return top(first ? 'Buat kuitansi & rincian biaya' : 'Sesuaikan biaya riil', first ? 'SPD sudah terbit. Isi biaya perjalanan untuk setiap peserta.' : 'Nomor SPD dan tarif uang harian tetap. Catat alasan perubahan.', btn('Kembali', 'backDetail', '', 'ghost')) +
-            `<div class="panel" id="adjustForm"><h2>${e(d.destination)} · ${d.days} hari</h2>${rateFields}<p>Biaya bersama cukup dicatat pada satu peserta. Isi keterangan untuk setiap biaya tambahan.</p>
-            ${d.participants.map((p, i) => `<div class="person"><h3>${e(p.name)} · SPD ${e(p.number)}</h3><p>Uang harian: <b id="daily-${i}">${first ? 'Pilih tarif' : rup(p.daily)}</b></p><div class="grid">${p.costs.map((c, j) => field(c.label + ' (Rp)', `adj-${i}-${j}`, c.amount, 'number', 'min="0" step="1"') + field('Keterangan', `adjNote-${i}-${j}`, c.note)).join('')}${field('Uang muka (Rp)', `adv-${i}`, p.advance, 'number', 'min="0" step="1"')}</div><p>Subtotal: <b id="costSub-${i}">${rup(p.total)}</b></p></div>`).join('')}
+            `<div class="panel" id="adjustForm"><h2>${e(d.destination)} · ${d.days} hari</h2>${rateFields}<div id="transportSummary" class="notice info"></div><div class="grid">${searchSelect('Referensi tiket pesawat (jika digunakan)', 'flightRateKey', flightOptions(d), d.transportRates?.flight?.key || '', 'Cari rute atau kelas tiket…')}</div><p id="flightSummary" class="hint"></p><p class="hint">Bensin, tol/parkir dan sewa kendaraan dihitung bersama untuk satu kendaraan. Tiket pesawat memakai tarif per orang/PP. Biaya bersama cukup dicatat pada satu peserta.</p>
+            ${d.participants.map((p, i) => `<div class="person"><h3>${e(p.name)} · SPD ${e(p.number)}</h3><p>Uang harian: <b id="daily-${i}">${first ? 'Pilih tarif' : rup(p.daily)}</b></p><div class="grid">${p.costs.map((c, j) => field(c.label + ' (Rp)', `adj-${i}-${j}`, c.amount, 'number', 'min="0" step="1"') + field('Keterangan', `adjNote-${i}-${j}`, c.note)).join('')}</div><p id="costWarning-${i}" class="hint"></p><p>Subtotal: <b id="costSub-${i}">${rup(p.total)}</b></p></div>`).join('')}
             ${first ? '' : field('Alasan perubahan', 'reason')}<div class="total"><span>Total biaya perjalanan</span><strong id="costTotal">${rup(d.total)}</strong></div><p id="costBudget" class="hint"></p>${btn(first ? 'Simpan biaya & siapkan kuitansi' : 'Simpan biaya riil', 'saveAdjustment')}</div>`;
     }
 
@@ -819,19 +879,34 @@
         if (first) {
             $('#costRateHint').textContent = result.message;
         }
+        const limits = transportPreview(d,x);
+        const box = $('#transportSummary');
+        box.textContent = limits.ref ? `Batas transportasi per kendaraan: ${rup(limits.ref.amount)} · Terpakai: ${rup(limits.used)} · ${limits.roadBad ? 'Melebihi batas: '+rup(limits.used-limits.ref.amount) : 'Sisa: '+rup(limits.ref.amount-limits.used)}` : 'Batas transportasi kendaraan belum ditemukan untuk tujuan ini. Biaya kendaraan tidak dapat disimpan tanpa tarif yang sesuai.';
+        box.classList.toggle('budget-alert',limits.roadBad);
+        $('#flightSummary').textContent = limits.flight === null ? 'Pilih rute dan kelas hanya jika menggunakan tiket pesawat.' : 'Batas tiket pesawat: ' + rup(limits.flight) + ' per orang/PP. Tidak mengurangi batas kendaraan.';
         let total = 0;
         d.participants.forEach((p, i) => {
             const daily = first ? d.days * (rt?.rate || 0) : p.daily;
             const subtotal = daily + p.costs.reduce((n, c, j) => n + Math.max(0, Number(x[`adj-${i}-${j}`]) || 0), 0);
             $(`#daily-${i}`).textContent = first && !rt ? 'Tarif belum tersedia' : rup(daily);
+            const bad = (limits.roadBad && limits.participants[i].road>0) || limits.participants[i].flightBad;
             $(`#costSub-${i}`).textContent = rup(subtotal);
+            $(`#costSub-${i}`).classList.toggle('money-over', bad);
+            const warning = $(`#costWarning-${i}`);
+            warning.textContent = limits.participants[i].flightBad ? 'Tiket pesawat melebihi tarif atau referensi belum dipilih.' : bad ? 'Biaya kendaraan melebihi batas SBU atau tarif belum tersedia.' : '';
+            warning.classList.toggle('money-over',bad);
             total += subtotal;
         });
         $('#costTotal').textContent = first && !rt ? 'Belum lengkap' : rup(total);
+        $('#costTotal').classList.toggle('money-over',limits.bad);
         const b = budgetRows().find(b => b.key === d.budgetKey);
         const before = b ? b.remaining + (first ? 0 : Number(d.total || 0)) : 0;
         $('#costBudget').textContent = b?.confirmed && !boot.budget?.unmatched ? `Sisa sebelum biaya ini: ${rup(before)}${first && !rt ? '' : ' · Sisa setelah biaya disimpan: ' + rup(before - total)}` : 'Pemakaian awal atau rekening belum dipastikan admin.';
-        $('#costBudget').classList.toggle('budget-alert', !!b?.confirmed && (!first || !!rt) && total > before);
+        const overBudget = !!b?.confirmed && (!first || !!rt) && total > before;
+        $('#costBudget').classList.toggle('budget-alert', overBudget);
+        $('#costTotal').classList.toggle('money-over',limits.bad || overBudget);
+        const save = $('#adjustForm [data-act="saveAdjustment"]');
+        if (save) save.disabled = limits.bad || overBudget || (first && !rt);
     }
 
     function detail() {
@@ -963,7 +1038,7 @@
         const o = {};
         $(id).querySelectorAll('input,select,textarea').forEach(el => {
             if (el.type !== 'checkbox')
-                o[el.name] = el.value;
+                o[el.name] = el.dataset.money ? moneyValue(el.value) : el.value;
         });
         return o;
     }
@@ -1096,13 +1171,14 @@
     // Event formulir
     main.addEventListener('input', ev => {
         const el = ev.target;
-        if (view === 'adjust') { updateCostPreview(); return; }
+        if (el.dataset.money) formatMoneyInput(el);
         if (el.dataset.searchSelect) {
             const target = document.getElementById(el.dataset.searchSelect);
             const q = el.value.trim().toLocaleLowerCase('id');
             if (target) for (const option of target.options) option.hidden = !!option.value && !option.selected && !option.textContent.toLocaleLowerCase('id').includes(q);
             return;
         }
+        if (view === 'adjust') { updateCostPreview(); return; }
         if (el.id === 'employeeSearch') {
             employeeQuery = el.value;
             pages.employees.page = 1;
@@ -1173,7 +1249,7 @@
             if (p && p.sizes.includes(size)) { p.size = size; p.page = 1; updatePage(key); }
             return;
         }
-        if (view === 'adjust' && ['costProvince', 'costCity', 'costCategory'].includes(el.name)) {
+        if (view === 'adjust' && ['costProvince', 'costCity', 'costCategory', 'flightRateKey'].includes(el.name)) {
             if (el.name === 'costProvince') $('#costCityField').innerHTML = cityField(el.value, initialCity(current, el.value));
             updateCostPreview();
             return;
@@ -1382,9 +1458,9 @@
             if (a === 'openingBudget') {
                 const item = budgetRows().find(x => x.key === id);
                 if (!item) return;
-                const amount = await ask('Pemakaian sebelum aplikasi (rupiah, isi 0 bila belum ada):', String(item.opening));
+                const amount = await ask('Pemakaian sebelum aplikasi (rupiah, isi 0 bila belum ada):', String(item.opening), true);
                 if (amount === null) return;
-                if (!/^\d+$/.test(amount.trim())) throw Error('Isi angka rupiah tanpa titik atau koma.');
+                if (!/^\d+$/.test(amount.trim())) throw Error('Isi nominal rupiah yang valid.');
                 const note = await ask('Keterangan / tanggal posisi pemakaian:', item.openingNote || '');
                 if (!note?.trim() || !await confirmAction('Simpan pemakaian awal? Jangan hitung ulang SPD yang sudah tercatat di aplikasi.')) return;
                 await api('openingBudget', { key: id, amount: Number(amount), note, confirm: true });
@@ -1404,7 +1480,9 @@
                     const result = costSelection(current, x);
                     if (!result.rate) throw Error(result.message);
                 }
+                if (transportPreview(current,x).bad) throw Error('Periksa batas transportasi atau referensi tiket pesawat.');
                 await api(first ? 'recordCosts' : 'reviseCosts', {
+                    flightRateKey: x.flightRateKey,
                     province: x.costProvince,
                     costCity: x.costCity,
                     category: x.costCategory,
@@ -1413,7 +1491,6 @@
                     note: x.reason,
                     participants: current.participants.map((p, i) => ({
                         employeeId: p.employeeId,
-                        advance: x['adv-' + i],
                         costs: p.costs.map((c, j) => ({ label: c.label, amount: x['adj-' + i + '-' + j], note: x['adjNote-' + i + '-' + j] }))
                     }))
                 });
@@ -1658,7 +1735,7 @@
             }
             if (a === 'editRate') {
                 const row = rateRows.find(r => r.key === id);
-                const v = await ask('Tarif baru (angka rupiah):', String(row.rate));
+                const v = await ask('Tarif baru (angka rupiah):', String(row.rate), true);
                 if (v === null)
                     return;
                 await api('rateEdit', { key: id, rate: v });

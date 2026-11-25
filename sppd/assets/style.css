@@ -1971,3 +1971,6 @@ td small {
     }
 }
 @media print { .orbita-dialog { display: none !important; } }
+
+/* Peringatan biaya melebihi batas */
+.money-over, .total strong.money-over { color: #b4232c !important; font-weight: 700; }
