@@ -1,0 +1,1 @@
+V1.2.1 — PASS: sintaks, backend simulasi, format SIPD terbaru, pengelompokan PBJ, penolakan tahun lain, saldo awal, alokasi, pembatalan, perubahan pagu, penyimpanan, cetak dan sesi Node. Uji browser berhenti karena batas waktu; belum lulus. Deployment produksi belum diuji.
