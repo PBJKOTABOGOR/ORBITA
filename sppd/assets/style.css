@@ -1974,3 +1974,10 @@ td small {
 
 /* Peringatan biaya melebihi batas */
 .money-over, .total strong.money-over { color: #b4232c !important; font-weight: 700; }
+
+/* Rincian perjalanan: saldo kendaraan dan uang harian. */
+.cost-line { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #dce8ee; }
+.cost-line-fields { flex:1; min-width:0; }
+.transport-balance { padding:10px 12px; background:#eaf6f7; border-radius:9px; color:#125d65; }
+.cost-daily { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px; margin-top:12px; background:#edf5fa; border-radius:9px; }
+@media(max-width:650px){ .cost-line { align-items:flex-start; } .cost-daily { flex-wrap:wrap; } }
