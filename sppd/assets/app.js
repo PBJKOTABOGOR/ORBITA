@@ -415,6 +415,22 @@
     function ratesFor(d) {
         return boot.rates.filter(r => String(r.year) === d.start.slice(0, 4) && String(r.validFrom) <= d.start && r.name === 'Uang Harian Perjalanan Dinas Luar Daerah ' + d.province && r.spec === d.category).sort((a, b) => String(b.validFrom).localeCompare(String(a.validFrom)));
     }
+    function dailyRateStatus(d, province, category) {
+        const exact = boot.rates.filter(r => String(r.year) === String(d.year) && r.name === 'Uang Harian Perjalanan Dinas Luar Daerah ' + province && r.spec === category);
+        const rate = ratesFor({ ...d, province, category })[0];
+        const future = exact.filter(r => String(r.validFrom) > d.start).sort((a, b) => String(a.validFrom).localeCompare(String(b.validFrom)))[0];
+        if (rate) return { rate, message: `Uang harian: ${rup(rate.rate)} / orang / hari · ${d.days} hari = ${rup(rate.rate * d.days)} per pegawai. SBU berlaku sejak ${date(rate.validFrom)}.` };
+        if (future) return { rate: null, message: `Tarif ${province} tersedia (${rup(future.rate)}/hari), tetapi baru berlaku ${date(future.validFrom)}. Perjalanan tanggal ${date(d.start)} belum tercakup. Periksa tanggal berlaku di menu SBU.` };
+        return { rate: null, message: province ? `Belum ada tarif aktif ${province} untuk ${category || 'jenis perjalanan ini'} pada ${date(d.start)}.` : 'Pilih provinsi tujuan untuk melihat tarif SBU.' };
+    }
+
+    function initialProvince(d, provinces) {
+        if (provinces.includes(d.province)) return d.province;
+        const name = String(d.destination || '').trim().toLowerCase();
+        // Hanya cocokkan nama provinsi atau alias Jakarta yang jelas. Tujuan lain dipilih pengguna.
+        return provinces.find(p => p.toLowerCase() === name) || (name === 'jakarta' && provinces.includes('DKI Jakarta') ? 'DKI Jakarta' : '');
+    }
+
     const costLabels = ['Bensin', 'Tol dan parkir', 'Sewa kendaraan', 'Tiket pesawat', 'Penginapan', 'Lainnya'];
 
     function newDraft() {
@@ -518,7 +534,13 @@
     function adjustment() {
         const d = current, first = d.costsRecorded === false;
         const provs = [...new Set(boot.rates.filter(r => String(r.year) === String(d.year)).map(r => r.name.replace('Uang Harian Perjalanan Dinas Luar Daerah ', '')))].sort();
-        const rateFields = first ? `<div class="grid">${select('Provinsi tujuan', 'costProvince', provs, d.province)}${select('Jenis perjalanan', 'costCategory', ['Luar Kota', 'Diklat'], d.category || 'Luar Kota')}</div><div id="costRateHint" class="notice info"></div>${!provs.length && globalRole('ADMIN_SHS') ? btn('Buka Standar biaya (SBU)', 'rates', '', 'ghost small') : ''}` : '';
+        const province = initialProvince(d, provs);
+        const category = d.category || 'Luar Kota';
+        const options = provs.map(p => {
+            const rate = dailyRateStatus(d, p, category).rate;
+            return { v: p, l: p + (rate ? ' · ' + rup(rate.rate) + '/hari' : '') };
+        });
+        const rateFields = first ? `<div class="grid">${select('Provinsi tujuan', 'costProvince', options, province)}${select('Jenis perjalanan', 'costCategory', ['Luar Kota', 'Diklat'], category)}</div><div id="costRateHint" class="notice info"></div>${globalRole('ADMIN_SHS') ? btn('Periksa Standar biaya (SBU)', 'rates', '', 'ghost small') : ''}` : '';
         return top(first ? 'Buat kuitansi & rincian biaya' : 'Sesuaikan biaya riil', first ? 'SPD sudah terbit. Isi biaya perjalanan untuk setiap peserta.' : 'Nomor SPD dan tarif uang harian tetap. Catat alasan perubahan.', btn('Kembali', 'backDetail', '', 'ghost')) +
             `<div class="panel" id="adjustForm"><h2>${e(d.destination)} · ${d.days} hari</h2>${rateFields}<p>Biaya bersama cukup dicatat pada satu peserta. Isi keterangan untuk setiap biaya tambahan.</p>
             ${d.participants.map((p, i) => `<div class="person"><h3>${e(p.name)} · SPD ${e(p.number)}</h3><p>Uang harian: <b id="daily-${i}">${first ? 'Pilih tarif' : rup(p.daily)}</b></p><div class="grid">${p.costs.map((c, j) => field(c.label + ' (Rp)', `adj-${i}-${j}`, c.amount, 'number', 'min="0" step="1"') + field('Keterangan', `adjNote-${i}-${j}`, c.note)).join('')}${field('Uang muka (Rp)', `adv-${i}`, p.advance, 'number', 'min="0" step="1"')}</div><p>Subtotal: <b id="costSub-${i}">${rup(p.total)}</b></p></div>`).join('')}
@@ -528,8 +550,16 @@
     function updateCostPreview() {
         if (view !== 'adjust' || !$('#adjustForm')) return;
         const d = current, x = formData('#adjustForm'), first = d.costsRecorded === false;
-        const rt = first ? ratesFor({ ...d, province: x.costProvince, category: x.costCategory })[0] : null;
-        if (first) $('#costRateHint').textContent = rt ? `Uang harian: ${rup(rt.rate)} / orang / hari · ${rt.source}` : 'Pilih provinsi dan jenis perjalanan. Tarif SBU harus aktif untuk tanggal perjalanan.';
+        const result = first ? dailyRateStatus(d, x.costProvince, x.costCategory) : null;
+        const rt = result?.rate;
+        if (first) {
+            $('#costRateHint').textContent = result.message;
+            for (const option of $('#f-costProvince').options) {
+                if (!option.value) continue;
+                const available = dailyRateStatus(d, option.value, x.costCategory).rate;
+                option.textContent = option.value + (available ? ' · ' + rup(available.rate) + '/hari' : '');
+            }
+        }
         let total = 0;
         d.participants.forEach((p, i) => {
             const daily = first ? d.days * (rt?.rate || 0) : p.daily;
@@ -603,7 +633,8 @@
                         ${btn('Ubah nama versi', 'renameRateVersion', '', 'ghost')}
                         ${btn('Hapus versi tarif', 'deleteRateVersion', '', 'ghost danger')}
                     </div>
-                    <p class="hint">Nama versi dapat diubah tanpa mengganti dasar hukum. Versi yang sudah dipakai pada SPPD atau draft tidak dapat dihapus.</p>` : ''}
+                    <div class="grid" style="margin-top:12px">${field('Tanggal mulai berlaku yang benar', 'correctRateDate', selected.validFrom, 'date')}<div class="actions" style="align-self:end">${btn('Koreksi tanggal berlaku', 'changeRateDate', '', 'ghost')}</div></div>
+                    <p class="hint">Nama versi dapat diubah tanpa mengganti dasar hukum. Tanggal berlaku hanya boleh dikoreksi sesuai dokumen resmi apabila versi belum dipakai.</p>${selected.validFrom > today() ? `<div class="notice">Tarif baru berlaku ${date(selected.validFrom)}, bukan berlaku sampai tanggal itu.</div>` : ''}` : ''}
             </div>
             <div class="panel">
                 <div class="section-title"><h2>Daftar tarif</h2><span class="hint">${shown.length} dari ${rateRows.length} item</span></div>
@@ -833,6 +864,7 @@
     });
     main.addEventListener('change', ev => {
         const el = ev.target;
+        if (view === 'adjust' && ['costProvince', 'costCategory'].includes(el.name)) { updateCostPreview(); return; }
         if (view === 'rates' && el.id === 'f-version') {
             if (pending) { el.value = rateVersion; return; }
             rateImportForm = formData('#rateForm');
@@ -1037,6 +1069,10 @@
             if (a === 'saveAdjustment') {
                 const x = formData('#adjustForm');
                 const first = current.costsRecorded === false;
+                if (first) {
+                    const result = dailyRateStatus(current, x.costProvince, x.costCategory);
+                    if (!result.rate) throw Error(result.message);
+                }
                 await api(first ? 'recordCosts' : 'reviseCosts', {
                     province: x.costProvince,
                     category: x.costCategory,
@@ -1238,7 +1274,7 @@
                 toast(result.added + ' item ditambahkan. Pilih versi di bawah untuk mengaktifkan.');
                 return;
             }
-            if (['activateRates', 'renameRateVersion', 'deleteRateVersion'].includes(a)) {
+            if (['activateRates', 'renameRateVersion', 'deleteRateVersion', 'changeRateDate'].includes(a)) {
                 const selected = rateVersions.find(r => r.validFrom === rateVersion);
                 if (!selected) throw Error('Pilih versi tarif terlebih dahulu.');
                 const payload = { year: rateYear, validFrom: selected.validFrom };
@@ -1251,6 +1287,19 @@
                     await loadRateCatalog(payload.year, payload.validFrom);
                     render();
                     toast('Nama versi tarif diperbarui.');
+                    return;
+                }
+                if (a === 'changeRateDate') {
+                    const newValidFrom = $('#f-correctRateDate').value;
+                    if (newValidFrom === selected.validFrom) { toast('Tanggal berlaku masih sama.'); return; }
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(newValidFrom)) throw Error('Gunakan format tahun-bulan-tanggal, misalnya 2026-01-01.');
+                    if (!confirm('Koreksi tanggal berlaku versi ini sesuai dokumen resmi?')) return;
+                    const result = await api(a, { ...payload, newValidFrom, confirm: true });
+                    await loadRateCatalog(payload.year, result.validFrom);
+                    if (opd && payload.year === year) boot.rates = (await api('boot')).rates;
+                    render();
+                    notify();
+                    toast('Tanggal berlaku SBU diperbarui.');
                     return;
                 }
                 if (a === 'deleteRateVersion') {
