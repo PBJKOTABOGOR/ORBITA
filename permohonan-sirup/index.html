@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="id">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="#f6f8fc" name="theme-color"/>
+  <title>
+   Permohonan SiRUP | ORBITA PBJ
+  </title>
+  <link href="../assets/img/favicon.png" rel="icon"/>
+  <link href="permohonan.css?v=29.34" rel="stylesheet"/>
+  <link href="workspace.css?v=29.34" rel="stylesheet"/>
+ </head>
+ <body>
+  <header class="app-top">
+   <div class="container top-inner">
+    <a class="brand" href="../profil-pbj/">
+     <img alt="" class="logo-mark" height="38" src="../assets/img/traxpbj-logo.png" width="38"/>
+     <span>
+      <b>
+       ORBITA PBJ
+      </b>
+      <small>
+       Permohonan SiRUP
+      </small>
+     </span>
+    </a>
+    <div class="top-actions">
+     <span id="currentUser">
+      Memeriksa akun…
+     </span>
+     <span class="role-tag" hidden="" id="roleLabel">
+     </span>
+     <a class="back" href="../profil-pbj/">
+      ← ORBITA
+     </a>
+    </div>
+   </div>
+  </header>
+  <main class="container">
+   <div class="heading">
+    <div>
+     <small class="eyebrow">
+      PERENCANAAN PENGADAAN · KOTA BOGOR
+     </small>
+     <h1 id="pageTitle">
+      Permohonan SiRUP
+     </h1>
+     <p id="pageDescription">
+      Ajukan perubahan RUP dan pantau hasil pemeriksaan.
+     </p>
+    </div>
+   </div>
+   <div class="message" id="feedback" role="status">
+    Membuka data Permohonan SiRUP…
+   </div>
+   <div class="load-status" hidden="" id="loadStatus" role="status">
+    <strong id="loadStatusPercent">
+     0%
+    </strong>
+    <span id="loadStatusText">
+     Memeriksa sesi…
+    </span>
+    <button class="mini-btn" hidden="" id="loadRetry" type="button">
+     Coba lagi
+    </button>
+    <div class="load-status-track">
+     <i id="loadStatusBar">
+     </i>
+    </div>
+   </div>
+   <section hidden="" id="workspace">
+    <nav aria-label="Ruang kerja SiRUP" class="tabs workspace-nav">
+     <span class="nav-label">
+      RUANG KERJA
+     </span>
+     <button aria-current="page" class="active" data-tab="ringkasan" type="button">
+      <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewbox="0 0 24 24">
+       <rect height="7" rx="1" width="7" x="3" y="3">
+       </rect>
+       <rect height="7" rx="1" width="7" x="14" y="3">
+       </rect>
+       <rect height="7" rx="1" width="7" x="3" y="14">
+       </rect>
+       <rect height="7" rx="1" width="7" x="14" y="14">
+       </rect>
+      </svg>
+      <span>
+       Ringkasan
+      </span>
+     </button>
+     <button data-tab="ajukan" type="button">
+      <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewbox="0 0 24 24">
+       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M12 11v7M8.5 14.5h7">
+       </path>
+      </svg>
+      <span>
+       Ajukan Perubahan
+      </span>
+     </button>
+     <button data-tab="riwayat" type="button">
+      <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewbox="0 0 24 24">
+       <path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5m4-1v5l3 2">
+       </path>
+      </svg>
+      <span>
+       Riwayat Pengajuan
+      </span>
+     </button>
+     <button data-tab="admin" hidden="" id="adminNav" type="button">
+      <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewbox="0 0 24 24">
+       <path d="M12 22s8-3 8-10V5l-8-3-8 3v7c0 7 8 10 8 10zM9 12l2 2 4-4">
+       </path>
+      </svg>
+      <span>
+       Verifikasi Admin
+      </span>
+     </button>
+     <div class="sidebar-foot">
+      <a href="../profil-pbj/">
+       ← Kembali ke ORBITA
+      </a>
+      <small>
+       ORBITA PBJ · Kota Bogor
+      </small>
+     </div>
+    </nav>
+    <div class="workspace-content">
+     <div class="office-context">
+      <div>
+       <small>
+        LINGKUP DATA
+       </small>
+       <strong id="activeOffice">
+        Memuat satuan kerja…
+       </strong>
+       <span id="officeContextNote">
+        Data sesuai hak akses akun.
+       </span>
+      </div>
+      <label hidden="" id="officePanel">
+       Satuan kerja
+       <select id="officeChoice">
+        <option value="">
+         Pilih satuan kerja
+        </option>
+       </select>
+      </label>
+     </div>
+     <section class="tab-panel" id="tab-ringkasan">
+      <div class="overview">
+       <article class="metric">
+        <span>
+         RUP Penyedia diumumkan
+        </span>
+        <strong id="totalPenyedia">
+         Rp0
+        </strong>
+        <small id="numPenyedia">
+         — paket
+        </small>
+       </article>
+       <article class="metric">
+        <span>
+         RUP Swakelola diumumkan
+        </span>
+        <strong id="totalSwakelola">
+         Rp0
+        </strong>
+        <small id="numSwakelola">
+         — paket
+        </small>
+       </article>
+       <article class="metric">
+        <span>
+         Total Pengumuman RUP
+        </span>
+        <strong id="totalSemua">
+         Rp0
+        </strong>
+        <small id="numSemua">
+         — paket dalam satuan kerja
+        </small>
+       </article>
+       <article class="metric">
+        <span>
+         Permohonan yang dicatat
+        </span>
+        <strong id="totalRequest">
+         0
+        </strong>
+        <small id="numPending">
+         — pengajuan berjalan
+        </small>
+       </article>
+      </div>
+      <div class="summary-grid">
+       <section class="card summary-status">
+        <div class="section-head">
+         <div>
+          <h2>
+           Status permohonan
+          </h2>
+          <p>
+           Jumlah pengajuan pada lingkup riwayat akun.
+          </p>
+         </div>
+        </div>
+        <div class="status-summary" id="statusSummary">
+        </div>
+       </section>
+       <section class="card guide">
+        <div class="section-head">
+         <div>
+          <h2>
+           Alur permohonan SiRUP
+          </h2>
+          <p>
+           Perubahan RUP tetap dilakukan pada SiRUP resmi.
+          </p>
+         </div>
+        </div>
+        <ol class="guide-steps">
+         <li>
+          <b>
+           1
+          </b>
+          <div>
+           <strong>
+            Ajukan perubahan
+           </strong>
+           <small>
+            Pilih RUP, isi usulan, lampirkan surat PDF.
+           </small>
+          </div>
+         </li>
+         <li>
+          <b>
+           2
+          </b>
+          <div>
+           <strong>
+            Pemeriksaan admin
+           </strong>
+           <small>
+            Admin memeriksa usulan dan surat permohonan.
+           </small>
+          </div>
+         </li>
+         <li>
+          <b>
+           3
+          </b>
+          <div>
+           <strong>
+            Akses dibuka · 2×24 jam
+           </strong>
+           <small>
+            OPD memperbarui RUP saat akses tersedia.
+           </small>
+          </div>
+         </li>
+         <li>
+          <b>
+           4
+          </b>
+          <div>
+           <strong>
+            Akses ditutup dan dicocokkan
+           </strong>
+           <small>
+            Pantau hasil dan catatan admin di riwayat.
+           </small>
+          </div>
+         </li>
+        </ol>
+        <button class="button primary" data-go-tab="ajukan" type="button">
+         + Ajukan perubahan
+        </button>
+       </section>
+      </div>
+      <section class="card">
+       <div class="section-head">
+        <div>
+         <h2>
+          Pengajuan terbaru
+         </h2>
+         <p>
+          Pilih pengajuan untuk melihat tahapan dan catatannya.
+         </p>
+        </div>
+        <button class="button outline" data-go-tab="riwayat" type="button">
+         Lihat semua
+        </button>
+       </div>
+       <div class="recent-requests" id="recentRequests">
+       </div>
+      </section>
+     </section>
+     <section class="tab-panel" hidden="" id="tab-ajukan">
+      <div aria-label="Tahapan pengisian" class="form-progress">
+       <button data-jump="typePanel" type="button">
+        <b>
+         1
+        </b>
+        <span>
+         Pilih jenis &amp; RUP
+        </span>
+       </button>
+       <button data-jump="editPanel" type="button">
+        <b>
+         2
+        </b>
+        <span>
+         Isi perubahan
+        </span>
+       </button>
+       <button data-jump="batchPanel" type="button">
+        <b>
+         3
+        </b>
+        <span>
+         Periksa usulan &amp; pagu
+        </span>
+       </button>
+       <button data-jump="letterPanel" type="button">
+        <b>
+         4
+        </b>
+        <span>
+         Lampirkan &amp; kirim
+        </span>
+       </button>
+      </div>
+      <div class="card" id="typePanel">
+       <div class="section-head">
+        <div>
+         <span class="step">
+          01
+         </span>
+         <h2>
+          Jenis permohonan
+         </h2>
+         <p>
+          Pilih bentuk perubahan. Satu surat boleh berisi beberapa usulan sekaligus.
+         </p>
+        </div>
+       </div>
+       <div class="mode-grid" id="modeChooser">
+        <button class="mode-item active" data-mode="SATU_KE_SATU" type="button">
+         <span class="mode-icon">
+          ↗
+         </span>
+         <strong>
+          Revisi satu ke satu
+         </strong>
+         <small>
+          Perbaikan isi satu paket RUP yang sudah ada
+         </small>
+        </button>
+        <button class="mode-item" data-mode="SATU_KE_BANYAK" type="button">
+         <span class="mode-icon">
+          ⇉
+         </span>
+         <strong>
+          Revisi satu ke banyak
+         </strong>
+         <small>
+          Satu RUP dibagi menjadi dua paket atau lebih
+         </small>
+        </button>
+        <button class="mode-item" data-mode="PAKET_BARU" type="button">
+         <span class="mode-icon">
+          ＋
+         </span>
+         <strong>
+          Penambahan paket baru
+         </strong>
+         <small>
+          Paket baru tanpa memilih kode RUP lama
+         </small>
+        </button>
+        <button class="mode-item" data-mode="PEMBATALAN" type="button">
+         <span class="mode-icon">
+          ×
+         </span>
+         <strong>
+          Pembatalan paket
+         </strong>
+         <small>
+          Usulkan pembatalan RUP yang sudah diumumkan
+         </small>
+        </button>
+       </div>
+       <div class="category-bar">
+        <span>
+         Jenis RUP
+        </span>
+        <div class="choice-set" id="categoryChooser">
+         <button class="choice-item selected penyedia" data-category="Penyedia" type="button">
+          Penyedia
+         </button>
+         <button class="choice-item swakelola" data-category="Swakelola" type="button">
+          Swakelola
+         </button>
+        </div>
+        <span class="category-note" id="categoryHint">
+         Metode pemilihan mengikuti paket Penyedia.
+        </span>
+       </div>
+       <div id="oldRupSection">
+        <div class="section-subtitle">
+         Pilih RUP asal
+        </div>
+        <div class="filter-grid">
+         <label class="grow">
+          Cari kode RUP atau nama paket
+          <input autocomplete="off" id="rupSearch" placeholder="Cari kode atau nama paket" type="search"/>
+         </label>
+         <label class="grow">
+          Kode RUP
+          <select id="rupChoice">
+           <option value="">
+            Pilih RUP dari hasil pencarian
+           </option>
+          </select>
+         </label>
+        </div>
+        <div class="hint" id="rupSourceHint">
+         Pilih kode RUP untuk melihat data yang diumumkan.
+        </div>
+       </div>
+       <div hidden="" id="newRupSection">
+        <div class="section-subtitle">
+         Letak paket baru pada struktur kegiatan
+        </div>
+        <p class="muted">
+         Pilihan hanya berasal dari program, kegiatan, dan subkegiatan satuan kerja yang dipilih.
+        </p>
+        <div class="structure-grid">
+         <label>
+          Program
+          <select id="programChoice">
+           <option value="">
+            Pilih program
+           </option>
+          </select>
+         </label>
+         <label>
+          Kegiatan
+          <select id="kegiatanChoice">
+           <option value="">
+            Pilih kegiatan
+           </option>
+          </select>
+         </label>
+         <label>
+          Subkegiatan
+          <select id="subkegiatanChoice">
+           <option value="">
+            Pilih subkegiatan
+           </option>
+          </select>
+         </label>
+        </div>
+       </div>
+      </div>
+      <div class="card" hidden="" id="editPanel">
+       <div class="section-head">
+        <div>
+         <span class="step">
+          02
+         </span>
+         <h2 id="editHeading">
+          Rincian perubahan paket
+         </h2>
+         <p id="editDescription">
+          Pilih kolom yang diubah, kemudian masukkan nilai yang baru.
+         </p>
+        </div>
+       </div>
+       <div class="rup-identity" id="rupIdentity">
+       </div>
+       <div hidden="" id="cancelEdit">
+        <label>
+         Alasan pembatalan paket
+         <span class="required">
+          (wajib)
+         </span>
+         <textarea id="cancelReason" maxlength="2000" placeholder="Jelaskan alasan paket dibatalkan" rows="4"></textarea>
+        </label>
+        <p class="muted">
+         Pengajuan ini tidak langsung menghapus RUP di SiRUP. Admin akan memeriksa usulannya.
+        </p>
+       </div>
+       <div id="singleEdit">
+        <div class="field-head">
+         <span>
+          Kolom data
+         </span>
+         <span>
+          Data sekarang
+         </span>
+         <span>
+          Perubahan yang diminta
+         </span>
+        </div>
+        <div class="field-list" id="changeFields">
+        </div>
+       </div>
+       <div hidden="" id="packageEdit">
+        <div class="package-toolbar">
+         <div>
+          <strong id="packageSummary">
+           Rancangan paket
+          </strong>
+          <small>
+           Kode RUP baru belum ada. Nomor resmi akan muncul setelah SiRUP diperbarui.
+          </small>
+         </div>
+         <div class="add-package-actions">
+          <button class="button outline" hidden="" id="addPackage" type="button">
+           + Tambah paket
+          </button>
+          <button class="button outline penyedia-add" id="addProvider" type="button">
+           + Paket Penyedia
+          </button>
+          <button class="button outline swakelola-add" id="addSwakelola" type="button">
+           + Paket Swakelola
+          </button>
+         </div>
+        </div>
+        <div class="package-list" id="packageCards">
+        </div>
+        <div class="package-total" id="packageTotal" role="status">
+        </div>
+       </div>
+       <div class="queue-action">
+        <button class="button outline" id="stageRequest" type="button">
+         + Masukkan usulan ini ke surat
+        </button>
+        <span class="muted">
+         Gunakan tombol ini untuk menggabungkan beberapa revisi, paket baru, atau pembatalan dalam satu surat.
+        </span>
+       </div>
+      </div>
+      <div class="card request-batch" id="batchPanel">
+       <div class="section-head">
+        <div>
+         <span class="step">
+          03
+         </span>
+         <h2>
+          Daftar usulan dalam satu surat
+          <span class="queue-badge" id="batchCount">
+           0
+          </span>
+         </h2>
+         <p>
+          Masukkan usulan satu per satu. Admin dapat memeriksa setiap usulan secara terpisah.
+         </p>
+        </div>
+       </div>
+       <div class="batch-list" id="batchList">
+        <p class="muted">
+         Belum ada usulan yang dimasukkan. Isi rincian di atas, lalu pilih “Masukkan usulan ini ke surat”.
+        </p>
+       </div>
+      </div>
+      <div class="card budget-check" data-level="pending" hidden="" id="budgetCheck">
+       <div class="section-head">
+        <div>
+         <h2>
+          Periksa pagu sebelum mengirim
+         </h2>
+         <p>
+          Perubahan RUP dihitung bersama seluruh usulan dalam surat ini.
+         </p>
+        </div>
+        <button class="mini-btn" id="budgetRefresh" type="button">
+         Periksa ulang
+        </button>
+       </div>
+       <div class="budget-stats" id="budgetCheckStats">
+       </div>
+       <p id="budgetCheckMessage" role="status">
+        Menyiapkan pemeriksaan pagu…
+       </p>
+      </div>
+      <div class="card" hidden="" id="letterPanel">
+       <div class="section-head">
+        <div>
+         <span class="step">
+          04
+         </span>
+         <h2>
+          Surat permohonan
+         </h2>
+         <p id="letterHelp">
+          Satu surat PDF untuk seluruh usulan yang diajukan. Maksimal 5 MB.
+         </p>
+        </div>
+       </div>
+       <div class="letter-row">
+        <div class="letter-upload">
+         <input accept="application/pdf,.pdf" hidden="" id="letterFile" type="file"/>
+         <button class="button outline letter-pick" id="letterPick" type="button">
+          Pilih surat PDF
+         </button>
+         <button class="button outline letter-cancel" hidden="" id="letterCancel" type="button">
+          Batalkan surat
+         </button>
+         <span aria-live="polite" class="file-name" id="letterName" role="status">
+          Belum ada surat dipilih
+         </span>
+         <div aria-label="Upload surat PDF" aria-valuemax="100" aria-valuemin="0" class="letter-progress" hidden="" id="letterProgress" role="progressbar">
+          <span id="letterProgressBar">
+          </span>
+         </div>
+         <p class="letter-upload-note" hidden="" id="letterUploadNote">
+         </p>
+        </div>
+        <label>
+         Catatan singkat (opsional)
+         <textarea id="requestNote" maxlength="2500" placeholder="Contoh: Perubahan nilai pagu karena penyesuaian DPA" rows="3"></textarea>
+        </label>
+       </div>
+       <div class="sirup-contact">
+        <label for="requestEmail">
+         Email untuk pemberitahuan
+         <span class="required">
+          (wajib saat mengirim)
+         </span>
+         <input autocomplete="email" id="requestEmail" inputmode="email" maxlength="254" placeholder="nama@kotabogor.go.id" required="" type="email"/>
+        </label>
+        <small>
+         Pemberitahuan pembukaan akses atau penolakan permohonan dikirim ke alamat ini. Pastikan email aktif.
+        </small>
+       </div>
+       <div class="submit-row">
+        <span id="changeCount">
+         Belum ada kolom perubahan dipilih.
+        </span>
+        <div class="submit-buttons">
+         <button class="button outline" id="saveDraft" type="button">
+          Simpan draft
+         </button>
+         <button class="button primary" id="submitRequest" type="button">
+          Kirim permohonan
+         </button>
+        </div>
+       </div>
+      </div>
+     </section>
+     <section class="tab-panel" hidden="" id="tab-riwayat">
+      <div class="card">
+       <div class="section-head">
+        <div>
+         <h2>
+          Riwayat pengajuan
+         </h2>
+         <p>
+          Periksa apa yang dimohonkan, hasil verifikasi, serta perubahan yang ditemukan sesudahnya.
+         </p>
+        </div>
+        <button class="button outline" id="refreshHistory" type="button">
+         Perbarui
+        </button>
+       </div>
+       <div class="history-controls">
+        <input id="historySearch" placeholder="Cari kode RUP, paket, atau satuan kerja" type="search"/>
+        <select id="historyStatus">
+         <option value="">
+          Semua status
+         </option>
+         <option value="DRAF">
+          Draft
+         </option>
+         <option value="DIAJUKAN">
+          Diajukan
+         </option>
+         <option value="DIVERIFIKASI">
+          Diverifikasi
+         </option>
+         <option value="DITOLAK">
+          Ditolak
+         </option>
+         <option value="AKSES_DIBUKA">
+          Akses dibuka
+         </option>
+         <option value="DITUTUP">
+          Akses ditutup
+         </option>
+         <option value="SELESAI">
+          Sudah dibandingkan
+         </option>
+        </select>
+        <select id="historyPageSize">
+         <option value="10">
+          10 data
+         </option>
+         <option selected="" value="20">
+          20 data
+         </option>
+         <option value="50">
+          50 data
+         </option>
+         <option value="all">
+          Semua
+         </option>
+        </select>
+       </div>
+       <div class="scroll">
+        <table>
+         <thead>
+          <tr>
+           <th>
+            Pengajuan
+           </th>
+           <th>
+            Kode RUP / Paket
+           </th>
+           <th>
+            Satuan kerja
+           </th>
+           <th>
+            Status
+           </th>
+           <th>
+           </th>
+          </tr>
+         </thead>
+         <tbody id="requestRows">
+         </tbody>
+        </table>
+       </div>
+       <div class="pager" id="historyPager">
+       </div>
+      </div>
+     </section>
+     <section class="tab-panel" hidden="" id="tab-admin">
+      <div class="card admin-head">
+       <div>
+        <h2>
+         Pemeriksaan permohonan
+        </h2>
+        <p>
+         Verifikasi surat, catat pembukaan dan penutupan akses SiRUP, lalu cocokkan perubahan setelah 2×24 jam.
+        </p>
+       </div>
+       <button class="button outline" id="enableAuto" type="button">
+        Aktifkan pemantauan berkala
+       </button>
+      </div>
+      <div class="card">
+       <div class="section-head">
+        <div>
+         <h2>
+          Antrean pemeriksaan
+         </h2>
+         <p>
+          Pilih status untuk membuka daftar pengajuan yang perlu ditindaklanjuti.
+         </p>
+        </div>
+        <button class="button primary" id="openHistory" type="button">
+         Lihat semua
+        </button>
+       </div>
+       <div class="status-summary" id="adminSummary">
+       </div>
+       <div class="timeline-note">
+        Pemeriksaan hanya mencatat tindakan admin. Akses SiRUP resmi tetap dibuka dan ditutup melalui sistem yang berwenang.
+       </div>
+      </div>
+     </section>
+    </div>
+   </section>
+   <footer>
+    ORBITA PBJ Kota Bogor · Permohonan SiRUP
+   </footer>
+  </main>
+  <div class="overlay" hidden="" id="overlay">
+   <div class="overlay-card">
+    <span class="spinner">
+    </span>
+    <h3 id="loadingTitle">
+     Memproses data…
+    </h3>
+    <p id="loadingDetail">
+     Menghubungi layanan ORBITA
+    </p>
+    <strong hidden="" id="loadingPercent">
+     Menunggu layanan
+    </strong>
+    <div class="loading-overlay-track">
+     <i id="loadingBar">
+     </i>
+    </div>
+    <small class="loading-elapsed" hidden="" id="loadingElapsed" role="status">
+    </small>
+   </div>
+  </div>
+  <div class="modal-backdrop" hidden="" id="modal">
+   <div aria-labelledby="modalTitle" aria-modal="true" class="dialog" role="dialog">
+    <div class="dialog-top">
+     <div>
+      <small id="modalCaption">
+       PERMOHONAN SIRUP
+      </small>
+      <h2 id="modalTitle">
+       Rincian permohonan
+      </h2>
+     </div>
+     <button aria-label="Tutup" class="close" id="closeDialog" type="button">
+      ×
+     </button>
+    </div>
+    <div class="dialog-body" id="modalBody">
+    </div>
+    <div class="dialog-foot" id="modalFoot">
+    </div>
+   </div>
+  </div>
+  <script src="../assets/js/selection-config.js?v=28.71">
+  </script>
+  <script src="../assets/js/selection-api.js?v=29.22">
+  </script>
+  <script src="workspace.js?v=29.34">
+  </script>
+  <script src="permohonan.js?v=29.34">
+  </script>
+ </body>
+</html>
