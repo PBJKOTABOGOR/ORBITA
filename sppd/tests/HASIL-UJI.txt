@@ -1,0 +1,13 @@
+V1.3.0 — pengujian lokal dengan data simulasi
+PASS: node --check assets/app.js dan backend/Code.gs
+PASS: backend.test.cjs — akses, pagu, SBU, pencatatan, revisi biaya, pengarsipan, plafon gabungan, rincian fleksibel, nomor manual Sprint, nomor ganda lintas perjalanan ditolak.
+PASS: print.test.cjs — terbilang dan halaman cetak.
+PASS: session.test.cjs — sesi Node.
+PASS: master-browser.test.py — dashboard, formulir SPD, rekening, master, SBU.
+PASS: paging-browser.test.py — paging, pencarian, nomor manual, dialog, tanggal WIB.
+PASS: sbu-browser.test.py — tarif, cache detail, tambah/hapus rincian, subtotal merah, saldo transport, uang harian terpisah.
+Belum diuji: deployment produksi, sesi lintas halaman portal produksi, printer fisik, kecepatan jaringan produksi.
+
+V1.3.1: Node backend, sesi dan generator cetak lulus. Chromium dengan template HTML dan logo lokal sebagai data URI: PDF A4 2 halaman, logo tertanam, maksud perjalanan panjang dari Excel, draft 2 halaman, 2 peserta 4 halaman, judul file dan pemulihan judul lulus. Navigasi file lokal diblokir; tidak diuji pada deployment produksi, dialog Save as PDF aktual, atau printer fisik.
+
+V1.3.2: sintaks app.js dan print.js, backend.test.cjs, session.test.cjs, print.test.cjs, sbu-browser.test.py lulus. Browser simulasi menguji lima baris standar, tambah/hapus transport, hapus/tambah kembali penginapan, saldo transport, warna merah, dan cache. Generator diuji dengan struktur HTML, bukan cetak fisik. Deployment produksi belum diuji.
